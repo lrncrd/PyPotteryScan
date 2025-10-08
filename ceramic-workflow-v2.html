@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyPotteryScan - Archaeological Drawing Processor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .canvas-container {
+            overflow: auto;
+            max-height: 600px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .thumbnail {
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .thumbnail:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .thumbnail.active {
+            border: 3px solid #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+        
+        .thumbnail.annotated::after {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #10b981;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        #annotationCanvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .text-box-review {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 15px;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: white;
+        }
+
+        .text-box-review:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+
+        .text-box-preview {
+            width: 200px;
+            height: 100px;
+            object-fit: contain;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: #f9fafb;
+        }
+
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .splash-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+        }
+
+        .splash-log {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .splash-log p {
+            margin: 5px 0;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Splash Screen -->
+    <div id="splashScreen" class="splash-screen">
+        <div class="splash-content">
+            <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 120px; height: auto; margin: 0 auto 20px;">
+            <div class="spinner"></div>
+            <h1 class="text-3xl font-bold mb-4">PyPotteryScan</h1>
+            <p class="text-lg mb-6">Loading OlmOCR-7B Model...</p>
+            <div class="splash-log" id="splashLog">
+                <p>Checking server connection...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="min-h-screen p-6">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 60px; max-height: 60px; height: auto; width: auto;">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">PyPotteryScan</h1>
+                            <p class="text-gray-600">AI-powered archaeological drawing extraction and OCR annotation tool</p>
+                        </div>
+                    </div>
+                    <button id="infoBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        ℹ️ Info
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Modal -->
+            <div id="infoModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 48px; max-height: 48px; height: auto; width: auto;">
+                            <h2 class="text-2xl font-bold text-gray-800">PyPotteryScan</h2>
+                        </div>
+                        <button id="closeInfoBtn" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-semibold text-gray-700 mb-2">Description</h3>
+                            <p class="text-gray-600 text-sm">
+                                PyPotteryScan is an AI-powered tool for archaeological drawing processing. 
+                                It uses state-of-the-art OCR technology (OlmOCR-7B) to automatically extract 
+                                and annotate text from ceramic artifact drawings, streamlining the 
+                                documentation workflow for archaeologists and researchers.
+                            </p>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-700 mb-2">Features</h3>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li>✓ Batch image processing with bounding box annotation</li>
+                                <li>✓ Advanced OCR with OlmOCR-7B (4-bit quantized)</li>
+                                <li>✓ Interactive drawing cleanup with eraser tool</li>
+                                <li>✓ Manual and automatic text extraction modes</li>
+                                <li>✓ Structured export with CSV metadata</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-700 mb-2">Author</h3>
+                            <p class="text-gray-600 text-sm">
+                                <strong>Lorenzo Cardarelli</strong><br>
+                                Archaeological Tool Development
+                            </p>
+                        </div>
+                        <div class="text-center text-xs text-gray-500 pt-4 border-t">
+                            Version 2.0 - 2025
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="bg-white rounded-t-lg shadow-lg overflow-hidden">
+                <div class="flex border-b-2 border-gray-200 overflow-x-auto">
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition active whitespace-nowrap" data-tab="load">
+                        1. Load
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="annotate" disabled>
+                        2. Annotate
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="process" disabled>
+                        3. Process OCR
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="clean" disabled>
+                        4. Clean Drawings
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="review" disabled>
+                        5. Review Texts
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="export" disabled>
+                        6. Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="bg-white rounded-b-lg shadow-lg p-6">
+                
+                <!-- TAB 1: Load Images -->
+                <div class="tab-content active" data-tab="load">
+                    <div class="text-center py-12">
+                        <h2 class="text-2xl font-bold mb-4">📁 Select Folder with Images</h2>
+                        <p class="text-gray-600 mb-8">Choose a folder containing your ceramic plate scans (JPG, PNG)</p>
+                        <button id="selectFolderBtn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg">
+                            📂 Select Folder
+                        </button>
+                        
+                        <div id="folderInfo" class="mt-8 hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
+                                <p class="text-sm"><strong>Folder:</strong> <span id="folderName">-</span></p>
+                                <p class="text-sm"><strong>Images:</strong> <span id="imageCount">0</span></p>
+                            </div>
+                            
+                            <div id="imagesList" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6 max-w-4xl mx-auto"></div>
+                            
+                            <button id="startAnnotationBtn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                Start Annotation →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Annotate -->
+                <div class="tab-content hidden" data-tab="annotate">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Canvas Area -->
+                        <div class="lg:col-span-2">
+                            <div class="mb-4 flex gap-2 items-center justify-between flex-wrap">
+                                <div class="flex gap-2">
+                                    <button id="prevImageBtn" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">← Prev</button>
+                                    <span id="imageIndicator" class="px-3 py-2 bg-gray-100 rounded font-semibold text-sm">1 / 1</span>
+                                    <button id="nextImageBtn" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Next →</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="newDrawingBtn" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                                        + Drawing
+                                    </button>
+                                    <button id="clearCurrentBtn" class="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="statusBar" class="mb-4 p-3 rounded-lg hidden text-sm"></div>
+                            
+                            <div class="canvas-container">
+                                <canvas id="annotationCanvas" class="cursor-crosshair border-2 border-gray-300 bg-white"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar -->
+                        <div class="space-y-4">
+                            <!-- Image Metadata -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="font-bold mb-3 text-sm">📝 Image Metadata</h3>
+                                <div class="space-y-2">
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">Table/Plate:</label>
+                                        <input type="text" id="tableName" class="w-full px-2 py-1 border rounded text-sm" placeholder="Tavola I">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">Context:</label>
+                                        <input type="text" id="contextInfo" class="w-full px-2 py-1 border rounded text-sm" placeholder="Bronze Age">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold mb-1">Notes:</label>
+                                        <textarea id="notesInfo" class="w-full px-2 py-1 border rounded text-sm" rows="2"></textarea>
+                                    </div>
+                                    <button id="saveMetadataBtn" class="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                                        💾 Save Metadata
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Drawings List -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="font-bold mb-3 text-sm">🖼️ Drawings</h3>
+                                <div id="drawingsList" class="space-y-2 max-h-80 overflow-y-auto">
+                                    <p class="text-xs text-gray-500">Draw rectangles to mark vessels</p>
+                                </div>
+                            </div>
+
+                            <!-- Progress -->
+                            <div class="bg-blue-50 rounded-lg p-3">
+                                <p class="text-xs font-semibold" id="annotationProgress">0 / 0 images completed</p>
+                            </div>
+
+                            <button id="finishAnnotationBtn" class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold">
+                                Finish & Process OCR →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: Process OCR -->
+                <div class="tab-content hidden" data-tab="process">
+                    <div class="text-center py-12">
+                        <h2 class="text-2xl font-bold mb-4">🔍 OCR Processing</h2>
+                        <p class="text-gray-600 mb-8">Processing text areas from all annotated plates</p>
+                        
+                        <div class="max-w-3xl mx-auto mb-8">
+                            <div class="bg-gray-200 rounded-full h-8 overflow-hidden">
+                                <div id="ocrProgressBar" class="bg-gradient-to-r from-blue-500 to-green-500 h-full flex items-center justify-center text-white font-bold transition-all" style="width: 0%">
+                                    0%
+                                </div>
+                            </div>
+                            <p id="ocrProgressText" class="mt-2 text-sm text-gray-600">Ready to start</p>
+                        </div>
+
+                        <button id="startOcrBtn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-lg mb-4">
+                            🚀 Start OCR Processing
+                        </button>
+                        
+                        <button id="skipOcrBtn" class="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-lg mb-8 ml-4">
+                            ✍️ Skip OCR (Manual Input)
+                        </button>
+
+                        <div id="ocrLog" class="max-w-4xl mx-auto text-left bg-gray-900 text-green-400 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-xs hidden"></div>
+
+                        <button id="proceedCleanBtn" class="mt-8 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 hidden">
+                            Continue to Clean Drawings →
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 4: Clean Drawings (NEW) -->
+                <div class="tab-content hidden" data-tab="clean">
+                    <div class="py-8">
+                        <h2 class="text-2xl font-bold mb-4 text-center">🎨 Clean Drawings</h2>
+                        <p class="text-gray-600 mb-8 text-center">Review extracted drawings and use eraser to remove unwanted areas</p>
+
+                        <div class="mb-4 flex justify-between items-center max-w-4xl mx-auto">
+                            <div class="flex gap-2">
+                                <button id="prevCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">← Previous</button>
+                                <span id="cleanIndicator" class="px-4 py-2 bg-gray-100 rounded font-semibold">1 / 1</span>
+                                <button id="nextCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Next →</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="eraserBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                    🧹 Eraser Tool
+                                </button>
+                                <button id="undoEraseBtn" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
+                                    ↶ Undo
+                                </button>
+                                <button id="markCleanBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                                    ✓ Mark as Clean
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="max-w-4xl mx-auto bg-gray-50 rounded-lg p-6">
+                            <div class="mb-4 bg-white rounded p-4">
+                                <p class="text-sm"><strong>Plate:</strong> <span id="cleanPlate">-</span></p>
+                                <p class="text-sm"><strong>Drawing:</strong> <span id="cleanDrawingId">-</span></p>
+                                <div class="mt-2 flex gap-2 items-center">
+                                    <label class="text-sm font-semibold">Eraser Size:</label>
+                                    <input type="range" id="eraserSize" min="5" max="100" value="20" class="w-32">
+                                    <span id="eraserSizeDisplay" class="text-sm">20px</span>
+                                </div>
+                            </div>
+                            <div id="cleanStatusBar" class="mb-4 p-3 rounded-lg bg-gray-100 text-sm text-center hidden">
+                                Ready
+                            </div>
+                            <div class="bg-white rounded-lg p-4 text-center canvas-container">
+                                <canvas id="cleanCanvas" style="max-width: 100%; cursor: crosshair; border: 2px solid #d1d5db; border-radius: 4px;"></canvas>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-4 text-center">
+                                Click and drag with the eraser tool to remove unwanted areas from the drawing
+                            </p>
+                        </div>
+
+                        <div class="text-center mt-8">
+                            <button id="proceedReviewBtn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                Continue to Review Texts →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: Review Texts (REDESIGNED) -->
+                <div class="tab-content hidden" data-tab="review">
+                    <div class="py-8">
+                        <h2 class="text-2xl font-bold mb-4 text-center">✏️ Review & Correct OCR Results</h2>
+                        <p class="text-gray-600 mb-8 text-center">Review each text box and correct OCR errors</p>
+
+                        <div class="max-w-5xl mx-auto">
+                            <div id="reviewContainer" class="space-y-4"></div>
+                        </div>
+
+                        <div class="text-center mt-8">
+                            <button id="proceedExportBtn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                Continue to Export →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 6: Export -->
+                <div class="tab-content hidden" data-tab="export">
+                    <div class="text-center py-12">
+                        <h2 class="text-2xl font-bold mb-4">📦 Export Results</h2>
+                        <p class="text-gray-600 mb-8">Download processed drawings and OCR data</p>
+
+                        <div class="max-w-2xl mx-auto bg-gray-50 rounded-lg p-6 mb-8 text-left">
+                            <h3 class="font-bold mb-4">Summary</h3>
+                            <div class="space-y-2 text-sm">
+                                <p><strong>Total Plates:</strong> <span id="exportTotalPlates">0</span></p>
+                                <p><strong>Total Drawings:</strong> <span id="exportTotalDrawings">0</span></p>
+                                <p><strong>OCR Processed:</strong> <span id="exportOcrCount">0</span></p>
+                                <p><strong>Manual Corrections:</strong> <span id="exportCorrectionCount">0</span></p>
+                            </div>
+                        </div>
+
+                        <div class="max-w-md mx-auto mb-8">
+                            <label class="block text-sm font-semibold mb-2">Export Prefix:</label>
+                            <input type="text" id="exportPrefix" class="w-full px-4 py-2 border rounded" value="ceramic" placeholder="e.g., SantaGiulia_2015">
+                        </div>
+
+                        <button id="exportBtn" class="px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-lg">
+                            � Save to Folder (Images + CSV)
+                        </button>
+
+                        <p class="mt-4 text-sm text-gray-500">
+                            Export saves: extracted drawings as images in /images/ subfolder + CSV with all metadata and OCR results
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check server and poll loading status
+        async function checkServer() {
+            const log = document.getElementById('splashLog');
+            log.innerHTML = '<p>🔌 Connecting to OCR server...</p>';
+            
+            // Poll loading status every 500ms
+            const pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('http://localhost:5001/loading_status');
+                    const status = await response.json();
+                    
+                    // Update log based on status
+                    if (status.stage === 'starting') {
+                        log.innerHTML = `<p style="color: #60a5fa;">⏳ ${status.message}</p>`;
+                    } else if (status.stage === 'checking') {
+                        log.innerHTML = `<p style="color: #60a5fa;">🔍 ${status.message}</p>`;
+                    } else if (status.stage === 'loading') {
+                        log.innerHTML = `<p style="color: #fbbf24;">📦 ${status.message}</p>`;
+                        log.innerHTML += `<p style="color: #4ade80;">⏳ Progress: ${status.progress}%</p>`;
+                    } else if (status.stage === 'finalizing') {
+                        log.innerHTML = `<p style="color: #4ade80;">✨ ${status.message}</p>`;
+                    } else if (status.stage === 'ready') {
+                        clearInterval(pollInterval);
+                        
+                        // Get final health check
+                        const healthResponse = await fetch('http://localhost:5001/health');
+                        const healthData = await healthResponse.json();
+                        
+                        log.innerHTML = `<p style="color: #4ade80;">✓ Server online: ${healthData.status}</p>`;
+                        log.innerHTML += `<p style="color: #4ade80;">✓ Model: ${healthData.model}</p>`;
+                        log.innerHTML += `<p style="color: #4ade80;">✓ Device: ${healthData.device}</p>`;
+                        log.innerHTML += `<p style="color: #4ade80;">✓ CUDA: ${healthData.cuda_available ? 'Available' : 'CPU Mode'}</p>`;
+                        log.innerHTML += '<p style="color: #4ade80; font-weight: bold;">✓ Ready to start!</p>';
+                        
+                        setTimeout(() => {
+                            document.getElementById('splashScreen').style.display = 'none';
+                        }, 1500);
+                    } else if (status.stage === 'error') {
+                        clearInterval(pollInterval);
+                        log.innerHTML = `<p style="color: #f87171;">✗ Error: ${status.message}</p>`;
+                        log.innerHTML += '<p style="color: #fbbf24;">Please check the console for details</p>';
+                    }
+                } catch (err) {
+                    // Server not ready yet, keep polling
+                }
+            }, 500);
+            
+            // Timeout after 3 minutes
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                log.innerHTML += '<p style="color: #f87171;">✗ Timeout: Model loading took too long</p>';
+            }, 180000);
+        }
+
+        checkServer();
+
+        // Info Modal
+        document.getElementById('infoBtn').addEventListener('click', () => {
+            document.getElementById('infoModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closeInfoBtn').addEventListener('click', () => {
+            document.getElementById('infoModal').classList.add('hidden');
+        });
+
+        document.getElementById('infoModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('infoModal')) {
+                document.getElementById('infoModal').classList.add('hidden');
+            }
+        });
+
+        // Global state
+        const state = {
+            images: [],
+            currentImageIndex: 0,
+            annotations: {}, // { imageName: { metadata, drawings: [] } }
+            ocrResults: {},  // { key: text }
+            corrections: {}, // { key: correctedText }
+            cleanedDrawings: {}, // { key: true/false }
+            
+            // Canvas state
+            fullResImages: {}, // Store original images
+            drawings: [],
+            selectedDrawing: null,
+            isDrawing: false,
+            mode: 'idle',
+            currentBox: null
+        };
+
+        let canvas, ctx, currentImage = null, displayScale = 1;
+
+        // Tab Management
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                switchTab(btn.dataset.tab);
+            });
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.dataset.tab === tabName) {
+                    btn.classList.add('active', 'bg-blue-600', 'text-white');
+                    btn.classList.remove('bg-white', 'text-gray-700');
+                } else {
+                    btn.classList.remove('active', 'bg-blue-600', 'text-white');
+                    btn.classList.add('bg-white', 'text-gray-700');
+                }
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                if (content.dataset.tab === tabName) {
+                    content.classList.remove('hidden');
+                    content.classList.add('active');
+                } else {
+                    content.classList.add('hidden');
+                    content.classList.remove('active');
+                }
+            });
+        }
+
+        function enableTab(tabName) {
+            const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+            if (btn) btn.disabled = false;
+        }
+
+        // TAB 1: Load Images
+        document.getElementById('selectFolderBtn').addEventListener('click', async () => {
+            try {
+                const dirHandle = await window.showDirectoryPicker();
+                state.images = [];
+                
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        const file = await entry.getFile();
+                        if (file.type.startsWith('image/')) {
+                            state.images.push({
+                                name: file.name,
+                                file: file,
+                                url: URL.createObjectURL(file)
+                            });
+                        }
+                    }
+                }
+
+                if (state.images.length === 0) {
+                    alert('No images found in the selected folder');
+                    return;
+                }
+
+                document.getElementById('folderName').textContent = dirHandle.name;
+                document.getElementById('imageCount').textContent = state.images.length;
+                document.getElementById('folderInfo').classList.remove('hidden');
+
+                // Show thumbnails (small preview)
+                const list = document.getElementById('imagesList');
+                list.innerHTML = '';
+                state.images.forEach((img, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'thumbnail relative cursor-pointer border-2 border-gray-300 rounded overflow-hidden';
+                    div.innerHTML = `
+                        <img src="${img.url}" class="w-full h-24 object-cover">
+                        <p class="text-xs text-center p-1 bg-gray-100 truncate" title="${img.name}">${img.name}</p>
+                    `;
+                    div.addEventListener('click', () => {
+                        state.currentImageIndex = idx;
+                        loadImageForAnnotation();
+                        enableTab('annotate');
+                        switchTab('annotate');
+                    });
+                    list.appendChild(div);
+                });
+
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error selecting folder');
+            }
+        });
+
+        document.getElementById('startAnnotationBtn').addEventListener('click', () => {
+            if (state.images.length === 0) return;
+            state.currentImageIndex = 0;
+            enableTab('annotate');
+            switchTab('annotate');
+            loadImageForAnnotation();
+        });
+
+        // TAB 2: Annotation with Canvas (RESPONSIVE)
+        function loadImageForAnnotation() {
+            const img = state.images[state.currentImageIndex];
+            
+            if (!state.annotations[img.name]) {
+                // Extract filename without extension for table name
+                const fileNameWithoutExt = img.name.replace(/\.[^/.]+$/, '');
+                
+                state.annotations[img.name] = {
+                    metadata: { tableName: fileNameWithoutExt, context: '', notes: '' },
+                    drawings: []
+                };
+            }
+
+            const annotation = state.annotations[img.name];
+            state.drawings = annotation.drawings;
+
+            document.getElementById('tableName').value = annotation.metadata.tableName || '';
+            document.getElementById('contextInfo').value = annotation.metadata.context || '';
+            document.getElementById('notesInfo').value = annotation.metadata.notes || '';
+            document.getElementById('imageIndicator').textContent = `${state.currentImageIndex + 1} / ${state.images.length}`;
+
+            // Load FULL RES image
+            const fullResImage = new Image();
+            fullResImage.onload = () => {
+                state.fullResImages[img.name] = fullResImage;
+                currentImage = fullResImage;
+                initCanvas();
+            };
+            fullResImage.src = img.url;
+
+            updateAnnotationUI();
+            updateProgress();
+        }
+
+        function initCanvas() {
+            if (!canvas) {
+                canvas = document.getElementById('annotationCanvas');
+                ctx = canvas.getContext('2d');
+                
+                canvas.addEventListener('mousedown', handleMouseDown);
+                canvas.addEventListener('mousemove', handleMouseMove);
+                canvas.addEventListener('mouseup', handleMouseUp);
+            }
+
+            // Set canvas to full resolution
+            canvas.width = currentImage.width;
+            canvas.height = currentImage.height;
+            
+            // Calculate display scale for responsiveness
+            const container = canvas.parentElement;
+            const maxWidth = container.clientWidth - 20;
+            displayScale = Math.min(1, maxWidth / currentImage.width);
+            
+            drawCanvas();
+        }
+
+        function drawCanvas() {
+            if (!currentImage) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(currentImage, 0, 0);
+
+            state.drawings.forEach((drawing, idx) => {
+                const isSelected = state.selectedDrawing === idx;
+                
+                ctx.strokeStyle = isSelected ? '#10b981' : '#3b82f6';
+                ctx.lineWidth = isSelected ? 4 : 3;
+                ctx.strokeRect(drawing.x, drawing.y, drawing.w, drawing.h);
+                
+                ctx.fillStyle = isSelected ? '#10b981' : '#3b82f6';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.fillText(`D${idx + 1}`, drawing.x, drawing.y - 8);
+
+                drawing.textBoxes.forEach((textBox, tIdx) => {
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(textBox.x, textBox.y, textBox.w, textBox.h);
+                    
+                    ctx.fillStyle = '#ef4444';
+                    ctx.font = '14px sans-serif';
+                    ctx.fillText(`T${tIdx + 1}`, textBox.x, textBox.y - 5);
+
+                    drawArrow(
+                        textBox.x + textBox.w / 2,
+                        textBox.y + textBox.h / 2,
+                        drawing.x + drawing.w / 2,
+                        drawing.y + drawing.h / 2,
+                        '#22c55e'
+                    );
+                });
+            });
+
+            if (state.currentBox) {
+                const color = state.mode === 'drawing' ? '#3b82f6' : '#ef4444';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(state.currentBox.x, state.currentBox.y, state.currentBox.w, state.currentBox.h);
+                ctx.setLineDash([]);
+            }
+        }
+
+        function drawArrow(x1, y1, x2, y2, color) {
+            const headlen = 15;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI / 6), y2 - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI / 6), y2 - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function handleMouseDown(e) {
+            if (state.mode === 'idle') return;
+            const coords = getCanvasCoords(e);
+            state.isDrawing = true;
+            state.currentBox = { x: coords.x, y: coords.y, w: 0, h: 0 };
+        }
+
+        function handleMouseMove(e) {
+            if (!state.isDrawing || !state.currentBox) return;
+            const coords = getCanvasCoords(e);
+            state.currentBox.w = coords.x - state.currentBox.x;
+            state.currentBox.h = coords.y - state.currentBox.y;
+            drawCanvas();
+        }
+
+        function handleMouseUp() {
+            if (!state.currentBox || Math.abs(state.currentBox.w) < 10 || Math.abs(state.currentBox.h) < 10) {
+                state.isDrawing = false;
+                state.currentBox = null;
+                return;
+            }
+
+            const box = {
+                x: state.currentBox.w < 0 ? state.currentBox.x + state.currentBox.w : state.currentBox.x,
+                y: state.currentBox.h < 0 ? state.currentBox.y + state.currentBox.h : state.currentBox.y,
+                w: Math.abs(state.currentBox.w),
+                h: Math.abs(state.currentBox.h)
+            };
+
+            if (state.mode === 'drawing') {
+                state.drawings.push({
+                    x: box.x,
+                    y: box.y,
+                    w: box.w,
+                    h: box.h,
+                    textBoxes: []
+                });
+                state.mode = 'idle';
+                saveCurrentAnnotations();
+            } else if (state.mode === 'text' && state.selectedDrawing !== null) {
+                state.drawings[state.selectedDrawing].textBoxes.push(box);
+                saveCurrentAnnotations();
+            }
+
+            state.isDrawing = false;
+            state.currentBox = null;
+            drawCanvas();
+            updateAnnotationUI();
+        }
+
+        function saveCurrentAnnotations() {
+            const img = state.images[state.currentImageIndex];
+            state.annotations[img.name].drawings = state.drawings;
+        }
+
+        function updateAnnotationUI() {
+            const list = document.getElementById('drawingsList');
+            
+            if (state.drawings.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-500">Draw rectangles to mark vessels</p>';
+            } else {
+                list.innerHTML = state.drawings.map((d, idx) => {
+                    const isSelected = state.selectedDrawing === idx;
+                    return `
+                        <div class="p-2 rounded border-2 ${isSelected ? 'border-green-400 bg-green-50' : 'border-blue-300 bg-blue-50'}">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-blue-700 text-xs">D${idx + 1}</span>
+                                <button onclick="deleteDrawing(${idx})" class="text-red-600 hover:text-red-800 text-xs">✗</button>
+                            </div>
+                            <p class="text-xs text-gray-600">Texts: ${d.textBoxes.length}</p>
+                            <button onclick="addTextArea(${idx})" class="w-full px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 mt-1">
+                                + Text
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const statusBar = document.getElementById('statusBar');
+            if (state.mode === 'drawing') {
+                statusBar.className = 'mb-4 p-3 rounded-lg bg-blue-100 border-2 border-blue-400 text-sm';
+                statusBar.innerHTML = '<strong>DRAWING MODE:</strong> Draw rectangle around vessel';
+                statusBar.classList.remove('hidden');
+            } else if (state.mode === 'text') {
+                statusBar.className = 'mb-4 p-3 rounded-lg bg-red-100 border-2 border-red-400 text-sm';
+                statusBar.innerHTML = `<strong>TEXT MODE:</strong> Draw rectangles around text for D${state.selectedDrawing + 1}`;
+                statusBar.classList.remove('hidden');
+            } else {
+                statusBar.classList.add('hidden');
+            }
+        }
+
+        function updateProgress() {
+            const completed = Object.keys(state.annotations).filter(name => {
+                const ann = state.annotations[name];
+                return ann.drawings.length > 0 && ann.metadata.tableName;
+            }).length;
+            
+            document.getElementById('annotationProgress').textContent = `${completed} / ${state.images.length} images completed`;
+            
+            const thumbnails = document.getElementById('imagesList').children;
+            state.images.forEach((img, idx) => {
+                const ann = state.annotations[img.name];
+                if (ann && ann.drawings.length > 0 && ann.metadata.tableName) {
+                    thumbnails[idx]?.classList.add('annotated');
+                }
+                if (idx === state.currentImageIndex) {
+                    thumbnails[idx]?.classList.add('active');
+                } else {
+                    thumbnails[idx]?.classList.remove('active');
+                }
+            });
+        }
+
+        window.addTextArea = function(drawingIdx) {
+            state.selectedDrawing = drawingIdx;
+            state.mode = 'text';
+            drawCanvas();
+            updateAnnotationUI();
+        };
+
+        window.deleteDrawing = function(drawingIdx) {
+            state.drawings.splice(drawingIdx, 1);
+            if (state.selectedDrawing === drawingIdx) {
+                state.selectedDrawing = null;
+                state.mode = 'idle';
+            }
+            saveCurrentAnnotations();
+            drawCanvas();
+            updateAnnotationUI();
+            updateProgress();
+        };
+
+        // Navigation
+        document.getElementById('prevImageBtn').addEventListener('click', () => {
+            if (state.currentImageIndex > 0) {
+                state.currentImageIndex--;
+                state.mode = 'idle';
+                state.selectedDrawing = null;
+                loadImageForAnnotation();
+            }
+        });
+
+        document.getElementById('nextImageBtn').addEventListener('click', () => {
+            if (state.currentImageIndex < state.images.length - 1) {
+                state.currentImageIndex++;
+                state.mode = 'idle';
+                state.selectedDrawing = null;
+                loadImageForAnnotation();
+            }
+        });
+
+        document.getElementById('newDrawingBtn').addEventListener('click', () => {
+            state.mode = 'drawing';
+            state.selectedDrawing = null;
+            updateAnnotationUI();
+        });
+
+        document.getElementById('clearCurrentBtn').addEventListener('click', () => {
+            if (confirm('Clear all drawings on this image?')) {
+                state.drawings = [];
+                state.mode = 'idle';
+                state.selectedDrawing = null;
+                saveCurrentAnnotations();
+                drawCanvas();
+                updateAnnotationUI();
+                updateProgress();
+            }
+        });
+
+        document.getElementById('saveMetadataBtn').addEventListener('click', () => {
+            const img = state.images[state.currentImageIndex];
+            state.annotations[img.name].metadata = {
+                tableName: document.getElementById('tableName').value,
+                context: document.getElementById('contextInfo').value,
+                notes: document.getElementById('notesInfo').value
+            };
+            updateProgress();
+            alert('Metadata saved!');
+        });
+
+        document.getElementById('finishAnnotationBtn').addEventListener('click', () => {
+            const hasAnnotations = Object.values(state.annotations).some(a => a.drawings.length > 0);
+            if (!hasAnnotations) {
+                alert('Please annotate at least one image before proceeding');
+                return;
+            }
+            enableTab('process');
+            switchTab('process');
+        });
+
+        // TAB 3: Process OCR (MORE VERBOSE)
+        document.getElementById('startOcrBtn').addEventListener('click', async () => {
+            const log = document.getElementById('ocrLog');
+            const progressBar = document.getElementById('ocrProgressBar');
+            const progressText = document.getElementById('ocrProgressText');
+            
+            log.classList.remove('hidden');
+            log.innerHTML = '';
+            document.getElementById('startOcrBtn').disabled = true;
+            document.getElementById('skipOcrBtn').disabled = true;
+
+            let totalTexts = 0;
+            let processedTexts = 0;
+
+            // Count total text boxes
+            for (const imgName in state.annotations) {
+                const ann = state.annotations[imgName];
+                ann.drawings.forEach(d => {
+                    totalTexts += d.textBoxes.length;
+                });
+            }
+
+            if (totalTexts === 0) {
+                alert('No text areas to process!');
+                document.getElementById('startOcrBtn').disabled = false;
+                document.getElementById('skipOcrBtn').disabled = false;
+                return;
+            }
+
+            log.innerHTML += `<p style="color: #60a5fa;">═══════════════════════════════</p>`;
+            log.innerHTML += `<p style="color: #60a5fa;">🔍 Starting OCR Processing</p>`;
+            log.innerHTML += `<p style="color: #60a5fa;">═══════════════════════════════</p>`;
+            log.innerHTML += `<p>Total text boxes to process: ${totalTexts}</p>\n`;
+
+            // Process each image's drawings
+            for (const imgName in state.annotations) {
+                const ann = state.annotations[imgName];
+                const img = state.images.find(i => i.name === imgName);
+                if (!img) continue;
+
+                log.innerHTML += `<p style="color: #fbbf24;">📄 Image: ${imgName}</p>`;
+
+                // Use full res image
+                const imgElement = state.fullResImages[imgName];
+                if (!imgElement) continue;
+
+                // Process each drawing
+                for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
+                    const drawing = ann.drawings[dIdx];
+                    const key = `${imgName}_d${dIdx + 1}`;
+                    
+                    log.innerHTML += `<p style="color: #a78bfa;">  🖼️  Drawing ${dIdx + 1} (${drawing.textBoxes.length} text boxes)</p>`;
+                    
+                    const recognizedTexts = [];
+
+                    // Process each text box
+                    for (let tIdx = 0; tIdx < drawing.textBoxes.length; tIdx++) {
+                        const textBox = drawing.textBoxes[tIdx];
+                        
+                        log.innerHTML += `<p style="color: #cbd5e1;">     ⏳ Processing T${tIdx + 1} (${Math.round(textBox.w)}x${Math.round(textBox.h)}px)...</p>`;
+                        
+                        // Extract text area from FULL RES image
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCanvas.width = textBox.w;
+                        tempCanvas.height = textBox.h;
+                        tempCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
+                        
+                        const textImageData = tempCanvas.toDataURL('image/png');
+
+                        try {
+                            const response = await fetch('http://localhost:5001/ocr', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ image: textImageData })
+                            });
+
+                            const result = await response.json();
+                            if (result.success) {
+                                recognizedTexts.push(result.text || 'No text');
+                                log.innerHTML += `<p style="color: #4ade80;">     ✓ T${tIdx + 1}: "${result.text}"</p>`;
+                            } else {
+                                recognizedTexts.push('Error');
+                                log.innerHTML += `<p style="color: #f87171;">     ✗ T${tIdx + 1}: OCR Error</p>`;
+                            }
+                        } catch (err) {
+                            recognizedTexts.push('Error');
+                            log.innerHTML += `<p style="color: #f87171;">     ✗ T${tIdx + 1}: ${err.message}</p>`;
+                        }
+
+                        processedTexts++;
+                        const percent = Math.round((processedTexts / totalTexts) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressBar.textContent = percent + '%';
+                        progressText.textContent = `Processed ${processedTexts} of ${totalTexts} text boxes`;
+                        log.scrollTop = log.scrollHeight;
+                    }
+
+                    state.ocrResults[key] = recognizedTexts;
+                    log.innerHTML += `<p style="color: #4ade80;">  ✓ Drawing ${dIdx + 1} complete: ${recognizedTexts.length} texts</p>\n`;
+                }
+            }
+
+            log.innerHTML += `<p style="color: #4ade80;">\n═══════════════════════════════</p>`;
+            log.innerHTML += `<p style="color: #4ade80; font-weight: bold;">✓ All OCR processing complete!</p>`;
+            log.innerHTML += `<p style="color: #4ade80;">═══════════════════════════════</p>`;
+            
+            document.getElementById('proceedCleanBtn').classList.remove('hidden');
+            enableTab('clean');
+        });
+
+        // Skip OCR button - proceed directly to manual input
+        document.getElementById('skipOcrBtn').addEventListener('click', () => {
+            if (confirm('Skip OCR and input text manually in Review tab?')) {
+                const log = document.getElementById('ocrLog');
+                log.classList.remove('hidden');
+                log.innerHTML = '<p style="color: #fbbf24;">⚠️  OCR skipped - you will enter text manually in Review tab</p>';
+                
+                document.getElementById('startOcrBtn').disabled = true;
+                document.getElementById('skipOcrBtn').disabled = true;
+                document.getElementById('proceedCleanBtn').classList.remove('hidden');
+                enableTab('clean');
+            }
+        });
+
+        document.getElementById('proceedCleanBtn').addEventListener('click', () => {
+            switchTab('clean');
+            loadClean(0);
+        });
+
+        // TAB 4: Clean Drawings with Eraser
+        let cleanIndex = 0;
+        let cleanItems = [];
+        let cleanCanvas, cleanCtx;
+        let isErasing = false;
+        let eraserMode = false;
+        let eraserSize = 20;
+        let undoStack = [];
+        let cleanDisplayScale = 1; // For thumbnail display
+
+        function loadClean(idx) {
+            cleanItems = [];
+            
+            for (const imgName in state.annotations) {
+                const ann = state.annotations[imgName];
+                ann.drawings.forEach((d, dIdx) => {
+                    const key = `${imgName}_d${dIdx + 1}`;
+                    cleanItems.push({
+                        imgName,
+                        drawingIdx: dIdx,
+                        drawing: d,
+                        metadata: ann.metadata,
+                        key
+                    });
+                });
+            }
+
+            if (cleanItems.length === 0) return;
+
+            cleanIndex = idx;
+            const item = cleanItems[cleanIndex];
+            const imgElement = state.fullResImages[item.imgName];
+
+            // Setup canvas for erasing
+            if (!cleanCanvas) {
+                cleanCanvas = document.getElementById('cleanCanvas');
+                cleanCtx = cleanCanvas.getContext('2d');
+                
+                cleanCanvas.addEventListener('mousedown', handleCleanMouseDown);
+                cleanCanvas.addEventListener('mousemove', handleCleanMouseMove);
+                cleanCanvas.addEventListener('mouseup', handleCleanMouseUp);
+                cleanCanvas.addEventListener('mouseleave', handleCleanMouseUp);
+            }
+
+            // Set canvas to FULL RES
+            cleanCanvas.width = item.drawing.w;
+            cleanCanvas.height = item.drawing.h;
+            
+            // Fill with white background first
+            cleanCtx.fillStyle = 'white';
+            cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+            
+            // Draw image at full resolution
+            cleanCtx.drawImage(imgElement, item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h, 0, 0, item.drawing.w, item.drawing.h);
+
+            // Calculate display scale for thumbnail (max 800px width)
+            const maxDisplayWidth = 800;
+            cleanDisplayScale = Math.min(1, maxDisplayWidth / item.drawing.w);
+            cleanCanvas.style.width = (item.drawing.w * cleanDisplayScale) + 'px';
+            cleanCanvas.style.height = (item.drawing.h * cleanDisplayScale) + 'px';
+
+            // Save initial state for undo
+            undoStack = [cleanCanvas.toDataURL()];
+
+            document.getElementById('cleanPlate').textContent = item.metadata.tableName || item.imgName;
+            document.getElementById('cleanDrawingId').textContent = `Drawing ${item.drawingIdx + 1}`;
+            document.getElementById('cleanIndicator').textContent = `${cleanIndex + 1} / ${cleanItems.length}`;
+            
+            eraserMode = false;
+            updateCleanUI();
+        }
+
+        function updateCleanUI() {
+            const statusBar = document.getElementById('cleanStatusBar');
+            const eraserBtn = document.getElementById('eraserBtn');
+            
+            if (eraserMode) {
+                statusBar.className = 'mb-4 p-3 rounded-lg bg-purple-100 border-2 border-purple-400 text-sm text-center';
+                statusBar.innerHTML = '<strong>ERASER MODE:</strong> Click and drag to erase areas';
+                statusBar.classList.remove('hidden');
+                eraserBtn.classList.add('bg-purple-800');
+                eraserBtn.classList.remove('bg-purple-600');
+                cleanCanvas.style.cursor = 'crosshair';
+            } else {
+                statusBar.classList.add('hidden');
+                eraserBtn.classList.remove('bg-purple-800');
+                eraserBtn.classList.add('bg-purple-600');
+                cleanCanvas.style.cursor = 'default';
+            }
+        }
+
+        function getCleanCanvasCoords(e) {
+            const rect = cleanCanvas.getBoundingClientRect();
+            const scaleX = cleanCanvas.width / rect.width;
+            const scaleY = cleanCanvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function handleCleanMouseDown(e) {
+            if (!eraserMode) return;
+            isErasing = true;
+            
+            // Save state for undo
+            undoStack.push(cleanCanvas.toDataURL());
+            if (undoStack.length > 20) undoStack.shift(); // Keep max 20 undos
+            
+            const coords = getCleanCanvasCoords(e);
+            eraseAt(coords.x, coords.y);
+        }
+
+        function handleCleanMouseMove(e) {
+            if (!isErasing || !eraserMode) return;
+            const coords = getCleanCanvasCoords(e);
+            eraseAt(coords.x, coords.y);
+        }
+
+        function handleCleanMouseUp() {
+            isErasing = false;
+        }
+
+        function eraseAt(x, y) {
+            // Erase by drawing white circles instead of using destination-out
+            cleanCtx.fillStyle = 'white';
+            cleanCtx.beginPath();
+            cleanCtx.arc(x, y, eraserSize / 2, 0, Math.PI * 2);
+            cleanCtx.fill();
+        }
+
+        document.getElementById('eraserBtn').addEventListener('click', () => {
+            eraserMode = !eraserMode;
+            updateCleanUI();
+        });
+
+        document.getElementById('eraserSize').addEventListener('input', (e) => {
+            eraserSize = parseInt(e.target.value);
+            document.getElementById('eraserSizeDisplay').textContent = eraserSize + 'px';
+        });
+
+        document.getElementById('undoEraseBtn').addEventListener('click', () => {
+            if (undoStack.length > 1) {
+                undoStack.pop(); // Remove current state
+                const previousState = undoStack[undoStack.length - 1];
+                const img = new Image();
+                img.onload = () => {
+                    cleanCtx.clearRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+                    cleanCtx.drawImage(img, 0, 0);
+                };
+                img.src = previousState;
+            }
+        });
+
+        document.getElementById('prevCleanBtn').addEventListener('click', () => {
+            if (cleanIndex > 0) {
+                eraserMode = false;
+                loadClean(cleanIndex - 1);
+            }
+        });
+
+        document.getElementById('nextCleanBtn').addEventListener('click', () => {
+            if (cleanIndex < cleanItems.length - 1) {
+                eraserMode = false;
+                loadClean(cleanIndex + 1);
+            }
+        });
+
+        document.getElementById('markCleanBtn').addEventListener('click', () => {
+            const item = cleanItems[cleanIndex];
+            
+            // Save the cleaned drawing back to state
+            const cleanedImageData = cleanCanvas.toDataURL();
+            if (!state.cleanedDrawings[item.key]) {
+                state.cleanedDrawings[item.key] = {};
+            }
+            state.cleanedDrawings[item.key].cleaned = true;
+            state.cleanedDrawings[item.key].imageData = cleanedImageData;
+            
+            alert('Drawing cleaned and saved!');
+            if (cleanIndex < cleanItems.length - 1) {
+                eraserMode = false;
+                loadClean(cleanIndex + 1);
+            }
+        });
+
+        document.getElementById('proceedReviewBtn').addEventListener('click', () => {
+            enableTab('review');
+            switchTab('review');
+            loadReviewTexts();
+        });
+
+        // TAB 5: Review Texts (2-COLUMN LAYOUT)
+        function loadReviewTexts() {
+            const container = document.getElementById('reviewContainer');
+            container.innerHTML = '';
+
+            for (const imgName in state.annotations) {
+                const ann = state.annotations[imgName];
+                const imgElement = state.fullResImages[imgName];
+
+                ann.drawings.forEach((drawing, dIdx) => {
+                    const key = `${imgName}_d${dIdx + 1}`;
+                    const ocrTexts = state.ocrResults[key] || [];
+
+                    drawing.textBoxes.forEach((textBox, tIdx) => {
+                        const textKey = `${key}_t${tIdx + 1}`;
+                        
+                        // Extract text box preview
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCanvas.width = textBox.w;
+                        tempCanvas.height = textBox.h;
+                        tempCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
+                        
+                        const preview = tempCanvas.toDataURL();
+                        const ocrText = ocrTexts[tIdx] || '';
+                        const correctedText = state.corrections[textKey] || ocrText;
+
+                        const div = document.createElement('div');
+                        div.className = 'text-box-review';
+                        div.innerHTML = `
+                            <div>
+                                <img src="${preview}" class="text-box-preview" alt="Text ${tIdx + 1}">
+                                <p class="text-xs text-gray-600 mt-2">
+                                    <strong>${ann.metadata.tableName || imgName}</strong><br>
+                                    D${dIdx + 1} - T${tIdx + 1}
+                                </p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">OCR Result (Editable):</label>
+                                <textarea class="w-full px-3 py-2 border-2 border-gray-300 rounded focus:border-blue-500 font-mono text-sm" rows="4" data-key="${textKey}">${correctedText}</textarea>
+                                <p class="mt-2 text-xs text-gray-500 italic">✏️ Changes are auto-saved when you proceed to Export</p>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                });
+            }
+
+            if (container.children.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center">No text boxes to review</p>';
+            }
+        }
+
+        document.getElementById('proceedExportBtn').addEventListener('click', () => {
+            // Auto-save all corrections before exporting
+            document.querySelectorAll('textarea[data-key]').forEach(textarea => {
+                const textKey = textarea.dataset.key;
+                state.corrections[textKey] = textarea.value;
+            });
+            
+            enableTab('export');
+            switchTab('export');
+            updateExportSummary();
+        });
+
+        // TAB 6: Export (FIXED)
+        function updateExportSummary() {
+            const totalPlates = state.images.length;
+            let totalDrawings = 0;
+            for (const ann of Object.values(state.annotations)) {
+                totalDrawings += ann.drawings.length;
+            }
+            
+            document.getElementById('exportTotalPlates').textContent = totalPlates;
+            document.getElementById('exportTotalDrawings').textContent = totalDrawings;
+            document.getElementById('exportOcrCount').textContent = Object.keys(state.ocrResults).length;
+            document.getElementById('exportCorrectionCount').textContent = Object.keys(state.corrections).length;
+        }
+
+        document.getElementById('exportBtn').addEventListener('click', async () => {
+            const prefix = document.getElementById('exportPrefix').value || 'ceramic';
+            const btn = document.getElementById('exportBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Selecting folder...';
+
+            try {
+                // Ask user to select a directory
+                const dirHandle = await window.showDirectoryPicker();
+                
+                btn.textContent = '⏳ Generating export...';
+
+                // Create images subfolder
+                const imagesFolderHandle = await dirHandle.getDirectoryHandle('images', { create: true });
+
+                // Prepare CSV data
+                let csvContent = 'filename,original_image,drawing_number,table_name,context,notes,ocr_result,ocr_corrected\n';
+                let imageIndex = 0;
+
+                // Process each image's drawings
+                for (const imgName in state.annotations) {
+                    const ann = state.annotations[imgName];
+                    const imgElement = state.fullResImages[imgName];
+
+                    for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
+                        const drawing = ann.drawings[dIdx];
+                        const key = `${imgName}_d${dIdx + 1}`;
+
+                        // Extract drawing at full res
+                        const tempCanvas = document.createElement('canvas');
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCanvas.width = drawing.w;
+                        tempCanvas.height = drawing.h;
+                        
+                        // Use cleaned version if available
+                        const cleanedData = state.cleanedDrawings[key];
+                        if (cleanedData && cleanedData.imageData) {
+                            const cleanImg = new Image();
+                            await new Promise((resolve) => {
+                                cleanImg.onload = () => {
+                                    tempCtx.drawImage(cleanImg, 0, 0);
+                                    resolve();
+                                };
+                                cleanImg.src = cleanedData.imageData;
+                            });
+                        } else {
+                            tempCtx.drawImage(imgElement, drawing.x, drawing.y, drawing.w, drawing.h, 0, 0, drawing.w, drawing.h);
+                        }
+                        
+                        // Convert to blob
+                        const blob = await new Promise((resolve) => {
+                            tempCanvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+                        });
+
+                        // Save image file
+                        const filename = `${prefix}_${String(imageIndex + 1).padStart(3, '0')}.jpg`;
+                        const fileHandle = await imagesFolderHandle.getFileHandle(filename, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+
+                        // Collect OCR data
+                        const ocrTexts = state.ocrResults[key] || [];
+                        const ocrResult = ocrTexts.join(' | ');
+
+                        // Collect corrections from state.corrections (already saved when proceeding to export)
+                        const correctedTexts = [];
+                        drawing.textBoxes.forEach((textBox, tIdx) => {
+                            const textKey = `${key}_t${tIdx + 1}`;
+                            // state.corrections is populated by auto-save in proceedExportBtn
+                            correctedTexts.push(state.corrections[textKey] || ocrTexts[tIdx] || '');
+                        });
+                        const correctedResult = correctedTexts.join(' | ');
+
+                        // Add to CSV
+                        csvContent += `"${filename}","${imgName}",${dIdx + 1},"${ann.metadata.tableName || ''}","${ann.metadata.context || ''}","${ann.metadata.notes || ''}","${ocrResult}","${correctedResult}"\n`;
+
+                        imageIndex++;
+                        btn.textContent = `⏳ Saving ${imageIndex} images...`;
+                    }
+                }
+
+                // Save CSV file with UTF-8 BOM for proper encoding
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+                const csvFilename = `${prefix}_data_${timestamp}.csv`;
+                const csvFileHandle = await dirHandle.getFileHandle(csvFilename, { create: true });
+                const csvWritable = await csvFileHandle.createWritable();
+                
+                // Add UTF-8 BOM and write as Blob to preserve encoding
+                const BOM = '\uFEFF';
+                const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
+                await csvWritable.write(blob);
+                await csvWritable.close();
+
+                alert(`✅ Export completed successfully!\n${imageIndex} images saved in /images/\nCSV saved as ${csvFilename}`);
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    alert('Export cancelled');
+                } else {
+                    console.error('Export error:', err);
+                    alert('Error during export: ' + err.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📁 Save to Folder (Images + CSV)';
+            }
+        });
+
+        // Style active/inactive tabs
+        const style = document.createElement('style');
+        style.textContent = `
+            .tab-btn.active { background-color: #2563eb; color: white; }
+            .tab-btn:not(.active) { background-color: white; color: #374151; }
+            .tab-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+            .tab-btn:not(:disabled):hover { background-color: #dbeafe; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
