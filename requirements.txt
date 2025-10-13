@@ -5,3 +5,4 @@ pillow
 accelerate
 bitsandbytes
 compressed-tensors
+flask-cors
