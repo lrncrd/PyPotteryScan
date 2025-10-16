@@ -1,0 +1,34 @@
+[
+  {
+    "role": "user",
+    "content": "MONTE S. GIULIA '06 US 7"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"Inventory\":null,\"Site\":\"MONTE S. GIULIA\",\"Year\":\"06\",\"US\":\"US 7\",\"Area\":null,\"Cut\":null,\"Sector\":null,\"Notes\":null}"
+  },
+  {
+    "role": "user",
+    "content": "US 5 IV TAGLIO"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"Inventory\":null,\"Site\":null,\"Year\":null,\"US\":\"US 5\",\"Area\":null,\"Cut\":\"IV TAGLIO\",\"Sector\":null,\"Notes\":null}"
+  },
+  {
+    "role": "user",
+    "content": "US 5 III TAGLIO"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"Inventory\":null,\"Site\":null,\"Year\":null,\"US\":\"US 5\",\"Area\":null,\"Cut\":\"III TAGLIO\",\"Sector\":null,\"Notes\":null}"
+  },
+  {
+    "role": "user",
+    "content": "S.GIULIA 2015 US 81 964 ABSIDE SUD"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"Inventory\":null,\"Site\":\"S.GIULIA\",\"Year\":\"2015\",\"US\":\"US 81 964\",\"Area\":\"ABSIDE SUD\",\"Cut\":null,\"Sector\":null,\"Notes\":null}"
+  }
+]

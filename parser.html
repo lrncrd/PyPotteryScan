@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Few-Shot Generator with Highlighting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Colori per evidenziazione */
+        .inventario { background-color: #ffff99; } /* Giallo */
+        .sito { background-color: #99ff99; } /* Verde */
+        .anno { background-color: #99ccff; } /* Blu */
+        .area { background-color: #ffcc99; } /* Arancio */
+        .taglio { background-color: #ff99cc; } /* Rosa */
+        .settore { background-color: #cc99ff; } /* Viola */
+        .note { background-color: #99ffff; } /* Ciano */
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Interactive Few-Shot Generator</h1>
+                    <p class="text-gray-600 mt-2">Upload your CSV file (with 'ocr_corrected' column). Navigate through the rows, highlight parts of the text by selecting them with the mouse, then assign to a field with the buttons. You can also enter manual values for tags not present in the text. Add the example when ready. Export at the end.</p>
+                </div>
+                <img src="imgs/logo.png" alt="Logo" class="h-16 w-auto" onerror="this.style.display='none'">
+            </div>
+        </div>
+
+            <!-- Main Layout -->
+            <div class="flex gap-6">
+                <!-- Left Panel: Tags -->
+                <div class="w-1/4 bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-semibold mb-4">Available Fields</h2>
+                    <div id="tags-list" class="space-y-2 mb-4">
+                        <!-- Tags will be added here -->
+                    </div>
+                    <button id="add-tag-btn" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">+</button>
+                </div>
+
+                <!-- Right Panel: Main Content -->
+                <div class="w-3/4 bg-white rounded-lg shadow-lg p-6">
+            <div class="mb-6">
+                <label for="csv-file" class="block text-sm font-medium text-gray-700 mb-2">Upload CSV:</label>
+                <input type="file" id="csv-file" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+
+            <div id="navigation" class="flex justify-between items-center mb-4 hidden">
+                <button id="prev-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Previous</button>
+                <span id="current-index" class="font-bold">1 / 0</span>
+                <button id="next-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Next</button>
+                <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded ml-4">Reset Highlights and Inputs</button>
+            </div>
+
+            <div id="ocr-text" class="mb-4 border border-gray-300 p-4 bg-white whitespace-pre-wrap break-words min-h-16 rounded shadow-sm" contenteditable="false"></div>
+
+            <div id="current-json" class="mb-4">
+                <h3 class="text-lg font-semibold mb-2">Current JSON for this Row:</h3>
+                <pre id="json-preview" class="p-4 bg-gray-100 rounded border"></pre>
+            </div>
+
+            <button id="add-example" class="mb-4 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded hidden">Add Few-Shot Example</button>
+
+            <div id="examples" class="mt-8">
+                <h2 class="text-xl font-semibold mb-4">Added Examples:</h2>
+                <!-- Gli esempi verranno aggiunti qui -->
+            </div>
+
+            <div id="export" class="mt-8">
+                <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-4">Export FEWSHOT as Python Code</button>
+                <button id="run-parsing-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Run Parsing with Few-Shot</button>
+                <pre id="export-code" class="mt-4 p-4 border rounded bg-gray-100"></pre>
+            </div>
+                </div> <!-- Right Panel -->
+            </div> <!-- Main Layout -->
+        </div> <!-- max-w-7xl -->
+    </div> <!-- min-h-screen -->
+
+    <!-- Selection Popup -->
+    <div id="selection-popup" class="fixed bg-white border border-gray-300 rounded-lg shadow-lg p-4 hidden z-50 transform transition-all duration-200 ease-out">
+        <div class="relative">
+            <div id="popup-arrow" class="absolute w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-white" style="top: -8px; left: 50%; transform: translateX(-50%);"></div>
+            <h3 class="text-lg font-semibold mb-2">Assign to:</h3>
+            <div id="popup-tags" class="space-y-1">
+                <!-- Tag buttons will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fewshot = []; // Array per memorizzare gli esempi
+        let ocrLines = []; // Array delle righe OCR
+        let currentIndex = 0;
+        let currentJson = {
+            Inventory: null,
+            Site: null,
+            Year: null,
+            US: null,
+            Area: null,
+            Cut: null,
+            Sector: null,
+            Notes: null
+        };
+        let originalText = ''; // Testo originale della riga corrente
+        let customFields = []; // Array per campi personalizzati: {name: 'Nome', key: 'nome'}
+        const highlightColors = ['#ffff99', '#99ff99', '#99ccff', '#ffcc99', '#ff99cc', '#cc99ff', '#99ffff', '#ffffcc', '#ccff99', '#99ffcc'];
+
+        // Funzione per capitalizzare
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        const csvFileInput = document.getElementById('csv-file');
+        const navigation = document.getElementById('navigation');
+        const ocrTextDiv = document.getElementById('ocr-text');
+        const jsonPreview = document.getElementById('json-preview');
+        const addExampleBtn = document.getElementById('add-example');
+        const examplesDiv = document.getElementById('examples');
+        const exportBtn = document.getElementById('export-btn');
+        const runParsingBtn = document.getElementById('run-parsing-btn');
+        const exportCode = document.getElementById('export-code');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const tagsList = document.getElementById('tags-list');
+        const addTagBtn = document.getElementById('add-tag-btn');
+        const selectionPopup = document.getElementById('selection-popup');
+        const popupTags = document.getElementById('popup-tags');
+        const currentIndexSpan = document.getElementById('current-index');
+
+        // Lista di tutti i campi: fissi e custom
+        let allFields = [
+            { name: 'Inventory', key: 'inventario', fixed: true },
+            { name: 'Site', key: 'sito', fixed: true },
+            { name: 'Year', key: 'anno', fixed: true },
+            { name: 'US', key: 'us', fixed: true },
+            { name: 'Area', key: 'area', fixed: true },
+            { name: 'Cut', key: 'taglio', fixed: true },
+            { name: 'Sector', key: 'settore', fixed: true },
+            { name: 'Notes', key: 'note', fixed: true }
+        ];
+
+        // Funzione per renderizzare i tag nella lista
+        function renderTags() {
+            tagsList.innerHTML = '';
+            allFields.forEach(field => {
+                const tagDiv = document.createElement('div');
+                tagDiv.className = 'flex items-center justify-between bg-gray-100 p-2 rounded';
+                tagDiv.innerHTML = `
+                    <span class="font-medium">${field.name}</span>
+                    <button class="delete-tag-btn text-red-500 hover:text-red-700" data-key="${field.key}">🗑️</button>
+                `;
+                tagsList.appendChild(tagDiv);
+            });
+        }
+
+        // Funzione per renderizzare i tag nel popup
+        function renderPopupTags() {
+            popupTags.innerHTML = '';
+            allFields.forEach(field => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left bg-gray-100 hover:bg-gray-200 p-2 rounded';
+                btn.textContent = field.name;
+                btn.dataset.field = field.key;
+                popupTags.appendChild(btn);
+            });
+        }
+
+        // Inizializza
+        renderTags();
+        renderPopupTags();
+
+        // Event listener per aggiungere tag
+        addTagBtn.addEventListener('click', () => {
+            const fieldName = prompt('Enter the name of the new field:');
+            if (fieldName && fieldName.trim()) {
+                const fieldKey = fieldName.toLowerCase();
+                if (allFields.some(f => f.key === fieldKey)) {
+                    alert('Field already exists!');
+                    return;
+                }
+                allFields.push({ name: fieldName, key: fieldKey, fixed: false });
+                renderTags();
+                renderPopupTags();
+                // Aggiungi stile evidenziazione
+                const style = document.createElement('style');
+                style.textContent = `.${fieldKey} { background-color: ${highlightColors[(allFields.length - 1) % highlightColors.length]}; }`;
+                document.head.appendChild(style);
+                // Aggiorna currentJson
+                currentJson[capitalize(fieldName)] = null;
+                updateJsonPreview();
+            }
+        });
+
+        // Event listener per eliminare tag
+        tagsList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-tag-btn')) {
+                const key = e.target.dataset.key;
+                const field = allFields.find(f => f.key === key);
+                if (field && !field.fixed) {
+                    allFields = allFields.filter(f => f.key !== key);
+                    renderTags();
+                    renderPopupTags();
+                    // Rimuovi da currentJson
+                    delete currentJson[capitalize(field.name)];
+                    updateJsonPreview();
+                } else if (field.fixed) {
+                    alert('You cannot delete fixed fields!');
+                }
+            }
+        });
+
+        // Event listener per selezione testo
+        ocrTextDiv.addEventListener('mouseup', (e) => {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0 && selection.toString().trim()) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                const popupRect = selectionPopup.getBoundingClientRect();
+                
+                // Posiziona sopra la selezione se c'è spazio, altrimenti sotto
+                let top = rect.top - popupRect.height - 10;
+                let arrowTop = '100%';
+                let arrowBorder = 'border-t-8 border-b-0 border-t-white';
+                if (top < 10) {
+                    top = rect.bottom + 10;
+                    arrowTop = '-8px';
+                    arrowBorder = 'border-b-8 border-t-0 border-b-white';
+                }
+                
+                // Posiziona il popup centrato sulla selezione
+                const popupWidth = 200; // Stima larghezza popup
+                let left = rect.left + (rect.width / 2) - (popupWidth / 2);
+                if (left < 10) left = 10;
+                if (left + popupWidth > window.innerWidth - 10) left = window.innerWidth - popupWidth - 10;
+                
+                selectionPopup.style.left = `${left}px`;
+                selectionPopup.style.top = `${top}px`;
+                selectionPopup.classList.remove('hidden');
+                selectionPopup.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    selectionPopup.classList.remove('opacity-0', 'scale-95');
+                    selectionPopup.classList.add('opacity-100', 'scale-100');
+                }, 10);
+                
+                // Posiziona la freccia centrata sulla selezione
+                const arrowOffset = rect.left + (rect.width / 2) - left;
+                const arrow = document.getElementById('popup-arrow');
+                arrow.style.left = `${arrowOffset}px`;
+                arrow.style.top = arrowTop;
+                arrow.className = `absolute w-0 h-0 border-l-8 border-r-8 ${arrowBorder} border-transparent transition-all duration-200`;
+            } else {
+                selectionPopup.classList.add('hidden');
+            }
+        });
+
+        // Event listener per assegnazione nel popup
+        popupTags.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const fieldKey = e.target.dataset.field;
+                    const field = allFields.find(f => f.key === fieldKey);
+                    if (field) {
+                        let value = range.toString().trim();
+                        currentJson[capitalize(field.name)] = value;
+                        // Evidenzia
+                        const span = document.createElement('span');
+                        span.className = fieldKey;
+                        range.surroundContents(span);
+                        updateJsonPreview();
+                        selection.removeAllRanges();
+                        selectionPopup.classList.add('hidden');
+                    }
+                }
+            }
+        });
+
+        // Chiudi popup se click fuori
+        document.addEventListener('click', (e) => {
+            if (!selectionPopup.contains(e.target) && !ocrTextDiv.contains(e.target)) {
+                selectionPopup.classList.add('hidden');
+            }
+        });
+
+        // Funzione per aggiornare il preview JSON
+        function updateJsonPreview() {
+            jsonPreview.textContent = JSON.stringify(currentJson, null, 2);
+        }
+
+        // Funzione per caricare e parsare CSV
+        csvFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const csvData = event.target.result;
+                    const lines = csvData.split('\n');
+                    const headers = lines[0].split(',');
+                    const ocrColIndex = headers.indexOf('ocr_corrected');
+                    if (ocrColIndex === -1) {
+                        alert('Column "ocr_corrected" not found in CSV.');
+                        return;
+                    }
+                    ocrLines = lines.slice(1).map(line => {
+                        const cols = line.split(',');
+                        return cols[ocrColIndex] ? cols[ocrColIndex].trim().replace(/^"|"$/g, '') : '';
+                    }).filter(line => line);
+                    if (ocrLines.length > 0) {
+                        navigation.style.display = 'flex';
+                        addExampleBtn.style.display = 'block';
+                        loadCurrentLine();
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Carica la riga corrente
+        function loadCurrentLine() {
+            originalText = ocrLines[currentIndex];
+            ocrTextDiv.innerHTML = originalText; // Inizia senza evidenziazioni
+            currentJson = {};
+            allFields.forEach(field => {
+                currentJson[capitalize(field.name)] = null;
+            });
+            updateJsonPreview();
+            currentIndexSpan.textContent = `${currentIndex + 1} / ${ocrLines.length}`;
+        }
+
+        // Navigazione
+        prevBtn.addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadCurrentLine();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentIndex < ocrLines.length - 1) {
+                currentIndex++;
+                loadCurrentLine();
+            }
+        });
+
+        // Reset evidenziazioni, JSON e input manuali per la riga corrente
+        resetBtn.addEventListener('click', () => {
+            loadCurrentLine();
+        });
+
+        // Aggiungi esempio few-shot
+        addExampleBtn.addEventListener('click', () => {
+            if (originalText) {
+                fewshot.push({ role: "user", content: originalText });
+                fewshot.push({ role: "assistant", content: JSON.stringify(currentJson) });
+
+                // Mostra l'esempio aggiunto
+                const exampleDiv = document.createElement('div');
+                exampleDiv.classList.add('border', 'border-gray-300', 'p-4', 'mb-4', 'bg-white', 'rounded', 'shadow-sm');
+                exampleDiv.innerHTML = `
+                    <strong>User:</strong> ${originalText}<br>
+                    <strong>Assistant JSON:</strong> <pre class="bg-gray-100 p-2 rounded mt-2">${JSON.stringify(currentJson, null, 2)}</pre>
+                `;
+                examplesDiv.appendChild(exampleDiv);
+
+                // Passa alla prossima riga automaticamente
+                if (currentIndex < ocrLines.length - 1) {
+                    currentIndex++;
+                    loadCurrentLine();
+                }
+            }
+        });
+
+        // Esporta codice Python
+        exportBtn.addEventListener('click', () => {
+            const pythonCode = `FEWSHOT = [\n    ${fewshot.map(item => JSON.stringify(item, null, 4).replace(/\n/g, '\n    ')).join(',\n    ')}\n]`;
+            exportCode.textContent = pythonCode;
+        });
+
+        // Esegui parsing
+        runParsingBtn.addEventListener('click', () => {
+            if (fewshot.length === 0) {
+                alert('No few-shot examples created! Add at least one example first.');
+                return;
+            }
+            // Esporta fewshot in JSON
+            const dataStr = JSON.stringify(fewshot, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fewshot_examples.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('File fewshot_examples.json downloaded. Now run in the terminal:\npython parsed_prova2.py');
+        });
+    </script>
+</body>
+</html>

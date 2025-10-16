@@ -212,3 +212,5 @@ BK
 DISEGNI_MATERIALI
 
 .vscode/
+models/
+*.csv
