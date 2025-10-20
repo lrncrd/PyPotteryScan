@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PyPotteryScan - Archaeological Drawing Processor</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         .canvas-container {
             overflow: auto;
@@ -125,6 +126,125 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Parser styles */
+        .inventario { background-color: #ffff99; }
+        .sito { background-color: #99ff99; }
+        .anno { background-color: #99ccff; }
+        .us { background-color: #ffb366; }
+        .area { background-color: #ffcc99; }
+        .taglio { background-color: #ff99cc; }
+        .settore { background-color: #cc99ff; }
+        .note { background-color: #99ffff; }
+        
+        /* Dynamic popup styles - Leaflet-like */
+        #selection-popup {
+            position: fixed;
+            background: white;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 8px;
+            z-index: 1000;
+            max-width: 200px;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(-5px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        
+        #selection-popup:not(.hidden) {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        #selection-popup::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 8px 10px 8px;
+            border-color: transparent transparent #3b82f6 transparent;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        #selection-popup::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 7px 9px 7px;
+            border-color: transparent transparent white transparent;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .popup-tag-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 6px 10px;
+            margin: 2px 0;
+            border: none;
+            background: #f3f4f6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+        
+        .popup-tag-btn:hover {
+            background: #3b82f6;
+            color: white;
+            transform: translateX(2px);
+        }
+        
+        /* Modal animations */
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+        }
+        
+        .modal-content {
+            animation: modalSlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes modalSlideIn {
+            0% {
+                transform: scale(0.7) translateY(-30px);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05) translateY(0);
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-content.closing {
+            animation: modalSlideOut 0.3s ease-out forwards;
+        }
+        
+        @keyframes modalSlideOut {
+            0% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.8) translateY(20px);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -134,9 +254,17 @@
             <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 120px; height: auto; margin: 0 auto 20px;">
             <div class="spinner"></div>
             <h1 class="text-3xl font-bold mb-4">PyPotteryScan</h1>
-            <p class="text-lg mb-6">Loading OlmOCR-7B Model...</p>
+            <p class="text-lg mb-2" id="splashTitle">Initializing...</p>
+            
+            <!-- Progress Bar -->
+            <div style="width: 100%; max-width: 500px; margin: 20px auto; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; height: 30px;">
+                <div id="splashProgress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+                    0%
+                </div>
+            </div>
+            
             <div class="splash-log" id="splashLog">
-                <p>Checking server connection...</p>
+                <p>🔌 Connecting to server...</p>
             </div>
         </div>
     </div>
@@ -160,8 +288,8 @@
             </div>
 
             <!-- Info Modal -->
-            <div id="infoModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
-                <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
+            <div id="infoModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                <div class="modal-content bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex items-center gap-3">
                             <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 48px; max-height: 48px; height: auto; width: auto;">
@@ -223,6 +351,9 @@
                     </button>
                     <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="export" disabled>
                         6. Export
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="parser" disabled>
+                        7. Few-Shot Parser
                     </button>
                 </div>
             </div>
@@ -317,6 +448,15 @@
                             <!-- Progress -->
                             <div class="bg-blue-50 rounded-lg p-3">
                                 <p class="text-xs font-semibold" id="annotationProgress">0 / 0 images completed</p>
+                            </div>
+
+                            <!-- ML Training Export Option -->
+                            <div class="bg-purple-50 rounded-lg p-3">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="exportMLDataCheckbox" class="w-4 h-4 text-purple-600">
+                                    <span class="text-xs font-semibold">📊 Export ML Training Data</span>
+                                </label>
+                                <p class="text-xs text-gray-600 mt-1">Include bounding box coordinates and labels for model training</p>
                             </div>
 
                             <button id="finishAnnotationBtn" class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold">
@@ -454,9 +594,82 @@
                             � Save to Folder (Images + CSV)
                         </button>
 
+                        <button id="proceedParserBtn" class="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 hidden">
+                            Continue to Few-Shot Parser →
+                        </button>
+
                         <p class="mt-4 text-sm text-gray-500">
                             Export saves: extracted drawings as images in /images/ subfolder + CSV with all metadata and OCR results
                         </p>
+                    </div>
+                </div>
+
+                <!-- TAB 7: Few-Shot Parser -->
+                <div class="tab-content hidden" data-tab="parser">
+                    <div class="py-8">
+                        <h2 class="text-2xl font-bold mb-4 text-center">🧠 Few-Shot Parser Training</h2>
+                        <p class="text-gray-600 mb-8 text-center">Create training examples for structured data parsing</p>
+
+                        <div class="max-w-6xl mx-auto">
+                            <div class="flex gap-6">
+                                <!-- Left Panel: Tags -->
+                                <div class="w-1/4 bg-gray-50 rounded-lg p-6">
+                                    <h3 class="text-lg font-semibold mb-4">Available Fields</h3>
+                                    <div id="tags-list" class="space-y-2 mb-4"></div>
+                                    <button id="add-tag-btn" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                                        + Add Field
+                                    </button>
+                                </div>
+
+                                <!-- Right Panel: Parser Content -->
+                                <div class="w-3/4 bg-gray-50 rounded-lg p-6">
+                                    <div class="mb-6">
+                                        <label for="csv-file" class="block text-sm font-medium text-gray-700 mb-2">Upload Exported Excel File:</label>
+                                        <input type="file" id="csv-file" accept=".xlsx,.xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                    </div>
+
+                                    <div id="navigation" class="flex justify-between items-center mb-4 hidden">
+                                        <button id="prev-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">← Previous</button>
+                                        <span id="current-index" class="font-bold">1 / 0</span>
+                                        <button id="next-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Next →</button>
+                                        <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded ml-4">Reset</button>
+                                    </div>
+
+                                    <div id="ocr-text" class="mb-4 border border-gray-300 p-4 bg-white whitespace-pre-wrap break-words min-h-16 rounded shadow-sm" contenteditable="false"></div>
+
+                                    <div id="current-json" class="mb-4">
+                                        <h3 class="text-lg font-semibold mb-2">Current JSON:</h3>
+                                        <pre id="json-preview" class="p-4 bg-gray-100 rounded border"></pre>
+                                    </div>
+
+                                    <button id="add-example" class="mb-4 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded hidden">
+                                        ✓ Add Few-Shot Example
+                                    </button>
+
+                                    <div id="examples" class="mt-8">
+                                        <h3 class="text-xl font-semibold mb-4">Added Examples:</h3>
+                                        <div id="examples-container"></div>
+                                    </div>
+
+                                    <div id="export" class="mt-8">
+                                        <button id="run-parsing-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                                            🚀 Run Parsing
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Parsing Log -->
+                                    <div id="parsing-log" class="mt-6 hidden">
+                                        <h3 class="text-lg font-semibold mb-2">Parsing Progress:</h3>
+                                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs" id="parsing-log-content"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selection Popup -->
+                    <div id="selection-popup" class="hidden">
+                        <div id="popup-tags"></div>
                     </div>
                 </div>
 
@@ -468,6 +681,8 @@
         // Check server and poll loading status
         async function checkServer() {
             const log = document.getElementById('splashLog');
+            const progressBar = document.getElementById('splashProgress');
+            const titleElement = document.getElementById('splashTitle');
             log.innerHTML = '<p>🔌 Connecting to OCR server...</p>';
             
             // Poll loading status every 500ms
@@ -476,18 +691,41 @@
                     const response = await fetch('http://localhost:5001/loading_status');
                     const status = await response.json();
                     
-                    // Update log based on status
+                    // Update progress bar
+                    const progress = status.progress || 0;
+                    progressBar.style.width = progress + '%';
+                    progressBar.textContent = progress + '%';
+                    
+                    // Update title and log based on status
                     if (status.stage === 'starting') {
+                        titleElement.textContent = 'Initializing...';
                         log.innerHTML = `<p style="color: #60a5fa;">⏳ ${status.message}</p>`;
                     } else if (status.stage === 'checking') {
+                        titleElement.textContent = 'Checking Models...';
                         log.innerHTML = `<p style="color: #60a5fa;">🔍 ${status.message}</p>`;
+                    } else if (status.stage === 'downloading') {
+                        titleElement.textContent = 'Downloading Models...';
+                        const modelName = status.download_model || 'Model';
+                        log.innerHTML = `<p style="color: #fbbf24;">� Downloading ${modelName}...</p>`;
+                        log.innerHTML += `<p style="color: #60a5fa;">⏳ Progress: ${progress}%</p>`;
+                        log.innerHTML += `<p style="color: #94a3b8; font-size: 12px;">This may take several minutes depending on your internet connection...</p>`;
+                    } else if (status.stage === 'ready_to_load') {
+                        titleElement.textContent = 'Loading Models...';
+                        log.innerHTML = `<p style="color: #4ade80;">✓ Models downloaded successfully!</p>`;
+                        log.innerHTML += `<p style="color: #60a5fa;">📦 Loading into memory...</p>`;
                     } else if (status.stage === 'loading') {
-                        log.innerHTML = `<p style="color: #fbbf24;">📦 ${status.message}</p>`;
-                        log.innerHTML += `<p style="color: #4ade80;">⏳ Progress: ${status.progress}%</p>`;
+                        titleElement.textContent = 'Loading Models...';
+                        log.innerHTML = `<p style="color: #fbbf24;">�📦 ${status.message}</p>`;
+                        log.innerHTML += `<p style="color: #4ade80;">⏳ Progress: ${progress}%</p>`;
                     } else if (status.stage === 'finalizing') {
+                        titleElement.textContent = 'Almost Ready...';
                         log.innerHTML = `<p style="color: #4ade80;">✨ ${status.message}</p>`;
                     } else if (status.stage === 'ready') {
                         clearInterval(pollInterval);
+                        
+                        titleElement.textContent = 'Ready!';
+                        progressBar.style.width = '100%';
+                        progressBar.textContent = '100%';
                         
                         // Get final health check
                         const healthResponse = await fetch('http://localhost:5001/health');
@@ -504,6 +742,8 @@
                         }, 1500);
                     } else if (status.stage === 'error') {
                         clearInterval(pollInterval);
+                        titleElement.textContent = 'Error';
+                        progressBar.style.background = '#ef4444';
                         log.innerHTML = `<p style="color: #f87171;">✗ Error: ${status.message}</p>`;
                         log.innerHTML += '<p style="color: #fbbf24;">Please check the console for details</p>';
                     }
@@ -521,18 +761,35 @@
 
         checkServer();
 
-        // Info Modal
+        // Info Modal with animations
         document.getElementById('infoBtn').addEventListener('click', () => {
-            document.getElementById('infoModal').classList.remove('hidden');
+            const modal = document.getElementById('infoModal');
+            const modalContent = modal.querySelector('.modal-content');
+            
+            modal.classList.remove('hidden');
+            // Trigger reflow to ensure animation plays
+            modal.offsetHeight;
+            modal.classList.add('show');
         });
 
-        document.getElementById('closeInfoBtn').addEventListener('click', () => {
-            document.getElementById('infoModal').classList.add('hidden');
-        });
+        function closeModal() {
+            const modal = document.getElementById('infoModal');
+            const modalContent = modal.querySelector('.modal-content');
+            
+            modalContent.classList.add('closing');
+            modal.classList.remove('show');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalContent.classList.remove('closing');
+            }, 300);
+        }
+
+        document.getElementById('closeInfoBtn').addEventListener('click', closeModal);
 
         document.getElementById('infoModal').addEventListener('click', (e) => {
             if (e.target === document.getElementById('infoModal')) {
-                document.getElementById('infoModal').classList.add('hidden');
+                closeModal();
             }
         });
 
@@ -974,6 +1231,8 @@
                 alert('Please annotate at least one image before proceeding');
                 return;
             }
+            // Save current annotations before switching tabs
+            saveCurrentAnnotations();
             enableTab('process');
             switchTab('process');
         });
@@ -1394,8 +1653,8 @@
                 // Create images subfolder
                 const imagesFolderHandle = await dirHandle.getDirectoryHandle('images', { create: true });
 
-                // Prepare CSV data
-                let csvContent = 'filename,original_image,drawing_number,table_name,context,notes,ocr_result,ocr_corrected\n';
+                // Prepare data array for XLSX
+                const dataRows = [];
                 let imageIndex = 0;
 
                 // Process each image's drawings
@@ -1453,27 +1712,112 @@
                         });
                         const correctedResult = correctedTexts.join(' | ');
 
-                        // Add to CSV
-                        csvContent += `"${filename}","${imgName}",${dIdx + 1},"${ann.metadata.tableName || ''}","${ann.metadata.context || ''}","${ann.metadata.notes || ''}","${ocrResult}","${correctedResult}"\n`;
+                        // Add to data array
+                        dataRows.push({
+                            filename: filename,
+                            original_image: imgName,
+                            drawing_number: dIdx + 1,
+                            table_name: ann.metadata.tableName || '',
+                            context: ann.metadata.context || '',
+                            notes: ann.metadata.notes || '',
+                            ocr_result: ocrResult,
+                            ocr_corrected: correctedResult
+                        });
 
                         imageIndex++;
                         btn.textContent = `⏳ Saving ${imageIndex} images...`;
                     }
                 }
 
-                // Save CSV file with UTF-8 BOM for proper encoding
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-                const csvFilename = `${prefix}_data_${timestamp}.csv`;
-                const csvFileHandle = await dirHandle.getFileHandle(csvFilename, { create: true });
-                const csvWritable = await csvFileHandle.createWritable();
-                
-                // Add UTF-8 BOM and write as Blob to preserve encoding
-                const BOM = '\uFEFF';
-                const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
-                await csvWritable.write(blob);
-                await csvWritable.close();
+                // Create XLSX workbook and worksheet
+                const ws = XLSX.utils.json_to_sheet(dataRows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'OCR Data');
 
-                alert(`✅ Export completed successfully!\n${imageIndex} images saved in /images/\nCSV saved as ${csvFilename}`);
+                // Generate XLSX file as array buffer
+                const xlsxBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                
+                // Save XLSX file
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+                const xlsxFilename = `${prefix}_data_${timestamp}.xlsx`;
+                const xlsxFileHandle = await dirHandle.getFileHandle(xlsxFilename, { create: true });
+                const xlsxWritable = await xlsxFileHandle.createWritable();
+                await xlsxWritable.write(new Blob([xlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                await xlsxWritable.close();
+
+                let exportMessage = `✅ Export completed successfully!\n${imageIndex} images saved in /images/\nExcel file saved as ${xlsxFilename}`;
+
+                // Export ML training data if checkbox is enabled
+                const exportMLData = document.getElementById('exportMLDataCheckbox').checked;
+                if (exportMLData) {
+                    btn.textContent = '⏳ Exporting ML training data...';
+                    
+                    const mlDataRows = [];
+                    
+                    // Process each image's drawings for ML data (vessels + text boxes)
+                    for (const imgName in state.annotations) {
+                        const ann = state.annotations[imgName];
+                        const imgElement = state.fullResImages[imgName];
+                        
+                        for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
+                            const drawing = ann.drawings[dIdx];
+                            
+                            // Add vessel bounding box
+                            mlDataRows.push({
+                                image_name: imgName,
+                                drawing_number: dIdx + 1,
+                                box_type: 'vessel',
+                                x: drawing.x,
+                                y: drawing.y,
+                                width: drawing.w,
+                                height: drawing.h,
+                                label: drawing.label || 'vessel',
+                                image_width: imgElement.naturalWidth,
+                                image_height: imgElement.naturalHeight
+                            });
+                            
+                            // Add text box bounding boxes
+                            if (drawing.textBoxes && drawing.textBoxes.length > 0) {
+                                drawing.textBoxes.forEach((textBox, tIdx) => {
+                                    mlDataRows.push({
+                                        image_name: imgName,
+                                        drawing_number: dIdx + 1,
+                                        box_type: 'text',
+                                        x: textBox.x,
+                                        y: textBox.y,
+                                        width: textBox.w,
+                                        height: textBox.h,
+                                        label: 'text_label',
+                                        text_index: tIdx + 1,
+                                        image_width: imgElement.naturalWidth,
+                                        image_height: imgElement.naturalHeight
+                                    });
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Create ML data XLSX
+                    const mlWs = XLSX.utils.json_to_sheet(mlDataRows);
+                    const mlWb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(mlWb, mlWs, 'Bounding Boxes');
+                    
+                    const mlXlsxBuffer = XLSX.write(mlWb, { bookType: 'xlsx', type: 'array' });
+                    const mlXlsxFilename = `${prefix}_ml_training_${timestamp}.xlsx`;
+                    const mlXlsxFileHandle = await dirHandle.getFileHandle(mlXlsxFilename, { create: true });
+                    const mlXlsxWritable = await mlXlsxFileHandle.createWritable();
+                    await mlXlsxWritable.write(new Blob([mlXlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                    await mlXlsxWritable.close();
+                    
+                    exportMessage += `\nML training data saved as ${mlXlsxFilename}`;
+                }
+
+                alert(exportMessage);
+                
+                // Enable parser tab and show button
+                document.getElementById('proceedParserBtn').classList.remove('hidden');
+                enableTab('parser');
+                
             } catch (err) {
                 if (err.name === 'AbortError') {
                     alert('Export cancelled');
@@ -1486,6 +1830,404 @@
                 btn.textContent = '📁 Save to Folder (Images + CSV)';
             }
         });
+
+        document.getElementById('proceedParserBtn').addEventListener('click', () => {
+            switchTab('parser');
+        });
+
+        // ======================
+        // TAB 7: FEW-SHOT PARSER
+        // ======================
+        const parserState = {
+            fewshot: [],
+            ocrLines: [],
+            filenames: [],  // Store corresponding filenames
+            currentIndex: 0,
+            currentJson: {},
+            originalText: '',
+            allFields: [
+                { name: 'Inventory', key: 'inventario', fixed: true },
+                { name: 'Site', key: 'sito', fixed: true },
+                { name: 'Year', key: 'anno', fixed: true },
+                { name: 'US', key: 'us', fixed: true },
+                { name: 'Area', key: 'area', fixed: true },
+                { name: 'Cut', key: 'taglio', fixed: true },
+                { name: 'Sector', key: 'settore', fixed: true },
+                { name: 'Notes', key: 'note', fixed: true }
+            ]
+        };
+
+        const highlightColors = ['#ffff99', '#99ff99', '#99ccff', '#ffcc99', '#ff99cc', '#cc99ff', '#99ffff', '#ffffcc', '#ccff99', '#99ffcc'];
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function renderTags() {
+            const tagsList = document.getElementById('tags-list');
+            tagsList.innerHTML = '';
+            parserState.allFields.forEach(field => {
+                const tagDiv = document.createElement('div');
+                tagDiv.className = 'flex items-center justify-between bg-gray-100 p-2 rounded';
+                tagDiv.innerHTML = `
+                    <span class="font-medium text-sm">${field.name}</span>
+                    ${!field.fixed ? `<button class="delete-tag-btn text-red-500 hover:text-red-700 text-xs" data-key="${field.key}">🗑️</button>` : ''}
+                `;
+                tagsList.appendChild(tagDiv);
+            });
+        }
+
+        function renderPopupTags() {
+            const popupTags = document.getElementById('popup-tags');
+            popupTags.innerHTML = '';
+            parserState.allFields.forEach(field => {
+                const btn = document.createElement('button');
+                btn.className = 'popup-tag-btn';
+                btn.textContent = field.name;
+                btn.dataset.field = field.key;
+                popupTags.appendChild(btn);
+            });
+        }
+
+        function updateJsonPreview() {
+            document.getElementById('json-preview').textContent = JSON.stringify(parserState.currentJson, null, 2);
+        }
+
+        function loadCurrentLine() {
+            parserState.originalText = parserState.ocrLines[parserState.currentIndex];
+            document.getElementById('ocr-text').innerHTML = parserState.originalText;
+            parserState.currentJson = {};
+            parserState.allFields.forEach(field => {
+                parserState.currentJson[capitalize(field.name)] = null;
+            });
+            updateJsonPreview();
+            document.getElementById('current-index').textContent = `${parserState.currentIndex + 1} / ${parserState.ocrLines.length}`;
+        }
+
+        // Add tag button
+        document.getElementById('add-tag-btn').addEventListener('click', () => {
+            const fieldName = prompt('Enter the name of the new field:');
+            if (fieldName && fieldName.trim()) {
+                const fieldKey = fieldName.toLowerCase().replace(/\s+/g, '_');
+                if (parserState.allFields.some(f => f.key === fieldKey)) {
+                    alert('Field already exists!');
+                    return;
+                }
+                parserState.allFields.push({ name: fieldName, key: fieldKey, fixed: false });
+                renderTags();
+                renderPopupTags();
+                
+                // Add highlight style
+                const styleEl = document.createElement('style');
+                styleEl.textContent = `.${fieldKey} { background-color: ${highlightColors[(parserState.allFields.length - 1) % highlightColors.length]}; }`;
+                document.head.appendChild(styleEl);
+                
+                parserState.currentJson[capitalize(fieldName)] = null;
+                updateJsonPreview();
+            }
+        });
+
+        // Delete tag
+        document.getElementById('tags-list').addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-tag-btn')) {
+                const key = e.target.dataset.key;
+                const field = parserState.allFields.find(f => f.key === key);
+                if (field && !field.fixed) {
+                    parserState.allFields = parserState.allFields.filter(f => f.key !== key);
+                    renderTags();
+                    renderPopupTags();
+                    delete parserState.currentJson[capitalize(field.name)];
+                    updateJsonPreview();
+                }
+            }
+        });
+
+        // CSV file upload
+        document.getElementById('csv-file').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    
+                    if (jsonData.length < 2) {
+                        alert('Excel file is empty or has no data rows.');
+                        return;
+                    }
+                    
+                    const headers = jsonData[0];
+                    const rows = jsonData.slice(1);
+                    
+                    // Find column indices
+                    const ocrColIndex = headers.findIndex(h => h && h.toString().includes('ocr_corrected'));
+                    const filenameColIndex = headers.findIndex(h => h && h.toString().includes('filename'));
+                    
+                    if (ocrColIndex === -1) {
+                        alert('Column "ocr_corrected" not found in Excel file.');
+                        return;
+                    }
+                    
+                    // Parse each row and store both OCR text and filename
+                    parserState.ocrLines = [];
+                    parserState.filenames = [];
+                    
+                    rows.forEach(row => {
+                        const ocrText = row[ocrColIndex] ? row[ocrColIndex].toString().trim() : '';
+                        const filename = filenameColIndex >= 0 && row[filenameColIndex] ? 
+                                        row[filenameColIndex].toString().trim() : '';
+                        
+                        if (ocrText) {
+                            parserState.ocrLines.push(ocrText);
+                            parserState.filenames.push(filename);
+                        }
+                    });
+                    
+                    if (parserState.ocrLines.length > 0) {
+                        document.getElementById('navigation').classList.remove('hidden');
+                        document.getElementById('add-example').classList.remove('hidden');
+                        parserState.currentIndex = 0;
+                        loadCurrentLine();
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        // Text selection for highlighting
+        document.getElementById('ocr-text').addEventListener('mouseup', (e) => {
+            const selection = window.getSelection();
+            const selectionPopup = document.getElementById('selection-popup');
+            
+            if (selection.rangeCount > 0 && selection.toString().trim()) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                
+                // Position popup above selection (Leaflet style)
+                const popupWidth = 200;
+                const popupHeight = 250; // Stima altezza massima
+                
+                // Calculate left position (centered on selection)
+                let left = rect.left + (rect.width / 2) - (popupWidth / 2);
+                
+                // Keep popup within viewport
+                const viewportWidth = window.innerWidth;
+                if (left < 10) left = 10;
+                if (left + popupWidth > viewportWidth - 10) left = viewportWidth - popupWidth - 10;
+                
+                // Position above selection
+                let top = rect.top - popupHeight - 15; // 15px gap
+                
+                // If not enough space above, position below
+                if (top < 10) {
+                    top = rect.bottom + 15;
+                }
+                
+                selectionPopup.style.left = `${left}px`;
+                selectionPopup.style.top = `${top}px`;
+                selectionPopup.style.width = `${popupWidth}px`;
+                selectionPopup.classList.remove('hidden');
+                
+            } else {
+                selectionPopup.classList.add('hidden');
+            }
+        });
+
+        // Assign field to selection
+        document.getElementById('popup-tags').addEventListener('click', (e) => {
+            if (e.target.classList.contains('popup-tag-btn')) {
+                const selection = window.getSelection();
+                const selectionPopup = document.getElementById('selection-popup');
+                
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const fieldKey = e.target.dataset.field;
+                    const field = parserState.allFields.find(f => f.key === fieldKey);
+                    if (field) {
+                        const value = range.toString().trim();
+                        parserState.currentJson[capitalize(field.name)] = value;
+                        
+                        // Highlight the selected text
+                        const span = document.createElement('span');
+                        span.className = fieldKey;
+                        try {
+                            range.surroundContents(span);
+                        } catch (err) {
+                            // If surroundContents fails (e.g., partial node selection), 
+                            // use a different approach
+                            const fragment = range.extractContents();
+                            span.appendChild(fragment);
+                            range.insertNode(span);
+                        }
+                        
+                        updateJsonPreview();
+                        selection.removeAllRanges();
+                        selectionPopup.classList.add('hidden');
+                    }
+                }
+            }
+        });
+
+        // Close popup on outside click
+        document.addEventListener('click', (e) => {
+            const selectionPopup = document.getElementById('selection-popup');
+            const ocrText = document.getElementById('ocr-text');
+            if (!selectionPopup.contains(e.target) && !ocrText.contains(e.target)) {
+                selectionPopup.classList.add('hidden');
+            }
+        });
+
+        // Navigation buttons
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            if (parserState.currentIndex > 0) {
+                parserState.currentIndex--;
+                loadCurrentLine();
+            }
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            if (parserState.currentIndex < parserState.ocrLines.length - 1) {
+                parserState.currentIndex++;
+                loadCurrentLine();
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            loadCurrentLine();
+        });
+
+        // Add example
+        document.getElementById('add-example').addEventListener('click', () => {
+            if (parserState.originalText) {
+                parserState.fewshot.push({ role: "user", content: parserState.originalText });
+                parserState.fewshot.push({ role: "assistant", content: JSON.stringify(parserState.currentJson) });
+
+                const exampleDiv = document.createElement('div');
+                exampleDiv.classList.add('border', 'border-gray-300', 'p-4', 'mb-4', 'bg-white', 'rounded', 'shadow-sm');
+                exampleDiv.innerHTML = `
+                    <strong class="text-sm">User:</strong> <span class="text-sm">${parserState.originalText}</span><br>
+                    <strong class="text-sm">Assistant JSON:</strong> <pre class="bg-gray-100 p-2 rounded mt-2 text-xs">${JSON.stringify(parserState.currentJson, null, 2)}</pre>
+                `;
+                document.getElementById('examples-container').appendChild(exampleDiv);
+
+                if (parserState.currentIndex < parserState.ocrLines.length - 1) {
+                    parserState.currentIndex++;
+                    loadCurrentLine();
+                }
+            }
+        });
+
+        // Run parsing
+        document.getElementById('run-parsing-btn').addEventListener('click', async () => {
+            if (parserState.fewshot.length === 0) {
+                alert('No few-shot examples created! Add at least one example first.');
+                return;
+            }
+            
+            const btn = document.getElementById('run-parsing-btn');
+            const logDiv = document.getElementById('parsing-log');
+            const logContent = document.getElementById('parsing-log-content');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing...';
+            logDiv.classList.remove('hidden');
+            logContent.innerHTML = '<p style="color: #60a5fa;">🔍 Starting structured parsing...</p>';
+            
+            try {
+                logContent.innerHTML += `<p>📊 Total lines to parse: ${parserState.ocrLines.length}</p>`;
+                logContent.innerHTML += `<p>🎯 Using ${parserState.fewshot.length / 2} few-shot examples</p>`;
+                logContent.innerHTML += '<p style="color: #fbbf24;">⏳ Loading Qwen model...</p>';
+                
+                // Prepare data for parsing
+                const payload = {
+                    ocrLines: parserState.ocrLines,
+                    filenames: parserState.filenames,  // Include filenames
+                    fewshotExamples: parserState.fewshot,
+                    useGuided: true
+                };
+                
+                // Start polling for progress updates
+                let progressLine = null;
+                const progressInterval = setInterval(async () => {
+                    try {
+                        const statusResponse = await fetch('http://localhost:5001/parsing_status');
+                        const status = await statusResponse.json();
+                        
+                        if (status.active) {
+                            const progressText = `⏳ Parsing ${status.current}/${status.total}: ${status.current_line}`;
+                            
+                            if (!progressLine) {
+                                // Add new progress line
+                                logContent.innerHTML += `<p id="parsing-progress-line" style="color: #fbbf24;">${progressText}</p>`;
+                                progressLine = document.getElementById('parsing-progress-line');
+                            } else {
+                                // Update existing progress line
+                                progressLine.textContent = progressText;
+                            }
+                            
+                            logContent.scrollTop = logContent.scrollHeight;
+                        }
+                    } catch (e) {
+                        // Ignore errors during status polling
+                    }
+                }, 500);
+                
+                // Call the parsing endpoint
+                logContent.innerHTML += '<p style="color: #4ade80;">✓ Model loaded, starting parsing...</p>';
+                logContent.scrollTop = logContent.scrollHeight;
+                
+                const response = await fetch('http://localhost:5001/parse_structured', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                // Stop progress polling
+                clearInterval(progressInterval);
+                if (progressLine) {
+                    progressLine.remove();
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.statusText}`);
+                }
+                
+                // Download the Excel file
+                logContent.innerHTML += '<p style="color: #4ade80;">✓ Parsing complete! Preparing Excel download...</p>';
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const timestamp = new Date().toISOString().split('T')[0];
+                a.download = `parsed_output_${timestamp}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                logContent.innerHTML += '<p style="color: #4ade80; font-weight: bold;">✅ Excel file downloaded successfully!</p>';
+                logContent.scrollTop = logContent.scrollHeight;
+                
+                alert('✅ Parsing complete! Excel file downloaded successfully.');
+                
+            } catch (error) {
+                console.error('Error during parsing:', error);
+                logContent.innerHTML += `<p style="color: #f87171;">✗ Error: ${error.message}</p>`;
+                logContent.innerHTML += '<p style="color: #fbbf24;">⚠️ Make sure the OCR server is running</p>';
+                alert(`Error during parsing: ${error.message}\n\nMake sure the OCR server is running.`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Run Parsing';
+            }
+        });
+
+        // Initialize parser tab
+        renderTags();
+        renderPopupTags();
 
         // Style active/inactive tabs
         const style = document.createElement('style');
