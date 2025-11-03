@@ -1,1 +1,0 @@
-https://huggingface.co/allenai/olmOCR-7B-0825-FP8
