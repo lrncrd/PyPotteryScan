@@ -6,252 +6,16 @@
     <title>PyPotteryScan - Archaeological Drawing Processor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        .canvas-container {
-            overflow: auto;
-            max-height: 600px;
-            background: #f3f4f6;
-            border-radius: 8px;
-            padding: 10px;
-        }
-        
-        .thumbnail {
-            transition: all 0.2s;
-            position: relative;
-        }
-        
-        .thumbnail:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        
-        .thumbnail.active {
-            border: 3px solid #10b981 !important;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-        }
-        
-        .thumbnail.annotated::after {
-            content: '✓';
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #10b981;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        #annotationCanvas {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .text-box-review {
-            display: grid;
-            grid-template-columns: 200px 1fr;
-            gap: 15px;
-            padding: 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            background: white;
-        }
-
-        .text-box-review:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
-        }
-
-        .text-box-preview {
-            width: 200px;
-            height: 100px;
-            object-fit: contain;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            background: #f9fafb;
-        }
-
-        .splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-
-        .splash-content {
-            text-align: center;
-            max-width: 600px;
-            padding: 40px;
-        }
-
-        .splash-log {
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-            text-align: left;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            margin-top: 20px;
-        }
-
-        .splash-log p {
-            margin: 5px 0;
-        }
-
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Parser styles */
-        .inventario { background-color: #ffff99; }
-        .sito { background-color: #99ff99; }
-        .anno { background-color: #99ccff; }
-        .us { background-color: #ffb366; }
-        .area { background-color: #ffcc99; }
-        .taglio { background-color: #ff99cc; }
-        .settore { background-color: #cc99ff; }
-        .note { background-color: #99ffff; }
-        
-        /* Dynamic popup styles - Leaflet-like */
-        #selection-popup {
-            position: fixed;
-            background: white;
-            border: 2px solid #3b82f6;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            padding: 8px;
-            z-index: 1000;
-            max-width: 200px;
-            pointer-events: auto;
-            opacity: 0;
-            transform: translateY(-5px);
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-        
-        #selection-popup:not(.hidden) {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        #selection-popup::before {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 0;
-            border-style: solid;
-            border-width: 0 8px 10px 8px;
-            border-color: transparent transparent #3b82f6 transparent;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        
-        #selection-popup::after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 0;
-            border-style: solid;
-            border-width: 0 7px 9px 7px;
-            border-color: transparent transparent white transparent;
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        
-        .popup-tag-btn {
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 6px 10px;
-            margin: 2px 0;
-            border: none;
-            background: #f3f4f6;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.15s;
-        }
-        
-        .popup-tag-btn:hover {
-            background: #3b82f6;
-            color: white;
-            transform: translateX(2px);
-        }
-        
-        /* Modal animations */
-        .modal-overlay {
-            transition: opacity 0.3s ease;
-        }
-        
-        .modal-overlay.show {
-            opacity: 1;
-        }
-        
-        .modal-content {
-            animation: modalSlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-        
-        @keyframes modalSlideIn {
-            0% {
-                transform: scale(0.7) translateY(-30px);
-                opacity: 0;
-            }
-            50% {
-                transform: scale(1.05) translateY(0);
-            }
-            100% {
-                transform: scale(1) translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .modal-content.closing {
-            animation: modalSlideOut 0.3s ease-out forwards;
-        }
-        
-        @keyframes modalSlideOut {
-            0% {
-                transform: scale(1) translateY(0);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(0.8) translateY(20px);
-                opacity: 0;
-            }
-        }
+        /* Additional inline styles if needed */
     </style>
 </head>
 <body class="bg-gray-50">
     <!-- Splash Screen -->
     <div id="splashScreen" class="splash-screen">
         <div class="splash-content">
-            <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 120px; height: auto; margin: 0 auto 20px;">
+            <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" style="max-width: 120px; height: auto; margin: 0 auto 20px;">
             <div class="spinner"></div>
             <h1 class="text-3xl font-bold mb-4">PyPotteryScan</h1>
             <p class="text-lg mb-2" id="splashTitle">Initializing...</p>
@@ -275,7 +39,7 @@
             <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 60px; max-height: 60px; height: auto; width: auto;">
+                        <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" style="max-width: 60px; max-height: 60px; height: auto; width: auto;">
                         <div>
                             <h1 class="text-3xl font-bold text-gray-800 mb-2">PyPotteryScan</h1>
                             <p class="text-gray-600">AI-powered archaeological drawing extraction and OCR annotation tool</p>
@@ -289,43 +53,48 @@
 
             <!-- Info Modal -->
             <div id="infoModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
-                <div class="modal-content bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="flex items-center gap-3">
-                            <img src="imgs/logo.png" alt="PyPotteryScan Logo" style="max-width: 48px; max-height: 48px; height: auto; width: auto;">
-                            <h2 class="text-2xl font-bold text-gray-800">PyPotteryScan</h2>
-                        </div>
-                        <button id="closeInfoBtn" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                <div class="modal-content bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                    <!-- Header with Close Button -->
+                    <div class="flex justify-end p-4 pb-0">
+                        <button id="closeInfoBtn" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
                     </div>
-                    <div class="space-y-4">
-                        <div>
-                            <h3 class="font-semibold text-gray-700 mb-2">Description</h3>
-                            <p class="text-gray-600 text-sm">
-                                PyPotteryScan is an AI-powered tool for archaeological drawing processing. 
-                                It uses state-of-the-art OCR technology (OlmOCR-7B) to automatically extract 
-                                and annotate text from ceramic artifact drawings, streamlining the 
-                                documentation workflow for archaeologists and researchers.
-                            </p>
+                    
+                    <!-- Logo and Title -->
+                    <div class="text-center px-6 pb-6">
+                        <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" 
+                             class="mx-auto mb-4" style="width: 120px; height: 120px; object-fit: contain;">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-1">PyPotteryLens</h2>
+                        <p class="text-sm text-gray-500 mb-4">AI-powered archaeological drawing extraction and OCR annotation tool</p>
+                    </div>
+                    
+                    <!-- Version and Author -->
+                    <div class="px-6 pb-4 space-y-3">
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200">
+                            <span class="text-sm font-semibold text-gray-700">Version:</span>
+                            <span class="text-sm text-gray-600">v0.2.0</span>
                         </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-700 mb-2">Features</h3>
-                            <ul class="text-sm text-gray-600 space-y-1">
-                                <li>✓ Batch image processing with bounding box annotation</li>
-                                <li>✓ Advanced OCR with OlmOCR-7B (4-bit quantized)</li>
-                                <li>✓ Interactive drawing cleanup with eraser tool</li>
-                                <li>✓ Manual and automatic text extraction modes</li>
-                                <li>✓ Structured export with CSV metadata</li>
-                            </ul>
+                        <div class="flex items-center justify-between py-2 border-b border-gray-200">
+                            <span class="text-sm font-semibold text-gray-700">Author:</span>
+                            <span class="text-sm text-gray-600">Lorenzo Cardarelli</span>
                         </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-700 mb-2">Author</h3>
-                            <p class="text-gray-600 text-sm">
-                                <strong>Lorenzo Cardarelli</strong><br>
-                                Archaeological Tool Development
-                            </p>
-                        </div>
-                        <div class="text-center text-xs text-gray-500 pt-4 border-t">
-                            Version 2.0 - 2025
+                    </div>
+                    
+                    <!-- System Information -->
+                    <div class="bg-gray-50 px-6 py-4">
+                        <h3 class="text-sm font-bold text-gray-700 mb-3">System Information:</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-start">
+                                <span class="text-sm font-semibold text-gray-700 min-w-[140px]">CPU:</span>
+                                <span class="text-sm text-gray-600" id="systemCPU">Loading...</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="text-sm font-semibold text-gray-700 min-w-[140px]">GPU (CUDA):</span>
+                                <span class="text-sm text-gray-600" id="systemGPU">Loading...</span>
+                            </div>
+                            <div class="flex items-start">
+                                <span class="text-sm font-semibold text-gray-700 min-w-[140px]">MPS (Apple Silicon):</span>
+                                <span class="text-sm text-gray-600" id="systemMPS">Not Available</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -688,7 +457,7 @@
             // Poll loading status every 500ms
             const pollInterval = setInterval(async () => {
                 try {
-                    const response = await fetch('http://localhost:5001/loading_status');
+                    const response = await fetch('/loading_status');
                     const status = await response.json();
                     
                     // Update progress bar
@@ -728,7 +497,7 @@
                         progressBar.textContent = '100%';
                         
                         // Get final health check
-                        const healthResponse = await fetch('http://localhost:5001/health');
+                        const healthResponse = await fetch('/health');
                         const healthData = await healthResponse.json();
                         
                         log.innerHTML = `<p style="color: #4ade80;">✓ Server online: ${healthData.status}</p>`;
@@ -761,8 +530,8 @@
 
         checkServer();
 
-        // Info Modal with animations
-        document.getElementById('infoBtn').addEventListener('click', () => {
+        // Info Modal with animations and system info
+        document.getElementById('infoBtn').addEventListener('click', async () => {
             const modal = document.getElementById('infoModal');
             const modalContent = modal.querySelector('.modal-content');
             
@@ -770,6 +539,32 @@
             // Trigger reflow to ensure animation plays
             modal.offsetHeight;
             modal.classList.add('show');
+            
+            // Fetch system info
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                // Update CPU info
+                document.getElementById('systemCPU').textContent = navigator.hardwareConcurrency ? 
+                    `${navigator.hardwareConcurrency} cores (Available)` : 'Unknown';
+                
+                // Update GPU info
+                if (data.cuda_available) {
+                    const gpuInfo = data.device || 'CUDA Available';
+                    document.getElementById('systemGPU').textContent = `Available (${gpuInfo})`;
+                } else {
+                    document.getElementById('systemGPU').textContent = 'Not Available';
+                }
+                
+                // MPS is for Apple Silicon - always Not Available on Windows
+                document.getElementById('systemMPS').textContent = 'Not Available';
+                
+            } catch (err) {
+                console.error('Error fetching system info:', err);
+                document.getElementById('systemCPU').textContent = 'Error loading';
+                document.getElementById('systemGPU').textContent = 'Error loading';
+            }
         });
 
         function closeModal() {
@@ -1308,7 +1103,7 @@
                         const textImageData = tempCanvas.toDataURL('image/png');
 
                         try {
-                            const response = await fetch('http://localhost:5001/ocr', {
+                            const response = await fetch('/api/ocr', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ image: textImageData })
@@ -2154,7 +1949,7 @@
                 let progressLine = null;
                 const progressInterval = setInterval(async () => {
                     try {
-                        const statusResponse = await fetch('http://localhost:5001/parsing_status');
+                        const statusResponse = await fetch('/parsing_status');
                         const status = await statusResponse.json();
                         
                         if (status.active) {
@@ -2180,7 +1975,7 @@
                 logContent.innerHTML += '<p style="color: #4ade80;">✓ Model loaded, starting parsing...</p>';
                 logContent.scrollTop = logContent.scrollHeight;
                 
-                const response = await fetch('http://localhost:5001/parse_structured', {
+                const response = await fetch('/api/parse_structured', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
