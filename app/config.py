@@ -18,6 +18,9 @@ class Config:
     OLMOCR_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp4")
     QWEN_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "qwen3-1.7b")
     
+    # Projects directory
+    PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
+    
     # HuggingFace model IDs
     OLMOCR_MODEL_ID = "lrncrd/olmOCR-7B-FP4"
     QWEN_MODEL_ID = "Qwen/Qwen3-1.7B"
@@ -40,7 +43,8 @@ class Config:
             'OLMOCR_MODEL_DIR': cls.OLMOCR_MODEL_DIR,
             'QWEN_MODEL_DIR': cls.QWEN_MODEL_DIR,
             'OLMOCR_MODEL_ID': cls.OLMOCR_MODEL_ID,
-            'QWEN_MODEL_ID': cls.QWEN_MODEL_ID
+            'QWEN_MODEL_ID': cls.QWEN_MODEL_ID,
+            'PROJECTS_DIR': cls.PROJECTS_DIR
         }
 
 

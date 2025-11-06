@@ -100,10 +100,50 @@
                 </div>
             </div>
 
+            <!-- New Project Modal -->
+            <div id="newProjectModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                <div class="modal-content bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Create New Project</h2>
+                        <button id="closeNewProjectBtn" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+                    </div>
+                    
+                    <form id="newProjectForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2">Project Name *</label>
+                            <input type="text" id="projectNameInput" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                                   placeholder="e.g., Monte Bibele 2024">
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-semibold mb-2">Description (optional)</label>
+                            <textarea id="projectDescInput" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                                      placeholder="Brief description of the project..."></textarea>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button type="button" id="cancelNewProjectBtn" 
+                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                            <button type="submit" 
+                                    class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                Create Project
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <!-- Tab Navigation -->
             <div class="bg-white rounded-t-lg shadow-lg overflow-hidden">
                 <div class="flex border-b-2 border-gray-200 overflow-x-auto">
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition active whitespace-nowrap" data-tab="load">
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition active whitespace-nowrap" data-tab="projects">
+                        🗂️ Projects
+                    </button>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="load" disabled>
                         1. Load
                     </button>
                     <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="annotate" disabled>
@@ -130,8 +170,35 @@
             <!-- Tab Contents -->
             <div class="bg-white rounded-b-lg shadow-lg p-6">
                 
+                <!-- TAB 0: Projects Management -->
+                <div class="tab-content active" data-tab="projects">
+                    <div class="max-w-5xl mx-auto">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold">🗂️ Project Management</h2>
+                            <button id="newProjectBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                ➕ New Project
+                            </button>
+                        </div>
+
+                        <!-- Projects Grid -->
+                        <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Projects will be loaded here -->
+                        </div>
+
+                        <!-- Empty state -->
+                        <div id="emptyProjectsState" class="text-center py-16 hidden">
+                            <div class="text-6xl mb-4">📂</div>
+                            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Projects Yet</h3>
+                            <p class="text-gray-600 mb-6">Create your first project to get started</p>
+                            <button class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition create-project-btn">
+                                ➕ Create First Project
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- TAB 1: Load Images -->
-                <div class="tab-content active" data-tab="load">
+                <div class="tab-content hidden" data-tab="load">
                     <div class="text-center py-12">
                         <h2 class="text-2xl font-bold mb-4">📁 Select Folder with Images</h2>
                         <p class="text-gray-600 mb-8">Choose a folder containing your ceramic plate scans (JPG, PNG)</p>
@@ -530,7 +597,267 @@
 
         checkServer();
 
-        // Info Modal with animations and system info
+        // ==========================================
+        // PROJECT MANAGEMENT
+        // ==========================================
+        
+        let currentProject = null;
+        
+        // Load projects on page load
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/project/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderProjects(data.projects);
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+            }
+        }
+        
+        // Render projects grid
+        function renderProjects(projects) {
+            const grid = document.getElementById('projectsGrid');
+            const emptyState = document.getElementById('emptyProjectsState');
+            
+            if (projects.length === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            grid.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            
+            grid.innerHTML = projects.map(project => {
+                const created = new Date(project.created_at).toLocaleDateString();
+                const modified = new Date(project.last_modified).toLocaleDateString();
+                const status = project.workflow_status;
+                
+                return `
+                    <div class="project-card bg-white border-2 border-gray-200 rounded-lg p-4 hover:shadow-lg transition cursor-pointer" data-project-id="${project.project_id}">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-lg font-bold text-gray-800 truncate">${project.project_name}</h3>
+                            <button class="delete-project-btn text-red-500 hover:text-red-700" data-project-id="${project.project_id}" onclick="event.stopPropagation();">
+                                🗑️
+                            </button>
+                        </div>
+                        
+                        ${project.description ? `<p class="text-sm text-gray-600 mb-3 line-clamp-2">${project.description}</p>` : ''}
+                        
+                        <div class="space-y-1 text-xs text-gray-600 mb-3">
+                            <div>📅 Created: ${created}</div>
+                            <div>🔄 Modified: ${modified}</div>
+                            <div>📸 Images: ${status.images_count}</div>
+                            <div>✏️ Annotated: ${status.annotations_completed}</div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="open-project-btn flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm" data-project-id="${project.project_id}">
+                                Open
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add event listeners
+            grid.querySelectorAll('.project-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('.delete-project-btn') && !e.target.closest('.open-project-btn')) {
+                        const projectId = card.dataset.projectId;
+                        openProject(projectId);
+                    }
+                });
+            });
+            
+            grid.querySelectorAll('.open-project-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const projectId = btn.dataset.projectId;
+                    openProject(projectId);
+                });
+            });
+            
+            grid.querySelectorAll('.delete-project-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const projectId = btn.dataset.projectId;
+                    
+                    if (confirm('Are you sure you want to delete this project? This cannot be undone.')) {
+                        await deleteProject(projectId);
+                    }
+                });
+            });
+        }
+        
+        // Open project
+        async function openProject(projectId) {
+            try {
+                const response = await fetch(`/api/project/${projectId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentProject = data.project;
+                    console.log('Opened project:', currentProject);
+                    
+                    // Enable Load tab
+                    const loadTab = document.querySelector('.tab-btn[data-tab="load"]');
+                    loadTab.disabled = false;
+                    
+                    // Switch to Load tab
+                    switchTab('load');
+                    
+                    // Load project images if any
+                    await loadProjectImages(projectId);
+                }
+            } catch (error) {
+                console.error('Error opening project:', error);
+                alert('Failed to open project');
+            }
+        }
+        
+        // Delete project
+        async function deleteProject(projectId) {
+            try {
+                const response = await fetch(`/api/project/${projectId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Project deleted:', projectId);
+                    await loadProjects();
+                } else {
+                    alert('Failed to delete project: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error deleting project:', error);
+                alert('Failed to delete project');
+            }
+        }
+        
+        // Load project images
+        async function loadProjectImages(projectId) {
+            try {
+                const response = await fetch(`/api/project/${projectId}/images`);
+                const data = await response.json();
+                
+                if (data.success && data.images.length > 0) {
+                    // Populate state.images for annotation
+                    state.images = [];
+                    for (const imageName of data.images) {
+                        const imageUrl = `/api/project/${projectId}/image/${imageName}`;
+                        state.images.push({
+                            name: imageName,
+                            url: imageUrl
+                        });
+                    }
+                    
+                    console.log('Loaded', state.images.length, 'images into state');
+                    
+                    // Show folder info
+                    document.getElementById('folderInfo').classList.remove('hidden');
+                    document.getElementById('folderName').textContent = currentProject.project_name;
+                    document.getElementById('imageCount').textContent = data.count;
+                    
+                    // Load images into list
+                    const imagesList = document.getElementById('imagesList');
+                    imagesList.innerHTML = data.images.map((img, idx) => `
+                        <div class="thumbnail relative cursor-pointer border-2 border-gray-300 rounded overflow-hidden">
+                            <img src="/api/project/${projectId}/image/${img}" class="w-full h-24 object-cover">
+                            <p class="text-xs text-center p-1 bg-gray-100 truncate" title="${img}">${img}</p>
+                        </div>
+                    `).join('');
+                    
+                    // Add click handlers to thumbnails
+                    const thumbnails = imagesList.querySelectorAll('.thumbnail');
+                    thumbnails.forEach((thumb, idx) => {
+                        thumb.addEventListener('click', () => {
+                            state.currentImageIndex = idx;
+                            loadImageForAnnotation();
+                            enableTab('annotate');
+                            switchTab('annotate');
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading project images:', error);
+            }
+        }
+        
+        // New project modal
+        document.getElementById('newProjectBtn').addEventListener('click', () => {
+            document.getElementById('newProjectModal').classList.remove('hidden');
+        });
+        
+        document.querySelectorAll('.create-project-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.remove('hidden');
+            });
+        });
+        
+        document.getElementById('closeNewProjectBtn').addEventListener('click', () => {
+            document.getElementById('newProjectModal').classList.add('hidden');
+        });
+        
+        document.getElementById('cancelNewProjectBtn').addEventListener('click', () => {
+            document.getElementById('newProjectModal').classList.add('hidden');
+        });
+        
+        // Create new project
+        document.getElementById('newProjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('projectNameInput').value.trim();
+            const description = document.getElementById('projectDescInput').value.trim();
+            
+            if (!name) {
+                alert('Please enter a project name');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/project/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, description })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Project created:', data.project);
+                    
+                    // Close modal and reset form
+                    document.getElementById('newProjectModal').classList.add('hidden');
+                    document.getElementById('newProjectForm').reset();
+                    
+                    // Reload projects
+                    await loadProjects();
+                    
+                    // Optionally open the new project
+                    await openProject(data.project.project_id);
+                } else {
+                    alert('Failed to create project: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error creating project:', error);
+                alert('Failed to create project');
+            }
+        });
+        
+        // Load projects on startup
+        loadProjects();
+
+        // ==========================================
+        // INFO MODAL
+        // ==========================================
         document.getElementById('infoBtn').addEventListener('click', async () => {
             const modal = document.getElementById('infoModal');
             const modalContent = modal.querySelector('.modal-content');
@@ -617,6 +944,7 @@
         });
 
         function switchTab(tabName) {
+            console.log('Switching to tab:', tabName);
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 if (btn.dataset.tab === tabName) {
                     btn.classList.add('active', 'bg-blue-600', 'text-white');
@@ -636,59 +964,69 @@
                     content.classList.remove('active');
                 }
             });
+            console.log('Tab switched successfully to:', tabName);
         }
 
         function enableTab(tabName) {
+            console.log('Enabling tab:', tabName);
             const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-            if (btn) btn.disabled = false;
+            if (btn) {
+                btn.disabled = false;
+                console.log('Tab enabled:', tabName);
+            } else {
+                console.error('Tab button not found for:', tabName);
+            }
         }
 
         // TAB 1: Load Images
         document.getElementById('selectFolderBtn').addEventListener('click', async () => {
+            // Check if project is selected
+            if (!currentProject) {
+                alert('Please select or create a project first');
+                switchTab('projects');
+                return;
+            }
+            
             try {
                 const dirHandle = await window.showDirectoryPicker();
-                state.images = [];
+                const files = [];
                 
                 for await (const entry of dirHandle.values()) {
                     if (entry.kind === 'file') {
                         const file = await entry.getFile();
                         if (file.type.startsWith('image/')) {
-                            state.images.push({
-                                name: file.name,
-                                file: file,
-                                url: URL.createObjectURL(file)
-                            });
+                            files.push(file);
                         }
                     }
                 }
 
-                if (state.images.length === 0) {
+                if (files.length === 0) {
                     alert('No images found in the selected folder');
                     return;
                 }
 
-                document.getElementById('folderName').textContent = dirHandle.name;
-                document.getElementById('imageCount').textContent = state.images.length;
-                document.getElementById('folderInfo').classList.remove('hidden');
-
-                // Show thumbnails (small preview)
-                const list = document.getElementById('imagesList');
-                list.innerHTML = '';
-                state.images.forEach((img, idx) => {
-                    const div = document.createElement('div');
-                    div.className = 'thumbnail relative cursor-pointer border-2 border-gray-300 rounded overflow-hidden';
-                    div.innerHTML = `
-                        <img src="${img.url}" class="w-full h-24 object-cover">
-                        <p class="text-xs text-center p-1 bg-gray-100 truncate" title="${img.name}">${img.name}</p>
-                    `;
-                    div.addEventListener('click', () => {
-                        state.currentImageIndex = idx;
-                        loadImageForAnnotation();
-                        enableTab('annotate');
-                        switchTab('annotate');
-                    });
-                    list.appendChild(div);
+                // Upload files to project
+                const formData = new FormData();
+                files.forEach(file => {
+                    formData.append('files', file);
                 });
+                
+                const uploadResponse = await fetch(`/api/project/${currentProject.project_id}/upload_images`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const uploadData = await uploadResponse.json();
+                
+                if (!uploadData.success) {
+                    alert('Failed to upload images: ' + uploadData.error);
+                    return;
+                }
+                
+                console.log(`Uploaded ${uploadData.uploaded} images to project`);
+                
+                // Load images from project
+                await loadProjectImagesForWork();
 
             } catch (err) {
                 console.error('Error:', err);
@@ -696,17 +1034,83 @@
             }
         });
 
+        // Load images from current project
+        async function loadProjectImagesForWork() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject.project_id}/images`);
+                const data = await response.json();
+                
+                if (data.success && data.images.length > 0) {
+                    state.images = [];
+                    
+                    // Load all images
+                    for (const imageName of data.images) {
+                        const imageUrl = `/api/project/${currentProject.project_id}/image/${imageName}`;
+                        state.images.push({
+                            name: imageName,
+                            url: imageUrl
+                        });
+                    }
+                    
+                    document.getElementById('folderName').textContent = currentProject.project_name;
+                    document.getElementById('imageCount').textContent = state.images.length;
+                    document.getElementById('folderInfo').classList.remove('hidden');
+
+                    // Show thumbnails
+                    const list = document.getElementById('imagesList');
+                    list.innerHTML = '';
+                    state.images.forEach((img, idx) => {
+                        const div = document.createElement('div');
+                        div.className = 'thumbnail relative cursor-pointer border-2 border-gray-300 rounded overflow-hidden';
+                        div.innerHTML = `
+                            <img src="${img.url}" class="w-full h-24 object-cover">
+                            <p class="text-xs text-center p-1 bg-gray-100 truncate" title="${img.name}">${img.name}</p>
+                        `;
+                        div.addEventListener('click', () => {
+                            state.currentImageIndex = idx;
+                            loadImageForAnnotation();
+                            enableTab('annotate');
+                            switchTab('annotate');
+                        });
+                        list.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading project images:', error);
+            }
+        }
+
         document.getElementById('startAnnotationBtn').addEventListener('click', () => {
-            if (state.images.length === 0) return;
+            console.log('Start annotation clicked, images count:', state.images.length);
+            if (state.images.length === 0) {
+                alert('No images loaded. Please load images first.');
+                return;
+            }
             state.currentImageIndex = 0;
+            console.log('Switching to annotate tab...');
             enableTab('annotate');
             switchTab('annotate');
             loadImageForAnnotation();
         });
 
         // TAB 2: Annotation with Canvas (RESPONSIVE)
-        function loadImageForAnnotation() {
+        async function loadImageForAnnotation() {
             const img = state.images[state.currentImageIndex];
+            console.log('Loading image for annotation:', img);
+            
+            // Try to load annotations from project
+            if (currentProject) {
+                console.log('Loading annotations for:', img.name);
+                const savedAnnotations = await loadAnnotationsFromProject(img.name);
+                if (savedAnnotations) {
+                    console.log('Found saved annotations:', savedAnnotations);
+                    state.annotations[img.name] = savedAnnotations;
+                } else {
+                    console.log('No saved annotations found');
+                }
+            }
             
             if (!state.annotations[img.name]) {
                 // Extract filename without extension for table name
@@ -716,6 +1120,7 @@
                     metadata: { tableName: fileNameWithoutExt, context: '', notes: '' },
                     drawings: []
                 };
+                console.log('Created new annotation structure for:', img.name);
             }
 
             const annotation = state.annotations[img.name];
@@ -727,11 +1132,17 @@
             document.getElementById('imageIndicator').textContent = `${state.currentImageIndex + 1} / ${state.images.length}`;
 
             // Load FULL RES image
+            console.log('Loading full res image from URL:', img.url);
             const fullResImage = new Image();
             fullResImage.onload = () => {
+                console.log('Image loaded successfully, size:', fullResImage.width, 'x', fullResImage.height);
                 state.fullResImages[img.name] = fullResImage;
                 currentImage = fullResImage;
                 initCanvas();
+            };
+            fullResImage.onerror = (e) => {
+                console.error('Error loading image:', e);
+                alert('Failed to load image: ' + img.name);
             };
             fullResImage.src = img.url;
 
@@ -891,7 +1302,67 @@
 
         function saveCurrentAnnotations() {
             const img = state.images[state.currentImageIndex];
+            if (!state.annotations[img.name]) {
+                state.annotations[img.name] = {
+                    metadata: { tableName: '', context: '', notes: '' },
+                    drawings: []
+                };
+            }
             state.annotations[img.name].drawings = state.drawings;
+            state.annotations[img.name].metadata = {
+                tableName: document.getElementById('tableName').value,
+                context: document.getElementById('contextInfo').value,
+                notes: document.getElementById('notesInfo').value
+            };
+            
+            // Save to project backend
+            if (currentProject) {
+                saveAnnotationsToProject(img.name, state.annotations[img.name]);
+            }
+        }
+        
+        // Save annotations to project backend
+        async function saveAnnotationsToProject(imageName, annotationData) {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject.project_id}/annotations/${imageName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ annotations: annotationData })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`Annotations saved for ${imageName}`);
+                } else {
+                    console.error('Failed to save annotations:', data.error);
+                }
+            } catch (error) {
+                console.error('Error saving annotations:', error);
+            }
+        }
+        
+        // Load annotations from project
+        async function loadAnnotationsFromProject(imageName) {
+            if (!currentProject) return null;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject.project_id}/annotations/${imageName}`);
+                const data = await response.json();
+                
+                if (data.success && data.annotations) {
+                    return data.annotations;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error loading annotations:', error);
+                return null;
+            }
         }
 
         function updateAnnotationUI() {
@@ -1020,17 +1491,110 @@
             alert('Metadata saved!');
         });
 
-        document.getElementById('finishAnnotationBtn').addEventListener('click', () => {
+        document.getElementById('finishAnnotationBtn').addEventListener('click', async () => {
             const hasAnnotations = Object.values(state.annotations).some(a => a.drawings.length > 0);
             if (!hasAnnotations) {
                 alert('Please annotate at least one image before proceeding');
                 return;
             }
+            
             // Save current annotations before switching tabs
             saveCurrentAnnotations();
+            
+            // Generate and save cropped images to project
+            if (currentProject) {
+                await generateAndSaveCroppedImages();
+            }
+            
             enableTab('process');
             switchTab('process');
         });
+        
+        // Generate and save cropped images to project
+        async function generateAndSaveCroppedImages() {
+            console.log('Generating cropped images...');
+            
+            let totalCrops = 0;
+            
+            for (const imgName in state.annotations) {
+                const ann = state.annotations[imgName];
+                const imgElement = state.fullResImages[imgName];
+                
+                if (!imgElement) continue;
+                
+                for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
+                    const drawing = ann.drawings[dIdx];
+                    
+                    // Create crop of the drawing (without text)
+                    const drawingCanvas = document.createElement('canvas');
+                    const drawingCtx = drawingCanvas.getContext('2d');
+                    drawingCanvas.width = drawing.w;
+                    drawingCanvas.height = drawing.h;
+                    
+                    // Fill white background
+                    drawingCtx.fillStyle = 'white';
+                    drawingCtx.fillRect(0, 0, drawing.w, drawing.h);
+                    
+                    // Draw the cropped area
+                    drawingCtx.drawImage(imgElement, drawing.x, drawing.y, drawing.w, drawing.h, 0, 0, drawing.w, drawing.h);
+                    
+                    // Save drawing crop
+                    const drawingImageData = drawingCanvas.toDataURL('image/png');
+                    const baseImgName = imgName.replace(/\.[^/.]+$/, '');
+                    const drawingFilename = `${baseImgName}_d${dIdx + 1}.png`;
+                    
+                    await saveCroppedToProject(drawingImageData, drawingFilename);
+                    totalCrops++;
+                    
+                    // Create crops for each text box
+                    for (let tIdx = 0; tIdx < drawing.textBoxes.length; tIdx++) {
+                        const textBox = drawing.textBoxes[tIdx];
+                        
+                        const textCanvas = document.createElement('canvas');
+                        const textCtx = textCanvas.getContext('2d');
+                        textCanvas.width = textBox.w;
+                        textCanvas.height = textBox.h;
+                        
+                        textCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
+                        
+                        const textImageData = textCanvas.toDataURL('image/png');
+                        const textFilename = `${baseImgName}_d${dIdx + 1}_t${tIdx + 1}.png`;
+                        
+                        await saveCroppedToProject(textImageData, textFilename);
+                        totalCrops++;
+                    }
+                }
+            }
+            
+            console.log(`Saved ${totalCrops} cropped images to project`);
+            alert(`Generated and saved ${totalCrops} cropped images!`);
+        }
+        
+        // Save cropped image to project
+        async function saveCroppedToProject(imageData, filename) {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject.project_id}/save_cropped`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: imageData,
+                        filename: filename
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    console.error('Failed to save cropped image:', filename);
+                }
+            } catch (error) {
+                console.error('Error saving cropped image:', error);
+            }
+        }
 
         // TAB 3: Process OCR (MORE VERBOSE)
         document.getElementById('startOcrBtn').addEventListener('click', async () => {
@@ -1139,9 +1703,48 @@
             log.innerHTML += `<p style="color: #4ade80; font-weight: bold;">✓ All OCR processing complete!</p>`;
             log.innerHTML += `<p style="color: #4ade80;">═══════════════════════════════</p>`;
             
+            // Save OCR results to project
+            if (currentProject) {
+                await saveOCRResultsToProject();
+            }
+            
             document.getElementById('proceedCleanBtn').classList.remove('hidden');
             enableTab('clean');
         });
+        
+        // Save OCR results to project
+        async function saveOCRResultsToProject() {
+            if (!currentProject) return;
+            
+            const results = [];
+            
+            for (const key in state.ocrResults) {
+                results.push({
+                    key: key,
+                    texts: state.ocrResults[key]
+                });
+            }
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject.project_id}/save_ocr_results`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ results: results })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('OCR results saved to project');
+                } else {
+                    console.error('Failed to save OCR results:', data.error);
+                }
+            } catch (error) {
+                console.error('Error saving OCR results:', error);
+            }
+        }
 
         // Skip OCR button - proceed directly to manual input
         document.getElementById('skipOcrBtn').addEventListener('click', () => {
@@ -1330,7 +1933,7 @@
             }
         });
 
-        document.getElementById('markCleanBtn').addEventListener('click', () => {
+        document.getElementById('markCleanBtn').addEventListener('click', async () => {
             const item = cleanItems[cleanIndex];
             
             // Save the cleaned drawing back to state
@@ -1340,6 +1943,34 @@
             }
             state.cleanedDrawings[item.key].cleaned = true;
             state.cleanedDrawings[item.key].imageData = cleanedImageData;
+            
+            // Save to project backend
+            if (currentProject) {
+                const baseImgName = item.imgName.replace(/\.[^/.]+$/, '');
+                const cleanedFilename = `${baseImgName}_d${item.drawingIdx + 1}_cleaned.png`;
+                
+                try {
+                    const response = await fetch(`/api/project/${currentProject.project_id}/save_cropped`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            image: cleanedImageData,
+                            filename: cleanedFilename,
+                            folder: 'cleaned_drawings'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log('Cleaned drawing saved:', cleanedFilename);
+                    }
+                } catch (error) {
+                    console.error('Error saving cleaned drawing:', error);
+                }
+            }
             
             alert('Drawing cleaned and saved!');
             if (cleanIndex < cleanItems.length - 1) {
