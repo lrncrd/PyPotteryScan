@@ -6,14 +6,18 @@ import io
 import os
 import json
 import time
+import shutil
 from datetime import datetime
-from flask import Blueprint, render_template, request, jsonify, send_file
+from pathlib import Path
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app
 from PIL import Image
 import torch
 import pandas as pd
 import logging
 
 from app.model_manager import model_manager
+from app.project_manager import ProjectManager
+from app.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,10 @@ logger = logging.getLogger(__name__)
 main_bp = Blueprint('main', __name__)
 ocr_bp = Blueprint('ocr', __name__, url_prefix='/api')
 parser_bp = Blueprint('parser', __name__, url_prefix='/api')
+project_bp = Blueprint('project', __name__, url_prefix='/api/project')
+
+# Initialize project manager with absolute path
+project_manager = ProjectManager(projects_root=Config.PROJECTS_DIR)
 
 
 # ==================
@@ -365,3 +373,344 @@ def parse_structured_endpoint():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ==================
+# PROJECT ROUTES
+# ==================
+
+@project_bp.route('/create', methods=['POST'])
+def create_project():
+    """Create a new project"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'name' not in data:
+            return jsonify({'error': 'Project name is required'}), 400
+        
+        project_name = data['name']
+        description = data.get('description', '')
+        
+        metadata = project_manager.create_project(project_name, description)
+        
+        logger.info(f"✅ Created project: {metadata['project_id']}")
+        
+        return jsonify({
+            'success': True,
+            'project': metadata
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"❌ Error creating project: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/list', methods=['GET'])
+def list_projects():
+    """List all projects"""
+    try:
+        projects = project_manager.list_projects()
+        
+        return jsonify({
+            'success': True,
+            'projects': projects
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error listing projects: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>', methods=['GET'])
+def get_project(project_id):
+    """Get project details"""
+    try:
+        project = project_manager.get_project(project_id)
+        
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'project': project
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting project: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>', methods=['DELETE'])
+def delete_project(project_id):
+    """Delete a project"""
+    try:
+        success = project_manager.delete_project(project_id)
+        
+        if not success:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        logger.info(f"🗑️ Deleted project: {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Project deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error deleting project: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/upload_images', methods=['POST'])
+def upload_images(project_id):
+    """Upload images to project"""
+    try:
+        if 'files' not in request.files:
+            return jsonify({'error': 'No files provided'}), 400
+        
+        files = request.files.getlist('files')
+        
+        if not files:
+            return jsonify({'error': 'No files provided'}), 400
+        
+        # Get project path
+        images_path = project_manager.get_project_path(project_id, 'original_images')
+        
+        if not images_path:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        uploaded_count = 0
+        
+        for file in files:
+            if file.filename:
+                # Save file
+                file_path = images_path / file.filename
+                file.save(str(file_path))
+                uploaded_count += 1
+        
+        # Update project metadata
+        total_images = project_manager.count_files(project_id, 'original_images')
+        project_manager.update_workflow_status(project_id, {
+            'images_loaded': True,
+            'images_count': total_images
+        })
+        
+        logger.info(f"📁 Uploaded {uploaded_count} images to project {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'uploaded': uploaded_count,
+            'total': total_images
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error uploading images: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/images', methods=['GET'])
+def get_project_images(project_id):
+    """Get list of images in project"""
+    try:
+        folder_type = request.args.get('folder', 'original_images')
+        images = project_manager.get_images_list(project_id, folder_type)
+        
+        return jsonify({
+            'success': True,
+            'images': images,
+            'count': len(images)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting images: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/image/<path:image_name>', methods=['GET'])
+def get_project_image(project_id, image_name):
+    """Get a specific image from project"""
+    try:
+        folder_type = request.args.get('folder', 'original_images')
+        image_path = project_manager.get_project_path(project_id, folder_type) / image_name
+        
+        if not image_path.exists():
+            return jsonify({'error': 'Image not found'}), 404
+        
+        return send_file(str(image_path), mimetype='image/jpeg')
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/annotations/<image_name>', methods=['GET'])
+def get_annotations(project_id, image_name):
+    """Get annotations for an image"""
+    try:
+        annotations = project_manager.load_annotation_data(project_id, image_name)
+        
+        if annotations is None:
+            return jsonify({
+                'success': True,
+                'annotations': None
+            })
+        
+        return jsonify({
+            'success': True,
+            'annotations': annotations
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting annotations: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/annotations/<image_name>', methods=['POST'])
+def save_annotations(project_id, image_name):
+    """Save annotations for an image"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'annotations' not in data:
+            return jsonify({'error': 'Annotations data required'}), 400
+        
+        success = project_manager.save_annotation_data(
+            project_id, 
+            image_name, 
+            data['annotations']
+        )
+        
+        if not success:
+            return jsonify({'error': 'Failed to save annotations'}), 500
+        
+        logger.info(f"💾 Saved annotations for {image_name} in project {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Annotations saved successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving annotations: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/save_cropped', methods=['POST'])
+def save_cropped_drawing(project_id):
+    """Save a cropped drawing image"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'image' not in data or 'filename' not in data:
+            return jsonify({'error': 'Image data and filename required'}), 400
+        
+        # Decode base64 image
+        image_data = data['image']
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Get folder type (default: cropped_drawings, can also be cleaned_drawings)
+        folder_type = data.get('folder', 'cropped_drawings')
+        
+        # Save to specified folder
+        target_path = project_manager.get_project_path(project_id, folder_type)
+        
+        if not target_path:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        filename = data['filename']
+        image_path = target_path / filename
+        image.save(str(image_path))
+        
+        logger.info(f"✂️ Saved image to {folder_type}: {filename}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Image saved to {folder_type} successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving image: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/save_ocr_results', methods=['POST'])
+def save_ocr_results(project_id):
+    """Save OCR results to project"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'results' not in data:
+            return jsonify({'error': 'OCR results required'}), 400
+        
+        success = project_manager.save_ocr_results(project_id, data['results'])
+        
+        if not success:
+            return jsonify({'error': 'Failed to save OCR results'}), 500
+        
+        # Update workflow status
+        project_manager.update_workflow_status(project_id, {
+            'ocr_processed': len(data['results'])
+        })
+        
+        logger.info(f"💾 Saved OCR results for project {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'OCR results saved successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving OCR results: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/ocr_results', methods=['GET'])
+def get_ocr_results(project_id):
+    """Get latest OCR results from project"""
+    try:
+        results = project_manager.get_latest_ocr_results(project_id)
+        
+        if results is None:
+            return jsonify({
+                'success': True,
+                'results': []
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting OCR results: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/workflow_status', methods=['POST'])
+def update_workflow_status(project_id):
+    """Update workflow status"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Status updates required'}), 400
+        
+        success = project_manager.update_workflow_status(project_id, data)
+        
+        if not success:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Workflow status updated'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error updating workflow status: {str(e)}")
+        return jsonify({'error': str(e)}), 500

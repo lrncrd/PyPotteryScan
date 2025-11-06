@@ -25,10 +25,11 @@ def create_app(config=None):
     CORS(app)
     
     # Register blueprints
-    from app.routes import main_bp, ocr_bp, parser_bp
+    from app.routes import main_bp, ocr_bp, parser_bp, project_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(ocr_bp)
     app.register_blueprint(parser_bp)
+    app.register_blueprint(project_bp)
     
     logger.info("Flask app created successfully")
     
