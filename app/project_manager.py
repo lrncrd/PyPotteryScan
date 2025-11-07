@@ -44,6 +44,7 @@ class ProjectManager:
         # Create folder structure
         folders = [
             'original_images',     # Original scanned images
+            'thumbnails',          # Cached thumbnails for performance
             'annotations',         # Annotation data (JSON files)
             'cropped_drawings',    # Cropped individual drawings
             'cleaned_drawings',    # Cleaned drawings (no text)

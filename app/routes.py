@@ -530,15 +530,41 @@ def get_project_images(project_id):
 
 @project_bp.route('/<project_id>/image/<path:image_name>', methods=['GET'])
 def get_project_image(project_id, image_name):
-    """Get a specific image from project"""
+    """Get a specific image from project (with persistent thumbnail caching)"""
     try:
         folder_type = request.args.get('folder', 'original_images')
+        thumbnail = request.args.get('thumbnail', 'false').lower() == 'true'
+        
         image_path = project_manager.get_project_path(project_id, folder_type) / image_name
         
         if not image_path.exists():
             return jsonify({'error': 'Image not found'}), 404
         
-        return send_file(str(image_path), mimetype='image/jpeg')
+        # If thumbnail requested, check cache first
+        if thumbnail:
+            # Check if cached thumbnail exists
+            thumbnail_path = project_manager.get_project_path(project_id, 'thumbnails') / image_name
+            
+            if thumbnail_path.exists():
+                # Return cached thumbnail
+                return send_file(str(thumbnail_path), mimetype='image/jpeg')
+            else:
+                # Generate and cache thumbnail
+                img = Image.open(str(image_path))
+                
+                # Create thumbnail (max 200px on longest side)
+                max_size = 200
+                img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                
+                # Ensure thumbnails folder exists
+                thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Save thumbnail to cache
+                img.save(str(thumbnail_path), 'JPEG', quality=85, optimize=True)
+                
+                return send_file(str(thumbnail_path), mimetype='image/jpeg')
+        else:
+            return send_file(str(image_path), mimetype='image/jpeg')
         
     except Exception as e:
         logger.error(f"❌ Error getting image: {str(e)}")
@@ -713,4 +739,34 @@ def update_workflow_status(project_id):
         
     except Exception as e:
         logger.error(f"❌ Error updating workflow status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/file/<path:filename>', methods=['GET'])
+def get_project_file(project_id, filename):
+    """Get a file from project (JSON, text, etc.)"""
+    try:
+        folder = request.args.get('folder', 'ocr_results')
+        project_path = project_manager.get_project_path(project_id, folder)
+        
+        if not project_path:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        file_path = project_path / filename
+        
+        if not file_path.exists():
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Read and return JSON files as JSON
+        if filename.endswith('.json'):
+            import json
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify(data)
+        
+        # For other files, send as attachment
+        return send_file(file_path)
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting file: {str(e)}")
         return jsonify({'error': str(e)}), 500

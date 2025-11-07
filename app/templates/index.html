@@ -63,7 +63,7 @@
                     <div class="text-center px-6 pb-6">
                         <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" 
                              class="mx-auto mb-4" style="width: 120px; height: 120px; object-fit: contain;">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-1">PyPotteryLens</h2>
+                        <h2 class="text-3xl font-bold text-gray-800 mb-1">PyPotteryScan</h2>
                         <p class="text-sm text-gray-500 mb-4">AI-powered archaeological drawing extraction and OCR annotation tool</p>
                     </div>
                     
@@ -137,6 +137,14 @@
                 </div>
             </div>
 
+            <!-- Image Zoom Modal -->
+            <div id="imageZoomModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center" style="cursor: zoom-out;">
+                <div class="relative max-w-[95vw] max-h-[95vh] flex items-center justify-center" style="cursor: default;">
+                    <button id="closeZoomBtn" class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10" style="text-shadow: 0 0 5px black;">&times;</button>
+                    <img id="zoomedImage" src="" alt="Zoomed Image" class="max-w-full max-h-[95vh] object-contain">
+                </div>
+            </div>
+
             <!-- Tab Navigation -->
             <div class="bg-white rounded-t-lg shadow-lg overflow-hidden">
                 <div class="flex border-b-2 border-gray-200 overflow-x-auto">
@@ -199,6 +207,15 @@
 
                 <!-- TAB 1: Load Images -->
                 <div class="tab-content hidden" data-tab="load">
+                    <!-- Loading overlay -->
+                    <div id="loadTabLoadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
+                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">Loading Project</h3>
+                            <p id="loadTabLoadingText" class="text-gray-600">Please wait...</p>
+                        </div>
+                    </div>
+                    
                     <div class="text-center py-12">
                         <h2 class="text-2xl font-bold mb-4">📁 Select Folder with Images</h2>
                         <p class="text-gray-600 mb-8">Choose a folder containing your ceramic plate scans (JPG, PNG)</p>
@@ -223,6 +240,19 @@
 
                 <!-- TAB 2: Annotate -->
                 <div class="tab-content hidden" data-tab="annotate">
+                    <!-- Loading overlay for crop generation -->
+                    <div id="cropGenerationOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
+                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600 mx-auto mb-4"></div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">Processing Annotations</h3>
+                            <p id="cropGenerationText" class="text-gray-600 mb-4">Generating cropped images...</p>
+                            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                <div id="cropGenerationProgressBar" class="bg-green-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                            <p id="cropGenerationProgressText" class="text-sm text-gray-500">0 / 0</p>
+                        </div>
+                    </div>
+                    
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <!-- Canvas Area -->
                         <div class="lg:col-span-2">
@@ -234,7 +264,7 @@
                                 </div>
                                 <div class="flex gap-2">
                                     <button id="newDrawingBtn" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                                        + Drawing
+                                        + Drawing <span class="text-xs opacity-75">(D)</span>
                                     </button>
                                     <button id="clearCurrentBtn" class="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
                                         Clear
@@ -286,15 +316,6 @@
                                 <p class="text-xs font-semibold" id="annotationProgress">0 / 0 images completed</p>
                             </div>
 
-                            <!-- ML Training Export Option -->
-                            <div class="bg-purple-50 rounded-lg p-3">
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="checkbox" id="exportMLDataCheckbox" class="w-4 h-4 text-purple-600">
-                                    <span class="text-xs font-semibold">📊 Export ML Training Data</span>
-                                </label>
-                                <p class="text-xs text-gray-600 mt-1">Include bounding box coordinates and labels for model training</p>
-                            </div>
-
                             <button id="finishAnnotationBtn" class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold">
                                 Finish & Process OCR →
                             </button>
@@ -341,19 +362,19 @@
 
                         <div class="mb-4 flex justify-between items-center max-w-4xl mx-auto">
                             <div class="flex gap-2">
-                                <button id="prevCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">← Previous</button>
+                                <button id="prevCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" title="Previous (←)">← Previous</button>
                                 <span id="cleanIndicator" class="px-4 py-2 bg-gray-100 rounded font-semibold">1 / 1</span>
-                                <button id="nextCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Next →</button>
+                                <button id="nextCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" title="Next (→)">Next →</button>
                             </div>
                             <div class="flex gap-2">
                                 <button id="eraserBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-                                    🧹 Eraser Tool
+                                    🧹 Eraser Tool <span class="text-xs opacity-75">(E)</span>
                                 </button>
                                 <button id="undoEraseBtn" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
                                     ↶ Undo
                                 </button>
                                 <button id="markCleanBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                                    ✓ Mark as Clean
+                                    ✓ Mark as Clean <span class="text-xs opacity-75">(M)</span>
                                 </button>
                             </div>
                         </div>
@@ -377,6 +398,17 @@
                             <p class="text-xs text-gray-500 mt-4 text-center">
                                 Click and drag with the eraser tool to remove unwanted areas from the drawing
                             </p>
+                            
+                            <!-- Thumbnails Grid -->
+                            <div class="mt-6 bg-white rounded-lg p-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-sm font-semibold">All Drawings:</h3>
+                                    <span id="cleanedCounter" class="text-xs text-green-600 font-semibold">0 cleaned</span>
+                                </div>
+                                <div id="cleanThumbnailsGrid" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-64 overflow-y-auto">
+                                    <!-- Thumbnails will be loaded here -->
+                                </div>
+                            </div>
                         </div>
 
                         <div class="text-center mt-8">
@@ -636,11 +668,16 @@
                 const modified = new Date(project.last_modified).toLocaleDateString();
                 const status = project.workflow_status;
                 
+                // Calculate completion percentage
+                const totalImages = status.images_count || 0;
+                const annotatedImages = status.annotations_completed || 0;
+                const completionPercent = totalImages > 0 ? Math.round((annotatedImages / totalImages) * 100) : 0;
+                
                 return `
                     <div class="project-card bg-white border-2 border-gray-200 rounded-lg p-4 hover:shadow-lg transition cursor-pointer" data-project-id="${project.project_id}">
                         <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-lg font-bold text-gray-800 truncate">${project.project_name}</h3>
-                            <button class="delete-project-btn text-red-500 hover:text-red-700" data-project-id="${project.project_id}" onclick="event.stopPropagation();">
+                            <h3 class="text-lg font-bold text-gray-800 truncate flex-1">${project.project_name}</h3>
+                            <button class="delete-project-btn text-red-500 hover:text-red-700 ml-2" data-project-id="${project.project_id}" onclick="event.stopPropagation();">
                                 🗑️
                             </button>
                         </div>
@@ -650,9 +687,23 @@
                         <div class="space-y-1 text-xs text-gray-600 mb-3">
                             <div>📅 Created: ${created}</div>
                             <div>🔄 Modified: ${modified}</div>
-                            <div>📸 Images: ${status.images_count}</div>
-                            <div>✏️ Annotated: ${status.annotations_completed}</div>
+                            <div class="flex items-center gap-2">
+                                <span>📸 Images: ${totalImages}</span>
+                                ${annotatedImages > 0 ? `<span class="text-green-600 font-semibold">✓ Annotated: ${annotatedImages}</span>` : ''}
+                            </div>
                         </div>
+                        
+                        ${totalImages > 0 ? `
+                            <div class="mb-3">
+                                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                    <span>Progress</span>
+                                    <span>${completionPercent}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${completionPercent}%"></div>
+                                </div>
+                            </div>
+                        ` : ''}
                         
                         <div class="flex gap-2">
                             <button class="open-project-btn flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm" data-project-id="${project.project_id}">
@@ -696,6 +747,12 @@
         // Open project
         async function openProject(projectId) {
             try {
+                // Show loading overlay
+                const overlay = document.getElementById('loadTabLoadingOverlay');
+                const loadingText = document.getElementById('loadTabLoadingText');
+                overlay.classList.remove('hidden');
+                loadingText.textContent = 'Opening project...';
+                
                 const response = await fetch(`/api/project/${projectId}`);
                 const data = await response.json();
                 
@@ -710,12 +767,389 @@
                     // Switch to Load tab
                     switchTab('load');
                     
-                    // Load project images if any
-                    await loadProjectImages(projectId);
+                    loadingText.textContent = 'Loading images and thumbnails...';
+                    
+                    // Load project images and annotations
+                    await loadProjectImagesWithAnnotations(projectId);
+                    
+                    // Detect project state and enable appropriate tabs
+                    await detectAndRestoreProjectState(projectId);
+                    
+                    // Hide loading overlay
+                    overlay.classList.add('hidden');
                 }
             } catch (error) {
                 console.error('Error opening project:', error);
+                document.getElementById('loadTabLoadingOverlay').classList.add('hidden');
                 alert('Failed to open project');
+            }
+        }
+        
+        // Load project images and check for existing annotations
+        async function loadProjectImagesWithAnnotations(projectId) {
+            const imagesList = document.getElementById('imagesList');
+            let loadedCount = 0;
+            
+            try {
+                const response = await fetch(`/api/project/${projectId}/images`);
+                const data = await response.json();
+                
+                if (data.success && data.images.length > 0) {
+                    state.images = [];
+                    const annotationStatuses = {}; // Track which images have annotations
+                    const totalImages = data.images.length;
+                    
+                    // Load all images and check for annotations
+                    for (const imageName of data.images) {
+                        const imageUrl = `/api/project/${projectId}/image/${imageName}`;
+                        const thumbUrl = `/api/project/${projectId}/image/${imageName}?thumbnail=true`;
+                        
+                        state.images.push({
+                            name: imageName,
+                            url: imageUrl,
+                            thumbUrl: thumbUrl
+                        });
+                        
+                        // Check if annotations exist for this image
+                        const annotationData = await loadAnnotationsFromProject(imageName);
+                        if (annotationData && annotationData.drawings && annotationData.drawings.length > 0) {
+                            annotationStatuses[imageName] = annotationData.drawings.length;
+                            // Pre-load into state
+                            state.annotations[imageName] = annotationData;
+                        } else {
+                            annotationStatuses[imageName] = 0;
+                        }
+                        
+                        // Update progress in overlay
+                        loadedCount++;
+                        const loadingText = document.getElementById('loadTabLoadingText');
+                        if (loadingText) {
+                            loadingText.textContent = `Loading ${loadedCount} of ${totalImages} images...`;
+                        }
+                    }
+                    
+                    console.log('Loaded', state.images.length, 'images');
+                    console.log('Annotation statuses:', annotationStatuses);
+                    
+                    // Note: Cleaned drawings will be loaded on-demand when switching to Clean tab
+                    
+                    // Count total annotations
+                    const totalAnnotations = Object.values(annotationStatuses).reduce((sum, count) => sum + count, 0);
+                    const imagesWithAnnotations = Object.values(annotationStatuses).filter(count => count > 0).length;
+                    
+                    // Update project workflow status
+                    if (currentProject) {
+                        currentProject.workflow_status.annotations_completed = imagesWithAnnotations;
+                        await updateProjectWorkflowStatus({
+                            annotations_completed: imagesWithAnnotations,
+                            total_drawings: totalAnnotations
+                        });
+                    }
+                    
+                    // Show folder info
+                    document.getElementById('folderInfo').classList.remove('hidden');
+                    document.getElementById('folderName').textContent = currentProject.project_name;
+                    document.getElementById('imageCount').textContent = data.count;
+                    
+                    // Display thumbnails with annotation indicators
+                    renderThumbnailsWithAnnotations(projectId, data.images, annotationStatuses);
+                }
+            } catch (error) {
+                console.error('Error loading project images:', error);
+                imagesList.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-12">
+                        <p class="text-red-600 text-lg font-semibold">❌ Error loading images</p>
+                        <p class="text-gray-500 text-sm mt-2">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Render thumbnails with visual indicators for annotations
+        function renderThumbnailsWithAnnotations(projectId, images, annotationStatuses) {
+            const imagesList = document.getElementById('imagesList');
+            imagesList.innerHTML = images.map((img, idx) => {
+                const hasAnnotations = annotationStatuses[img] > 0;
+                const annotationCount = annotationStatuses[img] || 0;
+                
+                return `
+                    <div class="thumbnail relative cursor-pointer border-2 ${hasAnnotations ? 'border-green-500' : 'border-gray-300'} rounded overflow-hidden hover:border-blue-500 transition" data-index="${idx}">
+                        <img src="/api/project/${projectId}/image/${img}?thumbnail=true" class="w-full h-24 object-cover" loading="lazy">
+                        ${hasAnnotations ? `
+                            <div class="absolute top-1 right-1 bg-green-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
+                                ${annotationCount}
+                            </div>
+                        ` : ''}
+                        <p class="text-xs text-center p-1 ${hasAnnotations ? 'bg-green-50' : 'bg-gray-100'} truncate" title="${img}">${img}</p>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click handlers
+            const thumbnails = imagesList.querySelectorAll('.thumbnail');
+            thumbnails.forEach((thumb) => {
+                thumb.addEventListener('click', () => {
+                    const idx = parseInt(thumb.dataset.index);
+                    state.currentImageIndex = idx;
+                    loadImageForAnnotation();
+                    enableTab('annotate');
+                    switchTab('annotate');
+                });
+            });
+        }
+        
+        // Load cleaned drawings from project
+        async function loadCleanedDrawingsFromProject(projectId) {
+            try {
+                // Get list of all cleaned drawings from the cleaned_drawings folder
+                const response = await fetch(`/api/project/${projectId}/images?folder=cleaned_drawings`);
+                const data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    console.log(`Found ${data.images.length} cleaned drawings`);
+                    
+                    // Load each cleaned drawing
+                    for (const filename of data.images) {
+                        // Extract key from filename (e.g., "1342_004_d1_cleaned.png" -> "1342_004.jpg_d1")
+                        const match = filename.match(/^(.+)_d(\d+)_cleaned\./);
+                        if (match) {
+                            const baseImgName = match[1];
+                            const drawingNum = match[2];
+                            
+                            // Find original image name (might have different extension)
+                            const originalImg = state.images.find(img => img.name.startsWith(baseImgName));
+                            if (originalImg) {
+                                const key = `${originalImg.name}_d${drawingNum}`;
+                                
+                                // Make sure full-res image is loaded for this image
+                                if (!state.fullResImages[originalImg.name]) {
+                                    console.log(`Loading full-res image for: ${originalImg.name}`);
+                                    const imgElement = new Image();
+                                    imgElement.crossOrigin = 'anonymous';
+                                    
+                                    await new Promise((resolve, reject) => {
+                                        imgElement.onload = () => {
+                                            state.fullResImages[originalImg.name] = imgElement;
+                                            console.log(`✅ Full-res image loaded: ${originalImg.name}`);
+                                            resolve();
+                                        };
+                                        imgElement.onerror = () => {
+                                            console.error(`❌ Failed to load image: ${originalImg.name}`);
+                                            reject();
+                                        };
+                                        imgElement.src = `/api/project/${projectId}/image/${originalImg.name}`;
+                                    });
+                                }
+                                
+                                // Load the cleaned image
+                                const cleanedImgUrl = `/api/project/${projectId}/image/${filename}?folder=cleaned_drawings`;
+                                
+                                // Fetch as data URL
+                                const imgResponse = await fetch(cleanedImgUrl);
+                                const blob = await imgResponse.blob();
+                                const reader = new FileReader();
+                                
+                                await new Promise((resolve) => {
+                                    reader.onloadend = () => {
+                                        if (!state.cleanedDrawings[key]) {
+                                            state.cleanedDrawings[key] = {};
+                                        }
+                                        state.cleanedDrawings[key].cleaned = true;
+                                        state.cleanedDrawings[key].imageData = reader.result;
+                                        console.log(`✅ Loaded cleaned drawing: ${key}`);
+                                        resolve();
+                                    };
+                                    reader.readAsDataURL(blob);
+                                });
+                            } else {
+                                console.warn(`Could not find original image for: ${filename}`);
+                            }
+                        }
+                    }
+                    
+                    console.log('✅ All cleaned drawings loaded');
+                } else {
+                    console.log('No cleaned drawings found in project');
+                }
+            } catch (error) {
+                console.error('Error loading cleaned drawings:', error);
+            }
+        }
+        
+        // Detect project state and restore/enable tabs accordingly
+        async function detectAndRestoreProjectState(projectId) {
+            try {
+                console.log('🔍 Detecting project state...');
+                
+                // Check what exists in the project
+                const hasAnnotations = Object.keys(state.annotations).length > 0;
+                const hasCroppedDrawings = await checkFolderHasFiles(projectId, 'cropped_drawings');
+                const hasOCRResults = await checkFolderHasFiles(projectId, 'ocr_results');
+                const hasCleanedDrawings = await checkFolderHasFiles(projectId, 'cleaned_drawings');
+                
+                console.log('Project state:', {
+                    hasAnnotations,
+                    hasCroppedDrawings,
+                    hasOCRResults,
+                    hasCleanedDrawings
+                });
+                
+                let restoredFeatures = [];
+                
+                // Always enable Annotate if we have images
+                if (state.images.length > 0) {
+                    enableTab('annotate');
+                }
+                
+                // If we have annotations, enable Process tab
+                if (hasAnnotations) {
+                    enableTab('process');
+                    restoredFeatures.push('annotations');
+                    
+                    // If cropped drawings exist, pre-load them
+                    if (hasCroppedDrawings) {
+                        console.log('✅ Found existing cropped drawings, loading...');
+                        await loadExistingCroppedDrawings(projectId);
+                        restoredFeatures.push('cropped drawings');
+                    }
+                }
+                
+                // If we have OCR results, enable Review and Export tabs
+                if (hasOCRResults) {
+                    console.log('✅ Found existing OCR results, loading...');
+                    await loadExistingOCRResults(projectId);
+                    enableTab('review');
+                    enableTab('export');
+                    restoredFeatures.push('OCR results');
+                }
+                
+                // If we have cleaned drawings, enable Clean tab
+                if (hasCleanedDrawings || hasCroppedDrawings) {
+                    enableTab('clean');
+                    console.log('✅ Clean tab enabled (data will load on tab switch)');
+                }
+                
+                if (restoredFeatures.length > 0) {
+                    console.log(`✅ Project restored with: ${restoredFeatures.join(', ')}`);
+                    // Show a brief notification
+                    const statusText = `Project restored: ${restoredFeatures.join(', ')}`;
+                    console.log(`📋 ${statusText}`);
+                }
+                
+                console.log('✅ Project state restored');
+                
+            } catch (error) {
+                console.error('Error detecting project state:', error);
+            }
+        }
+        
+        // Helper: Check if a folder has files
+        async function checkFolderHasFiles(projectId, folderType) {
+            try {
+                const response = await fetch(`/api/project/${projectId}/images?folder=${folderType}`);
+                const data = await response.json();
+                return data.success && data.images && data.images.length > 0;
+            } catch (error) {
+                return false;
+            }
+        }
+        
+        // Load existing cropped drawings (just metadata, images loaded on demand)
+        async function loadExistingCroppedDrawings(projectId) {
+            try {
+                const response = await fetch(`/api/project/${projectId}/images?folder=cropped_drawings`);
+                const data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    console.log(`✅ Found ${data.images.length} existing cropped drawings`);
+                    
+                    // Pre-load full resolution images for Clean tab if not already loaded
+                    for (const imgName in state.annotations) {
+                        if (!state.fullResImages[imgName]) {
+                            const imgElement = new Image();
+                            imgElement.crossOrigin = 'anonymous';
+                            
+                            await new Promise((resolve, reject) => {
+                                imgElement.onload = () => {
+                                    state.fullResImages[imgName] = imgElement;
+                                    console.log(`Loaded full-res image for Clean tab: ${imgName}`);
+                                    resolve();
+                                };
+                                imgElement.onerror = () => {
+                                    console.error(`Failed to load image: ${imgName}`);
+                                    reject();
+                                };
+                                imgElement.src = `/api/project/${projectId}/image/${imgName}`;
+                            });
+                        }
+                    }
+                    
+                    console.log('✅ Full-resolution images ready for Clean tab');
+                }
+            } catch (error) {
+                console.error('Error loading existing crops:', error);
+            }
+        }
+        
+        // Load existing OCR results from project
+        async function loadExistingOCRResults(projectId) {
+            try {
+                // Get the latest OCR results file
+                const response = await fetch(`/api/project/${projectId}/images?folder=ocr_results`);
+                const data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    // Find the most recent OCR results JSON file
+                    const ocrFiles = data.images.filter(f => f.startsWith('ocr_results_') && f.endsWith('.json'));
+                    
+                    if (ocrFiles.length > 0) {
+                        // Sort by filename (timestamp embedded) and get most recent
+                        ocrFiles.sort().reverse();
+                        const latestOCRFile = ocrFiles[0];
+                        
+                        console.log(`Loading OCR results from: ${latestOCRFile}`);
+                        
+                        // Fetch the OCR results file
+                        const ocrResponse = await fetch(`/api/project/${projectId}/file/${latestOCRFile}?folder=ocr_results`);
+                        const ocrData = await ocrResponse.json();
+                        
+                        // Restore OCR results to state
+                        if (Array.isArray(ocrData)) {
+                            state.ocrResults = {};
+                            ocrData.forEach(result => {
+                                if (result.key && result.texts) {
+                                    state.ocrResults[result.key] = result.texts;
+                                }
+                            });
+                            console.log(`✅ Loaded ${Object.keys(state.ocrResults).length} OCR results`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading existing OCR results:', error);
+            }
+        }
+        
+        // Update project workflow status
+        async function updateProjectWorkflowStatus(updates) {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject.project_id}/workflow_status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updates)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Workflow status updated');
+                }
+            } catch (error) {
+                console.error('Error updating workflow status:', error);
             }
         }
         
@@ -741,55 +1175,7 @@
         }
         
         // Load project images
-        async function loadProjectImages(projectId) {
-            try {
-                const response = await fetch(`/api/project/${projectId}/images`);
-                const data = await response.json();
-                
-                if (data.success && data.images.length > 0) {
-                    // Populate state.images for annotation
-                    state.images = [];
-                    for (const imageName of data.images) {
-                        const imageUrl = `/api/project/${projectId}/image/${imageName}`;
-                        state.images.push({
-                            name: imageName,
-                            url: imageUrl
-                        });
-                    }
-                    
-                    console.log('Loaded', state.images.length, 'images into state');
-                    
-                    // Show folder info
-                    document.getElementById('folderInfo').classList.remove('hidden');
-                    document.getElementById('folderName').textContent = currentProject.project_name;
-                    document.getElementById('imageCount').textContent = data.count;
-                    
-                    // Load images into list
-                    const imagesList = document.getElementById('imagesList');
-                    imagesList.innerHTML = data.images.map((img, idx) => `
-                        <div class="thumbnail relative cursor-pointer border-2 border-gray-300 rounded overflow-hidden">
-                            <img src="/api/project/${projectId}/image/${img}" class="w-full h-24 object-cover">
-                            <p class="text-xs text-center p-1 bg-gray-100 truncate" title="${img}">${img}</p>
-                        </div>
-                    `).join('');
-                    
-                    // Add click handlers to thumbnails
-                    const thumbnails = imagesList.querySelectorAll('.thumbnail');
-                    thumbnails.forEach((thumb, idx) => {
-                        thumb.addEventListener('click', () => {
-                            state.currentImageIndex = idx;
-                            loadImageForAnnotation();
-                            enableTab('annotate');
-                            switchTab('annotate');
-                        });
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading project images:', error);
-            }
-        }
-        
-        // New project modal
+        // New project modal handlers
         document.getElementById('newProjectBtn').addEventListener('click', () => {
             document.getElementById('newProjectModal').classList.remove('hidden');
         });
@@ -834,20 +1220,27 @@
                 if (data.success) {
                     console.log('Project created:', data.project);
                     
-                    // Close modal and reset form
+                    // Close modal and reset form BEFORE showing loading
                     document.getElementById('newProjectModal').classList.add('hidden');
                     document.getElementById('newProjectForm').reset();
+                    
+                    // NOW show loading overlay (after modal is closed)
+                    const overlay = document.getElementById('loadTabLoadingOverlay');
+                    const loadingText = document.getElementById('loadTabLoadingText');
+                    overlay.classList.remove('hidden');
+                    loadingText.textContent = 'Loading projects...';
                     
                     // Reload projects
                     await loadProjects();
                     
-                    // Optionally open the new project
+                    // Optionally open the new project (will update loading text)
                     await openProject(data.project.project_id);
                 } else {
                     alert('Failed to create project: ' + data.error);
                 }
             } catch (error) {
                 console.error('Error creating project:', error);
+                document.getElementById('loadTabLoadingOverlay').classList.add('hidden');
                 alert('Failed to create project');
             }
         });
@@ -930,7 +1323,11 @@
             selectedDrawing: null,
             isDrawing: false,
             mode: 'idle',
-            currentBox: null
+            currentBox: null,
+            
+            // Scale management
+            canvasScale: 1,         // Scale factor: canvas dimensions / full res dimensions
+            maxCanvasWidth: 1600    // Maximum canvas width for performance
         };
 
         let canvas, ctx, currentImage = null, displayScale = 1;
@@ -964,6 +1361,16 @@
                     content.classList.remove('active');
                 }
             });
+            
+            // Load data when switching to specific tabs
+            if (tabName === 'clean' && currentProject) {
+                loadCleanTabData(currentProject.project_id);
+            } else if (tabName === 'review') {
+                loadReviewTexts();
+            } else if (tabName === 'export') {
+                updateExportSummary();
+            }
+            
             console.log('Tab switched successfully to:', tabName);
         }
 
@@ -1005,6 +1412,12 @@
                     return;
                 }
 
+                // Show loading overlay
+                const overlay = document.getElementById('loadTabLoadingOverlay');
+                const loadingText = document.getElementById('loadTabLoadingText');
+                overlay.classList.remove('hidden');
+                loadingText.textContent = `Uploading ${files.length} images...`;
+
                 // Upload files to project
                 const formData = new FormData();
                 files.forEach(file => {
@@ -1019,67 +1432,34 @@
                 const uploadData = await uploadResponse.json();
                 
                 if (!uploadData.success) {
+                    overlay.classList.add('hidden');
                     alert('Failed to upload images: ' + uploadData.error);
                     return;
                 }
                 
                 console.log(`Uploaded ${uploadData.uploaded} images to project`);
                 
+                loadingText.textContent = 'Loading images and generating thumbnails...';
+                
                 // Load images from project
                 await loadProjectImagesForWork();
+                
+                // Hide loading overlay
+                overlay.classList.add('hidden');
 
             } catch (err) {
                 console.error('Error:', err);
+                document.getElementById('loadTabLoadingOverlay').classList.add('hidden');
                 alert('Error selecting folder');
             }
         });
 
-        // Load images from current project
+        // Load images from current project (when uploading new images)
         async function loadProjectImagesForWork() {
             if (!currentProject) return;
             
-            try {
-                const response = await fetch(`/api/project/${currentProject.project_id}/images`);
-                const data = await response.json();
-                
-                if (data.success && data.images.length > 0) {
-                    state.images = [];
-                    
-                    // Load all images
-                    for (const imageName of data.images) {
-                        const imageUrl = `/api/project/${currentProject.project_id}/image/${imageName}`;
-                        state.images.push({
-                            name: imageName,
-                            url: imageUrl
-                        });
-                    }
-                    
-                    document.getElementById('folderName').textContent = currentProject.project_name;
-                    document.getElementById('imageCount').textContent = state.images.length;
-                    document.getElementById('folderInfo').classList.remove('hidden');
-
-                    // Show thumbnails
-                    const list = document.getElementById('imagesList');
-                    list.innerHTML = '';
-                    state.images.forEach((img, idx) => {
-                        const div = document.createElement('div');
-                        div.className = 'thumbnail relative cursor-pointer border-2 border-gray-300 rounded overflow-hidden';
-                        div.innerHTML = `
-                            <img src="${img.url}" class="w-full h-24 object-cover">
-                            <p class="text-xs text-center p-1 bg-gray-100 truncate" title="${img.name}">${img.name}</p>
-                        `;
-                        div.addEventListener('click', () => {
-                            state.currentImageIndex = idx;
-                            loadImageForAnnotation();
-                            enableTab('annotate');
-                            switchTab('annotate');
-                        });
-                        list.appendChild(div);
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading project images:', error);
-            }
+            // Use the same function as when opening a project
+            await loadProjectImagesWithAnnotations(currentProject.project_id);
         }
 
         document.getElementById('startAnnotationBtn').addEventListener('click', () => {
@@ -1160,14 +1540,34 @@
                 canvas.addEventListener('mouseup', handleMouseUp);
             }
 
-            // Set canvas to full resolution
-            canvas.width = currentImage.width;
-            canvas.height = currentImage.height;
+            // Calculate canvas scale for downsampling (max 1600px width)
+            const fullResWidth = currentImage.width;
+            const fullResHeight = currentImage.height;
             
-            // Calculate display scale for responsiveness
+            if (fullResWidth > state.maxCanvasWidth) {
+                // Need to downsample
+                state.canvasScale = state.maxCanvasWidth / fullResWidth;
+                canvas.width = state.maxCanvasWidth;
+                canvas.height = Math.round(fullResHeight * state.canvasScale);
+                console.log(`Downsampling: ${fullResWidth}x${fullResHeight} → ${canvas.width}x${canvas.height} (scale: ${state.canvasScale.toFixed(3)})`);
+            } else {
+                // Use full resolution
+                state.canvasScale = 1;
+                canvas.width = fullResWidth;
+                canvas.height = fullResHeight;
+                console.log(`Using full resolution: ${canvas.width}x${canvas.height}`);
+            }
+            
+            // Calculate display scale for responsive container
             const container = canvas.parentElement;
             const maxWidth = container.clientWidth - 20;
-            displayScale = Math.min(1, maxWidth / currentImage.width);
+            displayScale = Math.min(1, maxWidth / canvas.width);
+            
+            // Apply display scale via CSS
+            canvas.style.width = (canvas.width * displayScale) + 'px';
+            canvas.style.height = (canvas.height * displayScale) + 'px';
+            
+            console.log(`Display scale: ${displayScale.toFixed(3)}, canvas style: ${canvas.style.width} x ${canvas.style.height}`);
             
             drawCanvas();
         }
@@ -1176,33 +1576,42 @@
             if (!currentImage) return;
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(currentImage, 0, 0);
+            
+            // Draw image scaled to canvas size
+            ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
 
+            // Draw annotations (convert from full-res to canvas coords)
             state.drawings.forEach((drawing, idx) => {
                 const isSelected = state.selectedDrawing === idx;
                 
+                // Convert full-res coordinates to canvas coordinates
+                const canvasDrawing = fullResToCanvas(drawing);
+                
                 ctx.strokeStyle = isSelected ? '#10b981' : '#3b82f6';
                 ctx.lineWidth = isSelected ? 4 : 3;
-                ctx.strokeRect(drawing.x, drawing.y, drawing.w, drawing.h);
+                ctx.strokeRect(canvasDrawing.x, canvasDrawing.y, canvasDrawing.w, canvasDrawing.h);
                 
                 ctx.fillStyle = isSelected ? '#10b981' : '#3b82f6';
                 ctx.font = 'bold 18px sans-serif';
-                ctx.fillText(`D${idx + 1}`, drawing.x, drawing.y - 8);
+                ctx.fillText(`D${idx + 1}`, canvasDrawing.x, canvasDrawing.y - 8);
 
                 drawing.textBoxes.forEach((textBox, tIdx) => {
+                    // Convert text box coordinates to canvas
+                    const canvasTextBox = fullResToCanvas(textBox);
+                    
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 2;
-                    ctx.strokeRect(textBox.x, textBox.y, textBox.w, textBox.h);
+                    ctx.strokeRect(canvasTextBox.x, canvasTextBox.y, canvasTextBox.w, canvasTextBox.h);
                     
                     ctx.fillStyle = '#ef4444';
                     ctx.font = '14px sans-serif';
-                    ctx.fillText(`T${tIdx + 1}`, textBox.x, textBox.y - 5);
+                    ctx.fillText(`T${tIdx + 1}`, canvasTextBox.x, canvasTextBox.y - 5);
 
                     drawArrow(
-                        textBox.x + textBox.w / 2,
-                        textBox.y + textBox.h / 2,
-                        drawing.x + drawing.w / 2,
-                        drawing.y + drawing.h / 2,
+                        canvasTextBox.x + canvasTextBox.w / 2,
+                        canvasTextBox.y + canvasTextBox.h / 2,
+                        canvasDrawing.x + canvasDrawing.w / 2,
+                        canvasDrawing.y + canvasDrawing.h / 2,
                         '#22c55e'
                     );
                 });
@@ -1249,6 +1658,26 @@
                 y: (e.clientY - rect.top) * scaleY
             };
         }
+        
+        // Convert canvas coordinates to full-res image coordinates
+        function canvasToFullRes(canvasCoords) {
+            return {
+                x: Math.round(canvasCoords.x / state.canvasScale),
+                y: Math.round(canvasCoords.y / state.canvasScale),
+                w: Math.round(canvasCoords.w / state.canvasScale),
+                h: Math.round(canvasCoords.h / state.canvasScale)
+            };
+        }
+        
+        // Convert full-res image coordinates to canvas coordinates
+        function fullResToCanvas(fullResCoords) {
+            return {
+                x: Math.round(fullResCoords.x * state.canvasScale),
+                y: Math.round(fullResCoords.y * state.canvasScale),
+                w: Math.round(fullResCoords.w * state.canvasScale),
+                h: Math.round(fullResCoords.h * state.canvasScale)
+            };
+        }
 
         function handleMouseDown(e) {
             if (state.mode === 'idle') return;
@@ -1272,25 +1701,38 @@
                 return;
             }
 
-            const box = {
+            // Normalize box (handle negative width/height) - still in CANVAS coordinates
+            const canvasBox = {
                 x: state.currentBox.w < 0 ? state.currentBox.x + state.currentBox.w : state.currentBox.x,
                 y: state.currentBox.h < 0 ? state.currentBox.y + state.currentBox.h : state.currentBox.y,
                 w: Math.abs(state.currentBox.w),
                 h: Math.abs(state.currentBox.h)
             };
+            
+            // Convert canvas coordinates to FULL RES coordinates for storage
+            const fullResBox = canvasToFullRes(canvasBox);
+            
+            console.log('Canvas box:', canvasBox, '→ Full-res box:', fullResBox);
 
             if (state.mode === 'drawing') {
+                // Store in FULL RES coordinates
                 state.drawings.push({
-                    x: box.x,
-                    y: box.y,
-                    w: box.w,
-                    h: box.h,
+                    x: fullResBox.x,
+                    y: fullResBox.y,
+                    w: fullResBox.w,
+                    h: fullResBox.h,
                     textBoxes: []
                 });
                 state.mode = 'idle';
                 saveCurrentAnnotations();
             } else if (state.mode === 'text' && state.selectedDrawing !== null) {
-                state.drawings[state.selectedDrawing].textBoxes.push(box);
+                // Store text box in FULL RES coordinates
+                state.drawings[state.selectedDrawing].textBoxes.push({
+                    x: fullResBox.x,
+                    y: fullResBox.y,
+                    w: fullResBox.w,
+                    h: fullResBox.h
+                });
                 saveCurrentAnnotations();
             }
 
@@ -1381,7 +1823,7 @@
                             </div>
                             <p class="text-xs text-gray-600">Texts: ${d.textBoxes.length}</p>
                             <button onclick="addTextArea(${idx})" class="w-full px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 mt-1">
-                                + Text
+                                + Text <span class="opacity-75">(T)</span>
                             </button>
                         </div>
                     `;
@@ -1491,6 +1933,35 @@
             alert('Metadata saved!');
         });
 
+        // Keyboard shortcuts for annotation
+        document.addEventListener('keydown', (e) => {
+            // Only work in annotate tab
+            const activeTab = document.querySelector('.tab-content:not(.hidden)');
+            if (!activeTab || activeTab.dataset.tab !== 'annotate') return;
+            
+            // Don't trigger if typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            // D key - Add new drawing
+            if (e.key === 'd' || e.key === 'D') {
+                e.preventDefault();
+                state.mode = 'drawing';
+                state.selectedDrawing = null;
+                updateAnnotationUI();
+            }
+            
+            // T key - Add text area (only if a drawing is selected)
+            if (e.key === 't' || e.key === 'T') {
+                e.preventDefault();
+                if (state.selectedDrawing !== null) {
+                    state.mode = 'text';
+                    updateAnnotationUI();
+                } else {
+                    alert('Please select a drawing first before adding text areas');
+                }
+            }
+        });
+
         document.getElementById('finishAnnotationBtn').addEventListener('click', async () => {
             const hasAnnotations = Object.values(state.annotations).some(a => a.drawings.length > 0);
             if (!hasAnnotations) {
@@ -1498,29 +1969,93 @@
                 return;
             }
             
-            // Save current annotations before switching tabs
-            saveCurrentAnnotations();
+            // Show loading overlay
+            const overlay = document.getElementById('cropGenerationOverlay');
+            const progressBar = document.getElementById('cropGenerationProgressBar');
+            const progressText = document.getElementById('cropGenerationProgressText');
+            overlay.classList.remove('hidden');
             
-            // Generate and save cropped images to project
-            if (currentProject) {
-                await generateAndSaveCroppedImages();
+            try {
+                // Save current annotations before switching tabs
+                saveCurrentAnnotations();
+                
+                // Generate and save cropped images to project
+                if (currentProject) {
+                    await generateAndSaveCroppedImages(progressBar, progressText);
+                }
+                
+                // Hide overlay
+                overlay.classList.add('hidden');
+                
+                enableTab('process');
+                switchTab('process');
+            } catch (error) {
+                console.error('Error processing annotations:', error);
+                overlay.classList.add('hidden');
+                alert('Error processing annotations: ' + error.message);
             }
-            
-            enableTab('process');
-            switchTab('process');
         });
         
         // Generate and save cropped images to project
-        async function generateAndSaveCroppedImages() {
+        async function generateAndSaveCroppedImages(progressBar, progressText) {
             console.log('Generating cropped images...');
             
             let totalCrops = 0;
+            let processedCrops = 0;
+            
+            // Count total crops first
+            for (const imgName in state.annotations) {
+                const ann = state.annotations[imgName];
+                totalCrops += ann.drawings.length; // Each drawing is a crop
+            }
+            
+            if (progressText) {
+                progressText.textContent = `0 / ${totalCrops} crops`;
+            }
             
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
-                const imgElement = state.fullResImages[imgName];
+                const img = state.images.find(i => i.name === imgName);
+                if (!img) continue;
                 
-                if (!imgElement) continue;
+                // Load full res image if not already loaded
+                let imgElement = state.fullResImages[imgName];
+                if (!imgElement) {
+                    console.log(`Loading full-resolution image for cropping: ${imgName}`);
+                    
+                    // Update overlay text
+                    if (progressText) {
+                        const cropText = document.getElementById('cropGenerationText');
+                        if (cropText) {
+                            cropText.textContent = `Loading image: ${imgName}...`;
+                        }
+                    }
+                    
+                    // Create and load image
+                    imgElement = new Image();
+                    const imageLoaded = new Promise((resolve, reject) => {
+                        imgElement.onload = resolve;
+                        imgElement.onerror = reject;
+                    });
+                    imgElement.src = img.url;
+                    
+                    try {
+                        await imageLoaded;
+                        state.fullResImages[imgName] = imgElement;
+                        console.log(`Image loaded for cropping (${imgElement.width}x${imgElement.height}px)`);
+                    } catch (err) {
+                        console.error(`Failed to load image for cropping: ${imgName}`, err);
+                        continue;
+                    }
+                    
+                    // Reset overlay text
+                    if (progressText) {
+                        const cropText = document.getElementById('cropGenerationText');
+                        if (cropText) {
+                            cropText.textContent = 'Generating cropped images...';
+                        }
+                    }
+                }
                 
                 for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
                     const drawing = ann.drawings[dIdx];
@@ -1544,7 +2079,15 @@
                     const drawingFilename = `${baseImgName}_d${dIdx + 1}.png`;
                     
                     await saveCroppedToProject(drawingImageData, drawingFilename);
-                    totalCrops++;
+                    
+                    processedCrops++;
+                    
+                    // Update progress
+                    if (progressBar && progressText) {
+                        const percent = Math.round((processedCrops / totalCrops) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressText.textContent = `${processedCrops} / ${totalCrops} crops`;
+                    }
                     
                     // Create crops for each text box
                     for (let tIdx = 0; tIdx < drawing.textBoxes.length; tIdx++) {
@@ -1566,8 +2109,7 @@
                 }
             }
             
-            console.log(`Saved ${totalCrops} cropped images to project`);
-            alert(`Generated and saved ${totalCrops} cropped images!`);
+            console.log(`Saved ${processedCrops} cropped images to project`);
         }
         
         // Save cropped image to project
@@ -1609,13 +2151,19 @@
 
             let totalTexts = 0;
             let processedTexts = 0;
+            let imagesWithTextBoxes = 0;
 
-            // Count total text boxes
+            // Count total text boxes and images with text boxes
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
+                let textBoxesInImage = 0;
                 ann.drawings.forEach(d => {
-                    totalTexts += d.textBoxes.length;
+                    textBoxesInImage += d.textBoxes.length;
                 });
+                totalTexts += textBoxesInImage;
+                if (textBoxesInImage > 0) {
+                    imagesWithTextBoxes++;
+                }
             }
 
             if (totalTexts === 0) {
@@ -1628,6 +2176,7 @@
             log.innerHTML += `<p style="color: #60a5fa;">═══════════════════════════════</p>`;
             log.innerHTML += `<p style="color: #60a5fa;">🔍 Starting OCR Processing</p>`;
             log.innerHTML += `<p style="color: #60a5fa;">═══════════════════════════════</p>`;
+            log.innerHTML += `<p>Images with text boxes: ${imagesWithTextBoxes} / ${Object.keys(state.annotations).length}</p>`;
             log.innerHTML += `<p>Total text boxes to process: ${totalTexts}</p>\n`;
 
             // Process each image's drawings
@@ -1636,15 +2185,46 @@
                 const img = state.images.find(i => i.name === imgName);
                 if (!img) continue;
 
+                // Skip images with no text boxes
+                const totalTextBoxesInImage = ann.drawings.reduce((sum, d) => sum + d.textBoxes.length, 0);
+                if (totalTextBoxesInImage === 0) {
+                    continue;
+                }
+
                 log.innerHTML += `<p style="color: #fbbf24;">📄 Image: ${imgName}</p>`;
 
-                // Use full res image
-                const imgElement = state.fullResImages[imgName];
-                if (!imgElement) continue;
+                // Load full res image if not already loaded
+                let imgElement = state.fullResImages[imgName];
+                if (!imgElement) {
+                    log.innerHTML += `<p style="color: #cbd5e1;">   ⏳ Loading full-resolution image...</p>`;
+                    
+                    // Create and load image
+                    imgElement = new Image();
+                    const imageLoaded = new Promise((resolve, reject) => {
+                        imgElement.onload = resolve;
+                        imgElement.onerror = reject;
+                    });
+                    imgElement.src = img.url;
+                    
+                    try {
+                        await imageLoaded;
+                        state.fullResImages[imgName] = imgElement;
+                        log.innerHTML += `<p style="color: #4ade80;">   ✓ Image loaded (${imgElement.width}x${imgElement.height}px)</p>`;
+                    } catch (err) {
+                        log.innerHTML += `<p style="color: #f87171;">   ✗ Failed to load image: ${err.message}</p>`;
+                        continue;
+                    }
+                }
 
                 // Process each drawing
                 for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
                     const drawing = ann.drawings[dIdx];
+                    
+                    // Skip drawings with no text boxes
+                    if (drawing.textBoxes.length === 0) {
+                        continue;
+                    }
+                    
                     const key = `${imgName}_d${dIdx + 1}`;
                     
                     log.innerHTML += `<p style="color: #a78bfa;">  🖼️  Drawing ${dIdx + 1} (${drawing.textBoxes.length} text boxes)</p>`;
@@ -1753,7 +2333,7 @@
                 log.classList.remove('hidden');
                 log.innerHTML = '<p style="color: #fbbf24;">⚠️  OCR skipped - you will enter text manually in Review tab</p>';
                 
-                document.getElementById('startOcrBtn').disabled = true;
+                // Don't disable Start OCR button - let user change their mind
                 document.getElementById('skipOcrBtn').disabled = true;
                 document.getElementById('proceedCleanBtn').classList.remove('hidden');
                 enableTab('clean');
@@ -1762,8 +2342,52 @@
 
         document.getElementById('proceedCleanBtn').addEventListener('click', () => {
             switchTab('clean');
-            loadClean(0);
         });
+
+        // Load data for Clean tab when switching to it
+        async function loadCleanTabData(projectId) {
+            if (!projectId) return;
+            
+            console.log('🎨 Loading Clean tab data...');
+            
+            try {
+                // 1. Load full-res images if not already loaded
+                for (const imgName in state.annotations) {
+                    if (!state.fullResImages[imgName]) {
+                        console.log(`Loading full-res image: ${imgName}`);
+                        const imgElement = new Image();
+                        imgElement.crossOrigin = 'anonymous';
+                        
+                        await new Promise((resolve, reject) => {
+                            imgElement.onload = () => {
+                                state.fullResImages[imgName] = imgElement;
+                                console.log(`✅ Loaded: ${imgName}`);
+                                resolve();
+                            };
+                            imgElement.onerror = () => {
+                                console.error(`❌ Failed to load: ${imgName}`);
+                                reject();
+                            };
+                            imgElement.src = `/api/project/${projectId}/image/${imgName}`;
+                        });
+                    }
+                }
+                
+                // 2. Load cleaned drawings from folder
+                await loadCleanedDrawingsFromProject(projectId);
+                
+                // 3. Initialize Clean tab with first item
+                if (Object.keys(state.annotations).length > 0) {
+                    console.log('✅ Clean tab data loaded, initializing...');
+                    loadClean(0);
+                } else {
+                    console.warn('⚠️ No annotations found for Clean tab');
+                }
+                
+            } catch (error) {
+                console.error('Error loading Clean tab data:', error);
+            }
+        }
 
         // TAB 4: Clean Drawings with Eraser
         let cleanIndex = 0;
@@ -1817,8 +2441,24 @@
             cleanCtx.fillStyle = 'white';
             cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
             
-            // Draw image at full resolution
-            cleanCtx.drawImage(imgElement, item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h, 0, 0, item.drawing.w, item.drawing.h);
+            // Check if a cleaned version exists in state
+            if (state.cleanedDrawings[item.key]?.imageData) {
+                // Load the cleaned version
+                const cleanedImg = new Image();
+                cleanedImg.onload = () => {
+                    cleanCtx.drawImage(cleanedImg, 0, 0);
+                    // Save to undo stack
+                    undoStack = [cleanCanvas.toDataURL()];
+                };
+                cleanedImg.src = state.cleanedDrawings[item.key].imageData;
+                console.log('Loading cleaned version for:', item.key);
+            } else {
+                // Draw original image at full resolution
+                cleanCtx.drawImage(imgElement, item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h, 0, 0, item.drawing.w, item.drawing.h);
+                // Save initial state for undo
+                undoStack = [cleanCanvas.toDataURL()];
+                console.log('Loading original version for:', item.key);
+            }
 
             // Calculate display scale for thumbnail (max 800px width)
             const maxDisplayWidth = 800;
@@ -1826,15 +2466,135 @@
             cleanCanvas.style.width = (item.drawing.w * cleanDisplayScale) + 'px';
             cleanCanvas.style.height = (item.drawing.h * cleanDisplayScale) + 'px';
 
-            // Save initial state for undo
-            undoStack = [cleanCanvas.toDataURL()];
-
             document.getElementById('cleanPlate').textContent = item.metadata.tableName || item.imgName;
             document.getElementById('cleanDrawingId').textContent = `Drawing ${item.drawingIdx + 1}`;
             document.getElementById('cleanIndicator').textContent = `${cleanIndex + 1} / ${cleanItems.length}`;
             
             eraserMode = false;
             updateCleanUI();
+            renderCleanThumbnails();
+        }
+        
+        // Render thumbnails grid for clean tab
+        function renderCleanThumbnails() {
+            const grid = document.getElementById('cleanThumbnailsGrid');
+            
+            // Count cleaned drawings
+            const cleanedCount = cleanItems.filter(item => state.cleanedDrawings[item.key]?.cleaned).length;
+            document.getElementById('cleanedCounter').textContent = `${cleanedCount} / ${cleanItems.length} cleaned`;
+            
+            grid.innerHTML = cleanItems.map((item, idx) => {
+                const isCleaned = state.cleanedDrawings[item.key]?.cleaned || false;
+                const isActive = idx === cleanIndex;
+                
+                // Generate thumbnail for this specific drawing crop
+                let thumbDataUrl = '';
+                const imgElement = state.fullResImages[item.imgName];
+                if (imgElement && imgElement.complete) {
+                    // Create temporary canvas for thumbnail
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    // Calculate thumbnail dimensions (max 150px width, maintain aspect ratio)
+                    const maxThumbWidth = 150;
+                    const aspectRatio = item.drawing.h / item.drawing.w;
+                    const thumbWidth = Math.min(maxThumbWidth, item.drawing.w);
+                    const thumbHeight = thumbWidth * aspectRatio;
+                    
+                    tempCanvas.width = thumbWidth;
+                    tempCanvas.height = thumbHeight;
+                    
+                    // Fill white background
+                    tempCtx.fillStyle = 'white';
+                    tempCtx.fillRect(0, 0, thumbWidth, thumbHeight);
+                    
+                    // Draw the cropped region scaled down
+                    tempCtx.drawImage(
+                        imgElement,
+                        item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h,
+                        0, 0, thumbWidth, thumbHeight
+                    );
+                    
+                    thumbDataUrl = tempCanvas.toDataURL('image/jpeg', 0.7);
+                }
+                
+                return `
+                    <div class="clean-thumbnail relative cursor-pointer border-2 ${isActive ? 'border-blue-500 ring-2 ring-blue-300' : isCleaned ? 'border-green-500' : 'border-gray-300'} rounded overflow-hidden hover:border-blue-400 transition" data-index="${idx}">
+                        ${thumbDataUrl ? `
+                            <div class="w-full h-24 bg-gray-100 overflow-hidden flex items-center justify-center">
+                                <img src="${thumbDataUrl}" class="max-w-full max-h-full object-contain" alt="Drawing ${item.drawingIdx + 1}">
+                            </div>
+                        ` : `
+                            <div class="w-full h-24 bg-gray-100 flex items-center justify-center text-xs text-gray-500">
+                                Loading...
+                            </div>
+                        `}
+                        ${isCleaned ? `
+                            <div class="absolute top-0 right-0 bg-green-500 text-white text-xs font-bold rounded-bl px-2 py-1">
+                                ✓
+                            </div>
+                        ` : ''}
+                        <div class="absolute top-0 left-0 bg-blue-600 text-white text-xs font-bold px-2 py-1">
+                            D${item.drawingIdx + 1}
+                        </div>
+                        <p class="text-xs text-center p-1 ${isCleaned ? 'bg-green-50' : 'bg-gray-100'} truncate" title="${item.imgName}">${item.imgName.substring(0, 10)}...</p>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click handlers
+            grid.querySelectorAll('.clean-thumbnail').forEach(thumb => {
+                thumb.addEventListener('click', async () => {
+                    const targetIdx = parseInt(thumb.dataset.index);
+                    if (targetIdx !== cleanIndex) {
+                        // Auto-save current before switching
+                        await saveCurrentCleanDrawing();
+                        eraserMode = false;
+                        loadClean(targetIdx);
+                    }
+                });
+            });
+        }
+        
+        // Auto-save current clean drawing
+        async function saveCurrentCleanDrawing() {
+            const item = cleanItems[cleanIndex];
+            
+            // Save the cleaned drawing back to state
+            const cleanedImageData = cleanCanvas.toDataURL();
+            if (!state.cleanedDrawings[item.key]) {
+                state.cleanedDrawings[item.key] = {};
+            }
+            state.cleanedDrawings[item.key].cleaned = true;
+            state.cleanedDrawings[item.key].imageData = cleanedImageData;
+            
+            // Save to project backend
+            if (currentProject) {
+                const baseImgName = item.imgName.replace(/\.[^/.]+$/, '');
+                const cleanedFilename = `${baseImgName}_d${item.drawingIdx + 1}_cleaned.png`;
+                
+                try {
+                    const response = await fetch(`/api/project/${currentProject.project_id}/save_cropped`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            image: cleanedImageData,
+                            filename: cleanedFilename,
+                            folder: 'cleaned_drawings'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log('Cleaned drawing auto-saved:', cleanedFilename);
+                    }
+                } catch (error) {
+                    console.error('Error auto-saving cleaned drawing:', error);
+                }
+            }
         }
 
         function updateCleanUI() {
@@ -1900,6 +2660,43 @@
             eraserMode = !eraserMode;
             updateCleanUI();
         });
+        
+        // Keyboard shortcuts for clean tab
+        document.addEventListener('keydown', (e) => {
+            // Only work in clean tab
+            const activeTab = document.querySelector('.tab-content:not(.hidden)');
+            if (!activeTab || activeTab.dataset.tab !== 'clean') return;
+            
+            // Don't trigger if typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            // E key - Toggle eraser
+            if (e.key === 'e' || e.key === 'E') {
+                e.preventDefault();
+                eraserMode = !eraserMode;
+                updateCleanUI();
+            }
+            
+            // M key - Mark as clean
+            if (e.key === 'm' || e.key === 'M') {
+                e.preventDefault();
+                document.getElementById('markCleanBtn').click();
+            }
+            
+            // Arrow keys - Navigate
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (cleanIndex > 0) {
+                    document.getElementById('prevCleanBtn').click();
+                }
+            }
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (cleanIndex < cleanItems.length - 1) {
+                    document.getElementById('nextCleanBtn').click();
+                }
+            }
+        });
 
         document.getElementById('eraserSize').addEventListener('input', (e) => {
             eraserSize = parseInt(e.target.value);
@@ -1919,60 +2716,29 @@
             }
         });
 
-        document.getElementById('prevCleanBtn').addEventListener('click', () => {
+        document.getElementById('prevCleanBtn').addEventListener('click', async () => {
             if (cleanIndex > 0) {
+                await saveCurrentCleanDrawing();
                 eraserMode = false;
                 loadClean(cleanIndex - 1);
             }
         });
 
-        document.getElementById('nextCleanBtn').addEventListener('click', () => {
+        document.getElementById('nextCleanBtn').addEventListener('click', async () => {
             if (cleanIndex < cleanItems.length - 1) {
+                await saveCurrentCleanDrawing();
                 eraserMode = false;
                 loadClean(cleanIndex + 1);
             }
         });
 
         document.getElementById('markCleanBtn').addEventListener('click', async () => {
-            const item = cleanItems[cleanIndex];
+            await saveCurrentCleanDrawing();
             
-            // Save the cleaned drawing back to state
-            const cleanedImageData = cleanCanvas.toDataURL();
-            if (!state.cleanedDrawings[item.key]) {
-                state.cleanedDrawings[item.key] = {};
-            }
-            state.cleanedDrawings[item.key].cleaned = true;
-            state.cleanedDrawings[item.key].imageData = cleanedImageData;
+            // Update thumbnails to show it's cleaned
+            renderCleanThumbnails();
             
-            // Save to project backend
-            if (currentProject) {
-                const baseImgName = item.imgName.replace(/\.[^/.]+$/, '');
-                const cleanedFilename = `${baseImgName}_d${item.drawingIdx + 1}_cleaned.png`;
-                
-                try {
-                    const response = await fetch(`/api/project/${currentProject.project_id}/save_cropped`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            image: cleanedImageData,
-                            filename: cleanedFilename,
-                            folder: 'cleaned_drawings'
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        console.log('Cleaned drawing saved:', cleanedFilename);
-                    }
-                } catch (error) {
-                    console.error('Error saving cleaned drawing:', error);
-                }
-            }
-            
-            alert('Drawing cleaned and saved!');
+            // Auto-advance to next drawing
             if (cleanIndex < cleanItems.length - 1) {
                 eraserMode = false;
                 loadClean(cleanIndex + 1);
@@ -2016,7 +2782,7 @@
                         div.className = 'text-box-review';
                         div.innerHTML = `
                             <div>
-                                <img src="${preview}" class="text-box-preview" alt="Text ${tIdx + 1}">
+                                <img src="${preview}" class="text-box-preview cursor-zoom-in" alt="Text ${tIdx + 1}" data-zoom-src="${preview}">
                                 <p class="text-xs text-gray-600 mt-2">
                                     <strong>${ann.metadata.tableName || imgName}</strong><br>
                                     D${dIdx + 1} - T${tIdx + 1}
@@ -2036,7 +2802,28 @@
             if (container.children.length === 0) {
                 container.innerHTML = '<p class="text-gray-500 text-center">No text boxes to review</p>';
             }
+            
+            // Add zoom functionality to all preview images
+            document.querySelectorAll('.text-box-preview').forEach(img => {
+                img.addEventListener('click', () => {
+                    const zoomModal = document.getElementById('imageZoomModal');
+                    const zoomedImage = document.getElementById('zoomedImage');
+                    zoomedImage.src = img.dataset.zoomSrc;
+                    zoomModal.classList.remove('hidden');
+                });
+            });
         }
+        
+        // Close zoom modal handlers
+        document.getElementById('closeZoomBtn').addEventListener('click', () => {
+            document.getElementById('imageZoomModal').classList.add('hidden');
+        });
+        
+        document.getElementById('imageZoomModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('imageZoomModal')) {
+                document.getElementById('imageZoomModal').classList.add('hidden');
+            }
+        });
 
         document.getElementById('proceedExportBtn').addEventListener('click', () => {
             // Auto-save all corrections before exporting
@@ -2173,15 +2960,13 @@
 
                 let exportMessage = `✅ Export completed successfully!\n${imageIndex} images saved in /images/\nExcel file saved as ${xlsxFilename}`;
 
-                // Export ML training data if checkbox is enabled
-                const exportMLData = document.getElementById('exportMLDataCheckbox').checked;
-                if (exportMLData) {
-                    btn.textContent = '⏳ Exporting ML training data...';
-                    
-                    const mlDataRows = [];
-                    
-                    // Process each image's drawings for ML data (vessels + text boxes)
-                    for (const imgName in state.annotations) {
+                // Always export ML training data (bounding boxes are saved in project)
+                btn.textContent = '⏳ Exporting ML training data...';
+                
+                const mlDataRows = [];
+                
+                // Process each image's drawings for ML data (vessels + text boxes)
+                for (const imgName in state.annotations) {
                         const ann = state.annotations[imgName];
                         const imgElement = state.fullResImages[imgName];
                         
@@ -2235,8 +3020,7 @@
                     await mlXlsxWritable.write(new Blob([mlXlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
                     await mlXlsxWritable.close();
                     
-                    exportMessage += `\nML training data saved as ${mlXlsxFilename}`;
-                }
+                exportMessage += `\nML training data saved as ${mlXlsxFilename}`;
 
                 alert(exportMessage);
                 
