@@ -62,10 +62,10 @@ if __name__ == '__main__':
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()
         
         # Load models in background
-        threading.Thread(target=load_models_async, args=(app,), daemon=False).start()
+        threading.Thread(target=load_models_async, args=(app,), daemon=True).start()
         
-        # Start Flask server
-        app.run(host=host, port=port, debug=False, use_reloader=False)
+        # Start Flask server with threading enabled
+        app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
         
     except Exception as e:
         logger.error(f"❌ Failed to start server: {str(e)}")
