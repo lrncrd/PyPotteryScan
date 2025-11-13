@@ -67,12 +67,24 @@
     border: 1px solid #d1d5db;
     border-radius: 4px;
     background: #f9fafb;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, z-index 0s;
+    position: relative;
+    z-index: 1;
 }
 
 .text-box-preview:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transform: scale(3.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    border: 2px solid #3b82f6;
+}
+
+/* Disable hover effect when modal is open */
+body.modal-open .text-box-preview:hover {
+    transform: scale(1);
+    box-shadow: none;
+    z-index: 1;
+    border: 1px solid #d1d5db;
 }
 
 .cursor-zoom-in {

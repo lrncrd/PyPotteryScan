@@ -44,14 +44,20 @@ def index():
 @main_bp.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    # Check if model is loaded WITHOUT forcing it to load
+    model_loaded = model_manager.model is not None and model_manager.processor is not None
+    device = 'not loaded yet'
+    if model_loaded:
+        device = str(next(model_manager.model.parameters()).device)
+    
     return jsonify({
         'status': 'healthy',
         'ocr_engine': 'OlmOCR-7B',
         'model': 'allenai/olmOCR-7B-0825-FP8 (4-bit quantized)',
         'quantization': '4-bit',
-        'model_loaded': model_manager.model is not None and model_manager.processor is not None,
+        'model_loaded': model_loaded,
         'cuda_available': torch.cuda.is_available(),
-        'device': str(next(model_manager.model.parameters()).device) if model_manager.model is not None else 'unknown'
+        'device': device
     })
 
 
@@ -85,6 +91,9 @@ def preprocess_image(image):
 def process_image_ocr(image_data):
     """Process image with OlmOCR and return recognized text"""
     try:
+        # Lazy load model only when needed
+        model, processor = model_manager.ensure_olmocr_loaded()
+        
         # Decode base64 image
         if image_data.startswith('data:image'):
             image_data = image_data.split(',')[1]
@@ -109,7 +118,7 @@ def process_image_ocr(image_data):
         ]
         
         # Prepare prompt
-        inputs = model_manager.processor.apply_chat_template(
+        inputs = processor.apply_chat_template(
             messages,
             add_generation_prompt=True,
             tokenize=True,
@@ -118,23 +127,23 @@ def process_image_ocr(image_data):
         )
         
         # Move to model device
-        device = next(model_manager.model.parameters()).device
+        device = next(model.parameters()).device
         inputs = inputs.to(device)
         
         # Generate text
         logger.info("🔍 Processing with OlmOCR...")
         with torch.no_grad():
-            output_ids = model_manager.model.generate(
+            output_ids = model.generate(
                 **inputs,
                 max_new_tokens=256,
                 do_sample=False,
-                pad_token_id=model_manager.processor.tokenizer.pad_token_id,
+                pad_token_id=processor.tokenizer.pad_token_id,
             )
         
         # Decode generated tokens
         input_len = inputs.input_ids.shape[1]
         generated_ids = [output_id[input_len:] for output_id in output_ids]
-        generated_text = model_manager.processor.batch_decode(
+        generated_text = processor.batch_decode(
             generated_ids, 
             skip_special_tokens=True, 
             clean_up_tokenization_spaces=True
@@ -168,6 +177,8 @@ def ocr_endpoint():
         
         # Process the image
         result_text = process_image_ocr(data['image'])
+        
+        # Note: Model will auto-unload after 60s of inactivity (managed by timer)
         
         return jsonify({
             'success': True,
@@ -209,6 +220,8 @@ def batch_ocr_endpoint():
                     'success': False,
                     'error': str(e)
                 })
+        
+        # Note: Model will auto-unload after 60s of inactivity (managed by timer)
         
         return jsonify({
             'success': True,
@@ -268,9 +281,9 @@ def parse_structured_endpoint():
             "If something is missing, set it to null. Avoid text outside JSON."
         )
         
-        # Load Qwen model
+        # Load Qwen model (lazy loading - only on first use)
         logger.info(f"📦 Loading/checking Qwen model...")
-        tokenizer, qwen_model = model_manager.load_qwen_model()
+        tokenizer, qwen_model = model_manager.ensure_qwen_loaded()
         logger.info("✅ Qwen model ready")
         
         results = []
@@ -355,6 +368,8 @@ def parse_structured_endpoint():
         excel_buffer.seek(0)
         
         logger.info("✅ Parsing complete! Sending Excel file...")
+        
+        # Note: Model will auto-unload after 60s of inactivity (managed by timer)
         
         # Return Excel file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -715,6 +730,54 @@ def get_ocr_results(project_id):
         
     except Exception as e:
         logger.error(f"❌ Error getting OCR results: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/save_ocr_corrections', methods=['POST'])
+def save_ocr_corrections(project_id):
+    """Save OCR corrections to project"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'corrections' not in data:
+            return jsonify({'error': 'OCR corrections required'}), 400
+        
+        success = project_manager.save_ocr_corrections(project_id, data['corrections'])
+        
+        if not success:
+            return jsonify({'error': 'Failed to save OCR corrections'}), 500
+        
+        logger.info(f"💾 Saved OCR corrections for project {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'OCR corrections saved successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving OCR corrections: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/ocr_corrections', methods=['GET'])
+def get_ocr_corrections(project_id):
+    """Get OCR corrections from project"""
+    try:
+        corrections = project_manager.get_ocr_corrections(project_id)
+        
+        if corrections is None:
+            return jsonify({
+                'success': True,
+                'corrections': {}
+            })
+        
+        return jsonify({
+            'success': True,
+            'corrections': corrections
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting OCR corrections: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 

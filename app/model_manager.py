@@ -1,9 +1,10 @@
-"""
+﻿"""
 Model loading and management for PyPotteryScan
 """
 import os
 import time
 import logging
+import threading
 import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText, AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelManager:
-    """Manages OlmOCR and Qwen models"""
+    """Manages OlmOCR and Qwen models with intelligent memory management"""
     
     def __init__(self, config=None):
         self.config = config  # Store config reference
@@ -20,6 +21,16 @@ class ModelManager:
         self.model = None
         self.qwen_tokenizer = None
         self.qwen_model = None
+        
+        # Timestamps for auto-unload
+        self.olmocr_last_used = None
+        self.qwen_last_used = None
+        self.unload_timeout = 10  # Seconds of inactivity before auto-unload
+        
+        # Timer threads
+        self.olmocr_timer = None
+        self.qwen_timer = None
+        
         self.loading_status = {
             'stage': 'starting',
             'message': 'Initializing server...',
@@ -213,38 +224,25 @@ class ModelManager:
             raise
     
     def load_qwen_model(self):
-        """Load Qwen model for parsing (cached globally)"""
-        if self.qwen_tokenizer is not None and self.qwen_model is not None:
-            logger.info("✅ Using cached Qwen model")
-            return self.qwen_tokenizer, self.qwen_model
-        
-        if not self.config:
-            raise RuntimeError("ModelManager not initialized with config")
-        
-        logger.info(f"📦 Loading Qwen model from: {self.config['QWEN_MODEL_DIR']}")
-        
-        self.qwen_tokenizer = AutoTokenizer.from_pretrained(
-            self.config['QWEN_MODEL_DIR'],
-            trust_remote_code=True
-        )
-        self.qwen_model = AutoModelForCausalLM.from_pretrained(
-            self.config['QWEN_MODEL_DIR'],
-            torch_dtype="auto",
-            device_map="auto",
-            trust_remote_code=True
-        )
-        logger.info("✅ Qwen model loaded and cached successfully")
-        
-        return self.qwen_tokenizer, self.qwen_model
+        """DEPRECATED: Use ensure_qwen_loaded() instead. Load Qwen model for parsing (cached globally)"""
+        logger.warning("⚠️ load_qwen_model() is deprecated, use ensure_qwen_loaded() instead")
+        return self.ensure_qwen_loaded()
     
     def initialize_models(self):
-        """Check/download and load all models"""
+        """Check/download models but DON'T load them yet (lazy loading)"""
         try:
+            # Only check and download if needed, don't load into memory/GPU
             if not self.check_and_download_models():
                 logger.error("❌ Failed to download models")
                 return False
             
-            self.load_olmocr_model()
+            # Mark as ready but don't load
+            self.loading_status = {
+                'stage': 'ready',
+                'message': 'Models ready (will load on first use)',
+                'progress': 100
+            }
+            logger.info("✅ Models available - will load on demand to save GPU memory")
             return True
             
         except Exception as e:
@@ -253,6 +251,109 @@ class ModelManager:
             self.loading_status['message'] = str(e)
             self.loading_status['progress'] = 0
             return False
+    
+    def _start_olmocr_unload_timer(self):
+        """Start timer to auto-unload OlmOCR after inactivity"""
+        # Cancel existing timer if any
+        if self.olmocr_timer is not None:
+            self.olmocr_timer.cancel()
+        
+        # Start new timer
+        def auto_unload():
+            if self.olmocr_last_used is not None:
+                elapsed = time.time() - self.olmocr_last_used
+                if elapsed >= self.unload_timeout and self.model is not None:
+                    logger.info(f"⏰ Auto-unloading OlmOCR after {elapsed:.0f}s of inactivity")
+                    self.unload_olmocr_model()
+        
+        self.olmocr_timer = threading.Timer(self.unload_timeout, auto_unload)
+        self.olmocr_timer.daemon = True
+        self.olmocr_timer.start()
+    
+    def _start_qwen_unload_timer(self):
+        """Start timer to auto-unload Qwen after inactivity"""
+        # Cancel existing timer if any
+        if self.qwen_timer is not None:
+            self.qwen_timer.cancel()
+        
+        # Start new timer
+        def auto_unload():
+            if self.qwen_last_used is not None:
+                elapsed = time.time() - self.qwen_last_used
+                if elapsed >= self.unload_timeout and self.qwen_model is not None:
+                    logger.info(f"⏰ Auto-unloading Qwen after {elapsed:.0f}s of inactivity")
+                    self.unload_qwen_model()
+        
+        self.qwen_timer = threading.Timer(self.unload_timeout, auto_unload)
+        self.qwen_timer.daemon = True
+        self.qwen_timer.start()
+    
+    def ensure_olmocr_loaded(self):
+        """Lazy load OlmOCR model only when needed"""
+        if self.model is None or self.processor is None:
+            logger.info("🔄 Loading OlmOCR model on-demand...")
+            self.load_olmocr_model()
+        
+        # Update last used timestamp and restart timer
+        self.olmocr_last_used = time.time()
+        self._start_olmocr_unload_timer()
+        
+        return self.model, self.processor
+    
+    def ensure_qwen_loaded(self):
+        """Lazy load Qwen model only when needed"""
+        if self.qwen_tokenizer is None or self.qwen_model is None:
+            if not self.config:
+                raise RuntimeError("ModelManager not initialized with config")
+            
+            logger.info(f"📦 Loading Qwen model from: {self.config['QWEN_MODEL_DIR']}")
+            
+            self.qwen_tokenizer = AutoTokenizer.from_pretrained(
+                self.config['QWEN_MODEL_DIR'],
+                trust_remote_code=True
+            )
+            self.qwen_model = AutoModelForCausalLM.from_pretrained(
+                self.config['QWEN_MODEL_DIR'],
+                torch_dtype="auto",
+                device_map="auto",
+                trust_remote_code=True
+            )
+            logger.info("✅ Qwen model loaded and cached successfully")
+        else:
+            logger.info("✅ Using cached Qwen model")
+        
+        # Update last used timestamp and restart timer
+        self.qwen_last_used = time.time()
+        self._start_qwen_unload_timer()
+        
+        return self.qwen_tokenizer, self.qwen_model
+    
+
+    def unload_olmocr_model(self):
+        """Unload OlmOCR model to free GPU memory"""
+        if self.model is not None:
+            logger.info("🗑️  Unloading OlmOCR model to free GPU memory...")
+            del self.model
+            del self.processor
+            self.model = None
+            self.processor = None
+            
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.info("✅ GPU memory cleared")
+            
+    def unload_qwen_model(self):
+        """Unload Qwen model to free GPU memory"""
+        if self.qwen_model is not None:
+            logger.info("🗑️  Unloading Qwen model to free GPU memory...")
+            del self.qwen_model
+            del self.qwen_tokenizer
+            self.qwen_model = None
+            self.qwen_tokenizer = None
+            
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.info("✅ GPU memory cleared")
 
 
 # Global model manager instance

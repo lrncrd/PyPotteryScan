@@ -137,7 +137,7 @@
                 </div>
             </div>
 
-            <!-- Image Zoom Modal -->
+            <!-- Image Zoom Modal (Simple overlay for click) -->
             <div id="imageZoomModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center" style="cursor: zoom-out;">
                 <div class="relative max-w-[95vw] max-h-[95vh] flex items-center justify-center" style="cursor: default;">
                     <button id="closeZoomBtn" class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10" style="text-shadow: 0 0 5px black;">&times;</button>
@@ -169,7 +169,7 @@
                     <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="export" disabled>
                         6. Export
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="parser" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="parser">
                         7. Few-Shot Parser
                     </button>
                 </div>
@@ -356,6 +356,15 @@
 
                 <!-- TAB 4: Clean Drawings (NEW) -->
                 <div class="tab-content hidden" data-tab="clean">
+                    <!-- Loading overlay for Clean tab (matching Load tab style) -->
+                    <div id="cleanTabLoadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
+                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">Loading Drawings</h3>
+                            <p id="cleanTabLoadingText" class="text-gray-600">Please wait...</p>
+                        </div>
+                    </div>
+                    
                     <div class="py-8">
                         <h2 class="text-2xl font-bold mb-4 text-center">🎨 Clean Drawings</h2>
                         <p class="text-gray-600 mb-8 text-center">Review extracted drawings and use eraser to remove unwanted areas</p>
@@ -901,12 +910,14 @@
         // Load cleaned drawings from project
         async function loadCleanedDrawingsFromProject(projectId) {
             try {
+                console.log('🧹 Loading cleaned drawings from project...');
+                
                 // Get list of all cleaned drawings from the cleaned_drawings folder
                 const response = await fetch(`/api/project/${projectId}/images?folder=cleaned_drawings`);
                 const data = await response.json();
                 
                 if (data.success && data.images && data.images.length > 0) {
-                    console.log(`Found ${data.images.length} cleaned drawings`);
+                    console.log(`   Found ${data.images.length} cleaned drawings`);
                     
                     // Load each cleaned drawing
                     for (const filename of data.images) {
@@ -923,18 +934,18 @@
                                 
                                 // Make sure full-res image is loaded for this image
                                 if (!state.fullResImages[originalImg.name]) {
-                                    console.log(`Loading full-res image for: ${originalImg.name}`);
+                                    console.log(`   Loading full-res image for: ${originalImg.name}`);
                                     const imgElement = new Image();
                                     imgElement.crossOrigin = 'anonymous';
                                     
                                     await new Promise((resolve, reject) => {
                                         imgElement.onload = () => {
                                             state.fullResImages[originalImg.name] = imgElement;
-                                            console.log(`✅ Full-res image loaded: ${originalImg.name}`);
+                                            console.log(`   ✅ Full-res image loaded: ${originalImg.name}`);
                                             resolve();
                                         };
                                         imgElement.onerror = () => {
-                                            console.error(`❌ Failed to load image: ${originalImg.name}`);
+                                            console.error(`   ❌ Failed to load image: ${originalImg.name}`);
                                             reject();
                                         };
                                         imgElement.src = `/api/project/${projectId}/image/${originalImg.name}`;
@@ -956,23 +967,24 @@
                                         }
                                         state.cleanedDrawings[key].cleaned = true;
                                         state.cleanedDrawings[key].imageData = reader.result;
-                                        console.log(`✅ Loaded cleaned drawing: ${key}`);
+                                        console.log(`   ✅ Loaded cleaned drawing: ${key}`);
                                         resolve();
                                     };
                                     reader.readAsDataURL(blob);
                                 });
                             } else {
-                                console.warn(`Could not find original image for: ${filename}`);
+                                console.warn(`   ⚠️ Could not find original image for: ${filename}`);
                             }
                         }
                     }
                     
                     console.log('✅ All cleaned drawings loaded');
                 } else {
-                    console.log('No cleaned drawings found in project');
+                    console.log('ℹ️ No cleaned drawings found in project (this is normal for new projects)');
                 }
             } catch (error) {
-                console.error('Error loading cleaned drawings:', error);
+                console.error('❌ Error loading cleaned drawings:', error);
+                // Don't throw - just log the error and continue
             }
         }
         
@@ -984,8 +996,10 @@
                 // Check what exists in the project
                 const hasAnnotations = Object.keys(state.annotations).length > 0;
                 const hasCroppedDrawings = await checkFolderHasFiles(projectId, 'cropped_drawings');
-                const hasOCRResults = await checkFolderHasFiles(projectId, 'ocr_results');
                 const hasCleanedDrawings = await checkFolderHasFiles(projectId, 'cleaned_drawings');
+                
+                // Check OCR results using dedicated endpoint (not folder check)
+                const hasOCRResults = await checkOCRResultsExist(projectId);
                 
                 console.log('Project state:', {
                     hasAnnotations,
@@ -1054,6 +1068,17 @@
             }
         }
         
+        // Helper: Check if OCR results exist using dedicated endpoint
+        async function checkOCRResultsExist(projectId) {
+            try {
+                const response = await fetch(`/api/project/${projectId}/ocr_results`);
+                const data = await response.json();
+                return data.success && data.results && data.results.length > 0;
+            } catch (error) {
+                return false;
+            }
+        }
+        
         // Load existing cropped drawings (just metadata, images loaded on demand)
         async function loadExistingCroppedDrawings(projectId) {
             try {
@@ -1094,39 +1119,45 @@
         // Load existing OCR results from project
         async function loadExistingOCRResults(projectId) {
             try {
-                // Get the latest OCR results file
-                const response = await fetch(`/api/project/${projectId}/images?folder=ocr_results`);
+                console.log('📄 Loading OCR results from project...');
+                
+                // Use the new dedicated endpoint
+                const response = await fetch(`/api/project/${projectId}/ocr_results`);
                 const data = await response.json();
                 
-                if (data.success && data.images && data.images.length > 0) {
-                    // Find the most recent OCR results JSON file
-                    const ocrFiles = data.images.filter(f => f.startsWith('ocr_results_') && f.endsWith('.json'));
+                console.log('   OCR API response:', data);
+                
+                if (data.success && data.results && data.results.length > 0) {
+                    console.log(`   Loading ${data.results.length} OCR results...`);
                     
-                    if (ocrFiles.length > 0) {
-                        // Sort by filename (timestamp embedded) and get most recent
-                        ocrFiles.sort().reverse();
-                        const latestOCRFile = ocrFiles[0];
-                        
-                        console.log(`Loading OCR results from: ${latestOCRFile}`);
-                        
-                        // Fetch the OCR results file
-                        const ocrResponse = await fetch(`/api/project/${projectId}/file/${latestOCRFile}?folder=ocr_results`);
-                        const ocrData = await ocrResponse.json();
-                        
-                        // Restore OCR results to state
-                        if (Array.isArray(ocrData)) {
-                            state.ocrResults = {};
-                            ocrData.forEach(result => {
-                                if (result.key && result.texts) {
-                                    state.ocrResults[result.key] = result.texts;
-                                }
-                            });
-                            console.log(`✅ Loaded ${Object.keys(state.ocrResults).length} OCR results`);
+                    // Restore OCR results to state
+                    state.ocrResults = {};
+                    data.results.forEach(result => {
+                        if (result.key && result.texts) {
+                            state.ocrResults[result.key] = result.texts;
+                            console.log(`      ${result.key}: ${result.texts.length} texts`);
                         }
-                    }
+                    });
+                    console.log(`✅ Loaded ${Object.keys(state.ocrResults).length} OCR results`);
+                } else {
+                    console.log('⚠️ No OCR results found in project');
+                }
+                
+                // Also load corrections if they exist
+                console.log('📝 Loading OCR corrections from project...');
+                const correctionsResponse = await fetch(`/api/project/${projectId}/ocr_corrections`);
+                const correctionsData = await correctionsResponse.json();
+                
+                console.log('   Corrections API response:', correctionsData);
+                
+                if (correctionsData.success && correctionsData.corrections) {
+                    state.corrections = correctionsData.corrections;
+                    console.log(`✅ Loaded ${Object.keys(state.corrections).length} OCR corrections`);
+                } else {
+                    console.log('⚠️ No corrections found in project');
                 }
             } catch (error) {
-                console.error('Error loading existing OCR results:', error);
+                console.error('❌ Error loading existing OCR results:', error);
             }
         }
         
@@ -1365,6 +1396,9 @@
             // Load data when switching to specific tabs
             if (tabName === 'clean' && currentProject) {
                 loadCleanTabData(currentProject.project_id);
+            } else if (tabName === 'annotate' && state.images.length > 0) {
+                // Load annotation for current image when switching to annotate tab
+                loadImageForAnnotation();
             } else if (tabName === 'review') {
                 loadReviewTexts();
             } else if (tabName === 'export') {
@@ -2350,9 +2384,32 @@
             
             console.log('🎨 Loading Clean tab data...');
             
+            // Show loading overlay
+            const overlay = document.getElementById('cleanTabLoadingOverlay');
+            const loadingText = document.getElementById('cleanTabLoadingText');
+            
+            overlay.classList.remove('hidden');
+            loadingText.textContent = 'Preparing to load drawings...';
+            
             try {
-                // 1. Load full-res images if not already loaded
+                // Count total DRAWINGS to load (not images)
+                let totalDrawings = 0;
                 for (const imgName in state.annotations) {
+                    totalDrawings += state.annotations[imgName].drawings.length;
+                }
+                
+                console.log(`📊 Total drawings to load: ${totalDrawings}`);
+                
+                // Get ALL images that need to be loaded
+                const allImageNames = Object.keys(state.annotations);
+                const totalImages = allImageNames.length;
+                let loadedImages = 0;
+                
+                // Update initial progress text with drawing count
+                loadingText.textContent = `Loading images for ${totalDrawings} drawings (0 / ${totalImages})...`;
+                
+                // 1. Load full-res images if not already loaded
+                for (const imgName of allImageNames) {
                     if (!state.fullResImages[imgName]) {
                         console.log(`Loading full-res image: ${imgName}`);
                         const imgElement = new Image();
@@ -2362,6 +2419,11 @@
                             imgElement.onload = () => {
                                 state.fullResImages[imgName] = imgElement;
                                 console.log(`✅ Loaded: ${imgName}`);
+                                
+                                // Update progress
+                                loadedImages++;
+                                loadingText.textContent = `Loading images for ${totalDrawings} drawings (${loadedImages} / ${totalImages})...`;
+                                
                                 resolve();
                             };
                             imgElement.onerror = () => {
@@ -2370,22 +2432,51 @@
                             };
                             imgElement.src = `/api/project/${projectId}/image/${imgName}`;
                         });
+                    } else {
+                        // Already loaded, just increment counter
+                        loadedImages++;
+                        loadingText.textContent = `Loading images for ${totalDrawings} drawings (${loadedImages} / ${totalImages})...`;
+                        console.log(`✅ Already loaded: ${imgName}`);
                     }
                 }
                 
                 // 2. Load cleaned drawings from folder
+                loadingText.textContent = 'Loading cleaned drawings...';
+                
                 await loadCleanedDrawingsFromProject(projectId);
+                
+                loadingText.textContent = 'Initializing canvas...';
                 
                 // 3. Initialize Clean tab with first item
                 if (Object.keys(state.annotations).length > 0) {
-                    console.log('✅ Clean tab data loaded, initializing...');
-                    loadClean(0);
+                    console.log('✅ Clean tab data loaded, initializing canvas...');
+                    
+                    // Hide overlay BEFORE calling loadClean to avoid UI freeze
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                    }, 100);
+                    
+                    try {
+                        loadClean(0);
+                        console.log('✅ Canvas initialized successfully');
+                    } catch (err) {
+                        console.error('❌ Error initializing clean canvas:', err);
+                        alert('Error initializing canvas: ' + err.message);
+                    }
                 } else {
                     console.warn('⚠️ No annotations found for Clean tab');
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                    }, 300);
                 }
                 
             } catch (error) {
-                console.error('Error loading Clean tab data:', error);
+                console.error('❌ Error loading Clean tab data:', error);
+                loadingText.textContent = 'Error loading data: ' + error.message;
+                // Hide overlay even on error
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 2000); // Show error for 2 seconds
             }
         }
 
@@ -2416,11 +2507,20 @@
                 });
             }
 
-            if (cleanItems.length === 0) return;
+            if (cleanItems.length === 0) {
+                console.warn('⚠️ No drawings to clean');
+                return;
+            }
 
             cleanIndex = idx;
             const item = cleanItems[cleanIndex];
             const imgElement = state.fullResImages[item.imgName];
+            
+            // Check if image is loaded
+            if (!imgElement) {
+                console.error(`❌ Image not loaded for ${item.imgName}`);
+                return;
+            }
 
             // Setup canvas for erasing
             if (!cleanCanvas) {
@@ -2755,6 +2855,10 @@
         function loadReviewTexts() {
             const container = document.getElementById('reviewContainer');
             container.innerHTML = '';
+            
+            console.log('📝 Loading Review Texts...');
+            console.log('   OCR Results:', Object.keys(state.ocrResults).length, 'keys');
+            console.log('   Corrections:', Object.keys(state.corrections).length, 'keys');
 
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
@@ -2763,6 +2867,8 @@
                 ann.drawings.forEach((drawing, dIdx) => {
                     const key = `${imgName}_d${dIdx + 1}`;
                     const ocrTexts = state.ocrResults[key] || [];
+                    
+                    console.log(`   Drawing ${key}:`, ocrTexts.length, 'OCR texts');
 
                     drawing.textBoxes.forEach((textBox, tIdx) => {
                         const textKey = `${key}_t${tIdx + 1}`;
@@ -2777,6 +2883,8 @@
                         const preview = tempCanvas.toDataURL();
                         const ocrText = ocrTexts[tIdx] || '';
                         const correctedText = state.corrections[textKey] || ocrText;
+                        
+                        console.log(`      Text ${textKey}: OCR="${ocrText}" | Corrected="${correctedText}"`);
 
                         const div = document.createElement('div');
                         div.className = 'text-box-review';
@@ -2790,8 +2898,8 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold mb-2">OCR Result (Editable):</label>
-                                <textarea class="w-full px-3 py-2 border-2 border-gray-300 rounded focus:border-blue-500 font-mono text-sm" rows="4" data-key="${textKey}">${correctedText}</textarea>
-                                <p class="mt-2 text-xs text-gray-500 italic">✏️ Changes are auto-saved when you proceed to Export</p>
+                                <textarea class="ocr-correction-textarea w-full px-3 py-2 border-2 border-gray-300 rounded focus:border-blue-500 font-mono text-sm" rows="4" data-key="${textKey}">${correctedText}</textarea>
+                                <p class="mt-2 text-xs text-gray-500 italic">✏️ Changes are auto-saved</p>
                             </div>
                         `;
                         container.appendChild(div);
@@ -2810,6 +2918,47 @@
                     const zoomedImage = document.getElementById('zoomedImage');
                     zoomedImage.src = img.dataset.zoomSrc;
                     zoomModal.classList.remove('hidden');
+                    // Add class to body to disable hover effects
+                    document.body.classList.add('modal-open');
+                });
+            });
+            
+            // Add auto-save functionality to all textareas
+            let saveTimeout = null;
+            document.querySelectorAll('.ocr-correction-textarea').forEach(textarea => {
+                textarea.addEventListener('input', () => {
+                    const textKey = textarea.dataset.key;
+                    const newValue = textarea.value;
+                    
+                    // Update state immediately
+                    state.corrections[textKey] = newValue;
+                    
+                    // Debounce the save to backend (wait 1 second after user stops typing)
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(async () => {
+                        if (currentProject) {
+                            console.log(`💾 Auto-saving correction for ${textKey}...`);
+                            try {
+                                const response = await fetch(`/api/project/${currentProject.project_id}/save_ocr_corrections`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ corrections: state.corrections })
+                                });
+                                
+                                const data = await response.json();
+                                
+                                if (data.success) {
+                                    console.log('✅ Auto-save successful');
+                                } else {
+                                    console.error('❌ Auto-save failed:', data.error);
+                                }
+                            } catch (error) {
+                                console.error('❌ Auto-save error:', error);
+                            }
+                        }
+                    }, 1000); // Wait 1 second after user stops typing
                 });
             });
         }
@@ -2817,20 +2966,49 @@
         // Close zoom modal handlers
         document.getElementById('closeZoomBtn').addEventListener('click', () => {
             document.getElementById('imageZoomModal').classList.add('hidden');
+            // Remove class from body to re-enable hover effects
+            document.body.classList.remove('modal-open');
         });
         
         document.getElementById('imageZoomModal').addEventListener('click', (e) => {
             if (e.target === document.getElementById('imageZoomModal')) {
                 document.getElementById('imageZoomModal').classList.add('hidden');
+                // Remove class from body to re-enable hover effects
+                document.body.classList.remove('modal-open');
             }
         });
 
-        document.getElementById('proceedExportBtn').addEventListener('click', () => {
-            // Auto-save all corrections before exporting
-            document.querySelectorAll('textarea[data-key]').forEach(textarea => {
+        document.getElementById('proceedExportBtn').addEventListener('click', async () => {
+            // Update state with any pending changes (just in case)
+            document.querySelectorAll('.ocr-correction-textarea').forEach(textarea => {
                 const textKey = textarea.dataset.key;
                 state.corrections[textKey] = textarea.value;
             });
+            
+            // Note: Auto-save already handles saving to backend
+            // But we do a final save to ensure everything is persisted
+            if (currentProject && Object.keys(state.corrections).length > 0) {
+                console.log('💾 Final save of OCR corrections before export...');
+                try {
+                    const response = await fetch(`/api/project/${currentProject.project_id}/save_ocr_corrections`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ corrections: state.corrections })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log('✅ Final save successful');
+                    } else {
+                        console.error('Failed to save OCR corrections:', data.error);
+                    }
+                } catch (error) {
+                    console.error('Error saving OCR corrections:', error);
+                }
+            }
             
             enableTab('export');
             switchTab('export');

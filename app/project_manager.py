@@ -335,7 +335,7 @@ class ProjectManager:
     
     def save_ocr_results(self, project_id: str, results: List[Dict]) -> bool:
         """
-        Save OCR results to project
+        Save OCR results to project (OVERWRITES previous results)
         
         Args:
             project_id: ID of the project
@@ -350,8 +350,8 @@ class ProjectManager:
             return False
         
         try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            results_file = ocr_path / f"ocr_results_{timestamp}.json"
+            # Always use the same filename to overwrite previous results
+            results_file = ocr_path / "ocr_results.json"
             
             with open(results_file, 'w', encoding='utf-8') as f:
                 json.dump(results, f, indent=2, ensure_ascii=False)
@@ -363,7 +363,7 @@ class ProjectManager:
     
     def get_latest_ocr_results(self, project_id: str) -> Optional[List[Dict]]:
         """
-        Get the most recent OCR results
+        Get the OCR results from project
         
         Args:
             project_id: ID of the project
@@ -377,14 +377,73 @@ class ProjectManager:
             return None
         
         try:
-            # Find most recent results file
-            json_files = sorted(ocr_path.glob('ocr_results_*.json'), reverse=True)
+            # Use fixed filename
+            results_file = ocr_path / 'ocr_results.json'
             
-            if not json_files:
-                return None
+            if not results_file.exists():
+                # Fallback: try to find any old timestamped files
+                json_files = sorted(ocr_path.glob('ocr_results_*.json'), reverse=True)
+                if not json_files:
+                    return None
+                results_file = json_files[0]
             
-            with open(json_files[0], 'r', encoding='utf-8') as f:
+            with open(results_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             print(f"Error loading OCR results: {e}")
+            return None
+    
+    def save_ocr_corrections(self, project_id: str, corrections: Dict) -> bool:
+        """
+        Save OCR corrections to project (OVERWRITES previous corrections)
+        
+        Args:
+            project_id: ID of the project
+            corrections: Dictionary of corrections (key -> corrected_text)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        ocr_path = self.get_project_path(project_id, 'ocr_results')
+        
+        if not ocr_path:
+            return False
+        
+        try:
+            # Use fixed filename for corrections
+            corrections_file = ocr_path / "ocr_corrections.json"
+            
+            with open(corrections_file, 'w', encoding='utf-8') as f:
+                json.dump(corrections, f, indent=2, ensure_ascii=False)
+            
+            return True
+        except Exception as e:
+            print(f"Error saving OCR corrections: {e}")
+            return False
+    
+    def get_ocr_corrections(self, project_id: str) -> Optional[Dict]:
+        """
+        Get OCR corrections from project
+        
+        Args:
+            project_id: ID of the project
+            
+        Returns:
+            Dictionary of corrections or None if not found
+        """
+        ocr_path = self.get_project_path(project_id, 'ocr_results')
+        
+        if not ocr_path or not ocr_path.exists():
+            return None
+        
+        try:
+            corrections_file = ocr_path / 'ocr_corrections.json'
+            
+            if not corrections_file.exists():
+                return None
+            
+            with open(corrections_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading OCR corrections: {e}")
             return None
