@@ -41,7 +41,10 @@
                     <div class="flex items-center gap-4">
                         <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" style="max-width: 60px; max-height: 60px; height: auto; width: auto;">
                         <div>
-                            <h1 class="text-3xl font-bold text-gray-800 mb-2">PyPotteryScan</h1>
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                                PyPotteryScan
+                                <span class="text-sm font-normal ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-full">v{{ version }}</span>
+                            </h1>
                             <p class="text-gray-600">AI-powered archaeological drawing extraction and OCR annotation tool</p>
                         </div>
                     </div>
@@ -524,7 +527,12 @@
                                     </button>
 
                                     <div id="examples" class="mt-8">
-                                        <h3 class="text-xl font-semibold mb-4">Added Examples:</h3>
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h3 class="text-xl font-semibold">Added Examples:</h3>
+                                            <button id="clear-examples-btn" class="bg-red-500 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded text-sm">
+                                                🗑️ Clear All Examples
+                                            </button>
+                                        </div>
                                         <div id="examples-container"></div>
                                     </div>
 
@@ -1403,6 +1411,9 @@
                 loadReviewTexts();
             } else if (tabName === 'export') {
                 updateExportSummary();
+            } else if (tabName === 'parser' && currentProject) {
+                // Load few-shot examples from project when entering parser tab
+                loadFewShotExamplesFromProject(currentProject.project_id);
             }
             
             console.log('Tab switched successfully to:', tabName);
@@ -3224,6 +3235,79 @@
         });
 
         // ======================
+        // FEW-SHOT EXAMPLES PERSISTENCE
+        // ======================
+        
+        async function saveFewShotExamplesToProject(projectId) {
+            if (!projectId) return;
+            
+            try {
+                console.log(`💾 Saving ${parserState.fewshot.length} few-shot examples to project...`);
+                
+                const response = await fetch(`/api/project/${projectId}/save_fewshot_examples`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ examples: parserState.fewshot })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`✅ Few-shot examples saved: ${data.count} examples`);
+                } else {
+                    console.error('❌ Failed to save few-shot examples:', data.error);
+                }
+            } catch (error) {
+                console.error('❌ Error saving few-shot examples:', error);
+            }
+        }
+        
+        async function loadFewShotExamplesFromProject(projectId) {
+            if (!projectId) return;
+            
+            try {
+                console.log('📚 Loading few-shot examples from project...');
+                
+                const response = await fetch(`/api/project/${projectId}/fewshot_examples`);
+                const data = await response.json();
+                
+                if (data.success && data.examples && data.examples.length > 0) {
+                    console.log(`✅ Loaded ${data.count} few-shot examples from project`);
+                    
+                    // Restore examples to parser state
+                    parserState.fewshot = data.examples;
+                    
+                    // Render examples in UI
+                    const container = document.getElementById('examples-container');
+                    container.innerHTML = '';
+                    
+                    for (let i = 0; i < data.examples.length; i += 2) {
+                        if (i + 1 < data.examples.length) {
+                            const userMsg = data.examples[i];
+                            const assistantMsg = data.examples[i + 1];
+                            
+                            const exampleDiv = document.createElement('div');
+                            exampleDiv.classList.add('border', 'border-gray-300', 'p-4', 'mb-4', 'bg-white', 'rounded', 'shadow-sm');
+                            exampleDiv.innerHTML = `
+                                <strong class="text-sm">User:</strong> <span class="text-sm">${userMsg.content}</span><br>
+                                <strong class="text-sm">Assistant JSON:</strong> <pre class="bg-gray-100 p-2 rounded mt-2 text-xs">${assistantMsg.content}</pre>
+                            `;
+                            container.appendChild(exampleDiv);
+                        }
+                    }
+                    
+                    console.log('✅ Few-shot examples restored in UI');
+                } else {
+                    console.log('ℹ️ No few-shot examples found in project');
+                }
+            } catch (error) {
+                console.error('❌ Error loading few-shot examples:', error);
+            }
+        }
+
+        // ======================
         // TAB 7: FEW-SHOT PARSER
         // ======================
         const parserState = {
@@ -3489,7 +3573,7 @@
         });
 
         // Add example
-        document.getElementById('add-example').addEventListener('click', () => {
+        document.getElementById('add-example').addEventListener('click', async () => {
             if (parserState.originalText) {
                 parserState.fewshot.push({ role: "user", content: parserState.originalText });
                 parserState.fewshot.push({ role: "assistant", content: JSON.stringify(parserState.currentJson) });
@@ -3502,11 +3586,37 @@
                 `;
                 document.getElementById('examples-container').appendChild(exampleDiv);
 
+                // Auto-save to project if a project is open
+                if (currentProject) {
+                    await saveFewShotExamplesToProject(currentProject.project_id);
+                }
+
                 if (parserState.currentIndex < parserState.ocrLines.length - 1) {
                     parserState.currentIndex++;
                     loadCurrentLine();
                 }
             }
+        });
+
+        // Clear all examples
+        document.getElementById('clear-examples-btn').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to clear all few-shot examples? This cannot be undone.')) {
+                return;
+            }
+            
+            // Clear from memory
+            parserState.fewshot = [];
+            
+            // Clear from UI
+            document.getElementById('examples-container').innerHTML = '';
+            
+            // Save empty list to project if a project is open
+            if (currentProject) {
+                await saveFewShotExamplesToProject(currentProject.project_id);
+                console.log('✅ Few-shot examples cleared from project');
+            }
+            
+            console.log('✅ All few-shot examples cleared');
         });
 
         // Run parsing

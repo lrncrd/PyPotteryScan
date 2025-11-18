@@ -50,6 +50,7 @@ class ProjectManager:
             'cleaned_drawings',    # Cleaned drawings (no text)
             'ocr_results',         # OCR text extraction results
             'exports',             # Final exports (CSV, Excel)
+            'fewshot_examples',    # Few-shot parser examples
         ]
         
         for folder in folders:
@@ -446,4 +447,61 @@ class ProjectManager:
                 return json.load(f)
         except Exception as e:
             print(f"Error loading OCR corrections: {e}")
+            return None
+    
+    def save_fewshot_examples(self, project_id: str, examples: List[Dict]) -> bool:
+        """
+        Save few-shot examples to project
+        
+        Args:
+            project_id: ID of the project
+            examples: List of few-shot example dictionaries
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        fewshot_path = self.get_project_path(project_id, 'fewshot_examples')
+        
+        if not fewshot_path:
+            return False
+        
+        try:
+            # Ensure the fewshot_examples folder exists (for old projects)
+            fewshot_path.mkdir(parents=True, exist_ok=True)
+            
+            examples_file = fewshot_path / "fewshot_examples.json"
+            
+            with open(examples_file, 'w', encoding='utf-8') as f:
+                json.dump(examples, f, indent=2, ensure_ascii=False)
+            
+            return True
+        except Exception as e:
+            print(f"Error saving few-shot examples: {e}")
+            return False
+    
+    def get_fewshot_examples(self, project_id: str) -> Optional[List[Dict]]:
+        """
+        Get few-shot examples from project
+        
+        Args:
+            project_id: ID of the project
+            
+        Returns:
+            List of few-shot examples or None if not found
+        """
+        fewshot_path = self.get_project_path(project_id, 'fewshot_examples')
+        
+        if not fewshot_path or not fewshot_path.exists():
+            return None
+        
+        try:
+            examples_file = fewshot_path / 'fewshot_examples.json'
+            
+            if not examples_file.exists():
+                return None
+            
+            with open(examples_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading few-shot examples: {e}")
             return None

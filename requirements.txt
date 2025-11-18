@@ -10,3 +10,5 @@ pandas
 openpyxl
 huggingface_hub
 tqdm
+matplotlib
+seaborn

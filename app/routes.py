@@ -38,7 +38,7 @@ project_manager = ProjectManager(projects_root=Config.PROJECTS_DIR)
 @main_bp.route('/')
 def index():
     """Render main interface"""
-    return render_template('index.html')
+    return render_template('index.html', version='0.2.0')
 
 
 @main_bp.route('/health', methods=['GET'])
@@ -832,4 +832,60 @@ def get_project_file(project_id, filename):
         
     except Exception as e:
         logger.error(f"❌ Error getting file: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/save_fewshot_examples', methods=['POST'])
+def save_fewshot_examples(project_id):
+    """Save few-shot examples to project"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'examples' not in data:
+            return jsonify({'error': 'Few-shot examples required'}), 400
+        
+        examples = data['examples']
+        
+        success = project_manager.save_fewshot_examples(project_id, examples)
+        
+        if not success:
+            return jsonify({'error': 'Failed to save few-shot examples'}), 500
+        
+        logger.info(f"✅ Saved {len(examples)} few-shot examples to project {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Saved {len(examples)} few-shot examples',
+            'count': len(examples)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving few-shot examples: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/fewshot_examples', methods=['GET'])
+def get_fewshot_examples(project_id):
+    """Get few-shot examples from project"""
+    try:
+        examples = project_manager.get_fewshot_examples(project_id)
+        
+        if examples is None:
+            return jsonify({
+                'success': True,
+                'examples': [],
+                'count': 0,
+                'message': 'No few-shot examples found'
+            })
+        
+        logger.info(f"📚 Loaded {len(examples)} few-shot examples from project {project_id}")
+        
+        return jsonify({
+            'success': True,
+            'examples': examples,
+            'count': len(examples)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting few-shot examples: {str(e)}")
         return jsonify({'error': str(e)}), 500

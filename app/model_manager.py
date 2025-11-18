@@ -354,6 +354,97 @@ class ModelManager:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 logger.info("✅ GPU memory cleared")
+    
+    def parse_with_fewshot(self, ocr_text: str, fewshot_examples: list, fields: list) -> dict:
+        """
+        Parse OCR text using Qwen model with few-shot examples
+        
+        Args:
+            ocr_text: OCR text to parse
+            fewshot_examples: List of few-shot example dicts with 'ocr_text' and 'parsed_data'
+            fields: List of field names to extract
+            
+        Returns:
+            Dictionary with parsed field values
+        """
+        import json
+        import re
+        
+        # Ensure Qwen model is loaded
+        tokenizer, qwen_model = self.ensure_qwen_loaded()
+        
+        # System prompt
+        fields_str = ', '.join(fields)
+        system_content = (
+            f"You are an assistant specialised in parsing short archaeological OCR lines. "
+            f"Return only one JSON object with these possible fields: {fields_str}. "
+            f"If something is missing, set it to null. Avoid text outside JSON."
+        )
+        system = {"role": "system", "content": system_content}
+        
+        # Build few-shot messages from examples
+        fewshot_messages = []
+        for example in fewshot_examples:
+            user_msg = {
+                "role": "user",
+                "content": f"Parse this OCR line and return JSON only: {example['ocr_text']}"
+            }
+            assistant_msg = {
+                "role": "assistant",
+                "content": json.dumps(example['parsed_data'], ensure_ascii=False)
+            }
+            fewshot_messages.extend([user_msg, assistant_msg])
+        
+        # User query
+        user = {
+            "role": "user",
+            "content": f"Parse this OCR line and return JSON only: {ocr_text}"
+        }
+        
+        # Complete message sequence
+        messages = [system] + fewshot_messages + [user]
+        
+        # Apply chat template
+        prompt = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False
+        )
+        inputs = tokenizer([prompt], return_tensors="pt").to(qwen_model.device)
+        
+        # Generate
+        generated_ids = qwen_model.generate(
+            **inputs,
+            max_new_tokens=512,
+            temperature=0.0,
+            do_sample=False
+        )
+        
+        # Decode
+        content = tokenizer.decode(
+            generated_ids[0][len(inputs.input_ids[0]):], 
+            skip_special_tokens=True
+        )
+        
+        # Parse JSON
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError:
+            # Try to extract JSON from response
+            json_match = re.search(r'\{[^}]+\}', content)
+            if json_match:
+                parsed = json.loads(json_match.group())
+            else:
+                # Return empty dict if parsing fails
+                parsed = {field: "" for field in fields}
+        
+        # Ensure all fields are present
+        for field in fields:
+            if field not in parsed:
+                parsed[field] = ""
+        
+        return parsed
 
 
 # Global model manager instance

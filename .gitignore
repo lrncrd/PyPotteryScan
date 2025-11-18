@@ -216,3 +216,7 @@ DISEGNI_MATERIALI
 .vscode/
 models/
 *.csv
+
+evaluation_output/
+*.xlsx
+*.ipynb
