@@ -10,7 +10,11 @@
 
 </div>
 
-As part of the **PyPottery** toolkit, `PyPotteryScan` is a Flask-based web application for processing and digitizing archaeological pottery drawings with OCR (Optical Character Recognition). It provides a comprehensive workflow for extracting individual drawings from scanned plates, automatically recognizing text annotations, and preparing clean images for digital cataloging.
+**Part of the [PyPottery Suite](https://github.com/lrncrd/PyPotterySuite)** - A comprehensive collection of AI-powered archaeological documentation tools.
+
+`PyPotteryScan` is a Flask-based web application for processing and digitizing archaeological pottery drawings with OCR (Optical Character Recognition). It provides a comprehensive workflow for extracting individual drawings from scanned plates, automatically recognizing text annotations, and preparing clean images for digital cataloging.
+
+📚 **[Full Documentation](docs/)** | 🔗 **[Suite Overview](https://github.com/lrncrd/PyPotterySuite)** | 💬 **[Discussions](https://github.com/lrncrd/PyPotteryScan/discussions)**
 
 ## Features
 
@@ -449,6 +453,28 @@ Generate final CSV export with all metadata and OCR text.
 
 - **OCR Model Requirements**: The default OlmOCR-7B-FP4 model requires an NVIDIA GPU with CUDA support. Users without compatible hardware must switch to alternative models.
 
+## Documentation
+
+📖 **Complete documentation available in the [docs/](docs/) folder**:
+
+- **[Getting Started](docs/getting-started.md)** - Installation and setup
+- **[User Guide](docs/user-guide.md)** - Complete feature walkthrough
+- **[Project Management](docs/project-management.md)** - Working with projects
+- **[Annotation Workflow](docs/annotation-workflow.md)** - Detailed annotation guide
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+
+🌐 **Suite Documentation**: [PyPottery Suite Wiki](https://github.com/lrncrd/PyPotterySuite)
+
+## The PyPottery Suite
+
+PyPotteryScan works seamlessly with other tools in the PyPottery ecosystem:
+
+- **[PyPotteryLayout](https://github.com/lrncrd/PyPotteryLayout)** - Create publication tables from extracted drawings
+- **[PyPotteryLens](https://github.com/lrncrd/PyPotteryLens)** - AI classification and typology (in development)
+- **[PyPotteryInk](https://github.com/lrncrd/PyPotteryInk)** - Vector tracing and enhancement (planned)
+
+**→ [Learn more about the suite](https://github.com/lrncrd/PyPotterySuite)**
+
 ## Contributing
 
 We welcome contributions to PyPotteryScan! Here are some ways you can help:
@@ -458,6 +484,8 @@ We welcome contributions to PyPotteryScan! Here are some ways you can help:
 - 📖 **Improve documentation**: Help make the docs clearer
 - 🧪 **Test on different platforms**: Help verify compatibility
 - 💻 **Submit pull requests**: Code contributions are welcome
+
+**[Contribution Guidelines](CONTRIBUTING.md)**
 
 ## License
 

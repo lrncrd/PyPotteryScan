@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,22 +12,26 @@
         /* Additional inline styles if needed */
     </style>
 </head>
+
 <body class="bg-gray-50">
     <!-- Splash Screen -->
     <div id="splashScreen" class="splash-screen">
         <div class="splash-content">
-            <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" style="max-width: 120px; height: auto; margin: 0 auto 20px;">
+            <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo"
+                style="max-width: 120px; height: auto; margin: 0 auto 20px;">
             <div class="spinner"></div>
             <h1 class="text-3xl font-bold mb-4">PyPotteryScan</h1>
             <p class="text-lg mb-2" id="splashTitle">Initializing...</p>
-            
+
             <!-- Progress Bar -->
-            <div style="width: 100%; max-width: 500px; margin: 20px auto; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; height: 30px;">
-                <div id="splashProgress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+            <div
+                style="width: 100%; max-width: 500px; margin: 20px auto; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; height: 30px;">
+                <div id="splashProgress"
+                    style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
                     0%
                 </div>
             </div>
-            
+
             <div class="splash-log" id="splashLog">
                 <p>🔌 Connecting to server...</p>
             </div>
@@ -39,37 +44,45 @@
             <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-4">
-                        <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" style="max-width: 60px; max-height: 60px; height: auto; width: auto;">
+                        <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo"
+                            style="max-width: 60px; max-height: 60px; height: auto; width: auto;">
                         <div>
                             <h1 class="text-3xl font-bold text-gray-800 mb-2">
                                 PyPotteryScan
-                                <span class="text-sm font-normal ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-full">v{{ version }}</span>
+                                <span
+                                    class="text-sm font-normal ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-full">v{{
+                                    version }}</span>
                             </h1>
-                            <p class="text-gray-600">AI-powered archaeological drawing extraction and OCR annotation tool</p>
+                            <p class="text-gray-600">AI-powered archaeological drawing extraction and OCR annotation
+                                tool</p>
                         </div>
                     </div>
-                    <button id="infoBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <button id="infoBtn"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                         ℹ️ Info
                     </button>
                 </div>
             </div>
 
             <!-- Info Modal -->
-            <div id="infoModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+            <div id="infoModal"
+                class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
                 <div class="modal-content bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
                     <!-- Header with Close Button -->
                     <div class="flex justify-end p-4 pb-0">
-                        <button id="closeInfoBtn" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+                        <button id="closeInfoBtn"
+                            class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
                     </div>
-                    
+
                     <!-- Logo and Title -->
                     <div class="text-center px-6 pb-6">
-                        <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo" 
-                             class="mx-auto mb-4" style="width: 120px; height: 120px; object-fit: contain;">
+                        <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="PyPotteryScan Logo"
+                            class="mx-auto mb-4" style="width: 120px; height: 120px; object-fit: contain;">
                         <h2 class="text-3xl font-bold text-gray-800 mb-1">PyPotteryScan</h2>
-                        <p class="text-sm text-gray-500 mb-4">AI-powered archaeological drawing extraction and OCR annotation tool</p>
+                        <p class="text-sm text-gray-500 mb-4">AI-powered archaeological drawing extraction and OCR
+                            annotation tool</p>
                     </div>
-                    
+
                     <!-- Version and Author -->
                     <div class="px-6 pb-4 space-y-3">
                         <div class="flex items-center justify-between py-2 border-b border-gray-200">
@@ -81,7 +94,7 @@
                             <span class="text-sm text-gray-600">Lorenzo Cardarelli</span>
                         </div>
                     </div>
-                    
+
                     <!-- System Information -->
                     <div class="bg-gray-50 px-6 py-4">
                         <h3 class="text-sm font-bold text-gray-700 mb-3">System Information:</h3>
@@ -95,7 +108,8 @@
                                 <span class="text-sm text-gray-600" id="systemGPU">Loading...</span>
                             </div>
                             <div class="flex items-start">
-                                <span class="text-sm font-semibold text-gray-700 min-w-[140px]">MPS (Apple Silicon):</span>
+                                <span class="text-sm font-semibold text-gray-700 min-w-[140px]">MPS (Apple
+                                    Silicon):</span>
                                 <span class="text-sm text-gray-600" id="systemMPS">Not Available</span>
                             </div>
                         </div>
@@ -104,35 +118,37 @@
             </div>
 
             <!-- New Project Modal -->
-            <div id="newProjectModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+            <div id="newProjectModal"
+                class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
                 <div class="modal-content bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">Create New Project</h2>
-                        <button id="closeNewProjectBtn" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+                        <button id="closeNewProjectBtn"
+                            class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
                     </div>
-                    
+
                     <form id="newProjectForm">
                         <div class="mb-4">
                             <label class="block text-sm font-semibold mb-2">Project Name *</label>
-                            <input type="text" id="projectNameInput" required 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                                   placeholder="e.g., Monte Bibele 2024">
+                            <input type="text" id="projectNameInput" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                placeholder="e.g., Monte Bibele 2024">
                         </div>
-                        
+
                         <div class="mb-6">
                             <label class="block text-sm font-semibold mb-2">Description (optional)</label>
-                            <textarea id="projectDescInput" rows="3" 
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                                      placeholder="Brief description of the project..."></textarea>
+                            <textarea id="projectDescInput" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                placeholder="Brief description of the project..."></textarea>
                         </div>
-                        
+
                         <div class="flex gap-3">
-                            <button type="button" id="cancelNewProjectBtn" 
-                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            <button type="button" id="cancelNewProjectBtn"
+                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                                 Cancel
                             </button>
-                            <button type="submit" 
-                                    class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                            <button type="submit"
+                                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                 Create Project
                             </button>
                         </div>
@@ -141,9 +157,14 @@
             </div>
 
             <!-- Image Zoom Modal (Simple overlay for click) -->
-            <div id="imageZoomModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center" style="cursor: zoom-out;">
-                <div class="relative max-w-[95vw] max-h-[95vh] flex items-center justify-center" style="cursor: default;">
-                    <button id="closeZoomBtn" class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10" style="text-shadow: 0 0 5px black;">&times;</button>
+            <div id="imageZoomModal"
+                class="modal-overlay fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center"
+                style="cursor: zoom-out;">
+                <div class="relative max-w-[95vw] max-h-[95vh] flex items-center justify-center"
+                    style="cursor: default;">
+                    <button id="closeZoomBtn"
+                        class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
+                        style="text-shadow: 0 0 5px black;">&times;</button>
                     <img id="zoomedImage" src="" alt="Zoomed Image" class="max-w-full max-h-[95vh] object-contain">
                 </div>
             </div>
@@ -151,28 +172,37 @@
             <!-- Tab Navigation -->
             <div class="bg-white rounded-t-lg shadow-lg overflow-hidden">
                 <div class="flex border-b-2 border-gray-200 overflow-x-auto">
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition active whitespace-nowrap" data-tab="projects">
+                    <button
+                        class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition active whitespace-nowrap"
+                        data-tab="projects">
                         🗂️ Projects
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="load" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="load" disabled>
                         1. Load
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="annotate" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="annotate" disabled>
                         2. Annotate
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="process" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="process" disabled>
                         3. Process OCR
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="clean" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="clean" disabled>
                         4. Clean Drawings
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="review" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="review" disabled>
                         5. Review Texts
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="export" disabled>
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="export" disabled>
                         6. Export
                     </button>
-                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap" data-tab="parser">
+                    <button class="tab-btn flex-1 px-4 py-3 text-center font-semibold transition whitespace-nowrap"
+                        data-tab="parser">
                         7. Few-Shot Parser
                     </button>
                 </div>
@@ -180,13 +210,14 @@
 
             <!-- Tab Contents -->
             <div class="bg-white rounded-b-lg shadow-lg p-6">
-                
+
                 <!-- TAB 0: Projects Management -->
                 <div class="tab-content active" data-tab="projects">
                     <div class="max-w-5xl mx-auto">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-2xl font-bold">🗂️ Project Management</h2>
-                            <button id="newProjectBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                            <button id="newProjectBtn"
+                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                 ➕ New Project
                             </button>
                         </div>
@@ -201,7 +232,8 @@
                             <div class="text-6xl mb-4">📂</div>
                             <h3 class="text-xl font-semibold text-gray-700 mb-2">No Projects Yet</h3>
                             <p class="text-gray-600 mb-6">Create your first project to get started</p>
-                            <button class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition create-project-btn">
+                            <button
+                                class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition create-project-btn">
                                 ➕ Create First Project
                             </button>
                         </div>
@@ -211,30 +243,36 @@
                 <!-- TAB 1: Load Images -->
                 <div class="tab-content hidden" data-tab="load">
                     <!-- Loading overlay -->
-                    <div id="loadTabLoadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div id="loadTabLoadingOverlay"
+                        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
-                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4">
+                            </div>
                             <h3 class="text-xl font-semibold text-gray-800 mb-2">Loading Project</h3>
                             <p id="loadTabLoadingText" class="text-gray-600">Please wait...</p>
                         </div>
                     </div>
-                    
+
                     <div class="text-center py-12">
                         <h2 class="text-2xl font-bold mb-4">📁 Select Folder with Images</h2>
                         <p class="text-gray-600 mb-8">Choose a folder containing your ceramic plate scans (JPG, PNG)</p>
-                        <button id="selectFolderBtn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg">
+                        <button id="selectFolderBtn"
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg">
                             📂 Select Folder
                         </button>
-                        
+
                         <div id="folderInfo" class="mt-8 hidden">
                             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
                                 <p class="text-sm"><strong>Folder:</strong> <span id="folderName">-</span></p>
                                 <p class="text-sm"><strong>Images:</strong> <span id="imageCount">0</span></p>
                             </div>
-                            
-                            <div id="imagesList" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6 max-w-4xl mx-auto"></div>
-                            
-                            <button id="startAnnotationBtn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+
+                            <div id="imagesList"
+                                class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6 max-w-4xl mx-auto">
+                            </div>
+
+                            <button id="startAnnotationBtn"
+                                class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                 Start Annotation →
                             </button>
                         </div>
@@ -244,41 +282,50 @@
                 <!-- TAB 2: Annotate -->
                 <div class="tab-content hidden" data-tab="annotate">
                     <!-- Loading overlay for crop generation -->
-                    <div id="cropGenerationOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div id="cropGenerationOverlay"
+                        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
-                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600 mx-auto mb-4"></div>
+                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600 mx-auto mb-4">
+                            </div>
                             <h3 class="text-xl font-semibold text-gray-800 mb-2">Processing Annotations</h3>
                             <p id="cropGenerationText" class="text-gray-600 mb-4">Generating cropped images...</p>
                             <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                <div id="cropGenerationProgressBar" class="bg-green-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                <div id="cropGenerationProgressBar" class="bg-green-600 h-2 rounded-full transition-all"
+                                    style="width: 0%"></div>
                             </div>
                             <p id="cropGenerationProgressText" class="text-sm text-gray-500">0 / 0</p>
                         </div>
                     </div>
-                    
+
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <!-- Canvas Area -->
                         <div class="lg:col-span-2">
                             <div class="mb-4 flex gap-2 items-center justify-between flex-wrap">
                                 <div class="flex gap-2">
-                                    <button id="prevImageBtn" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">← Prev</button>
-                                    <span id="imageIndicator" class="px-3 py-2 bg-gray-100 rounded font-semibold text-sm">1 / 1</span>
-                                    <button id="nextImageBtn" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Next →</button>
+                                    <button id="prevImageBtn"
+                                        class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">← Prev</button>
+                                    <span id="imageIndicator"
+                                        class="px-3 py-2 bg-gray-100 rounded font-semibold text-sm">1 / 1</span>
+                                    <button id="nextImageBtn"
+                                        class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Next →</button>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button id="newDrawingBtn" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                                    <button id="newDrawingBtn"
+                                        class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
                                         + Drawing <span class="text-xs opacity-75">(D)</span>
                                     </button>
-                                    <button id="clearCurrentBtn" class="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                                    <button id="clearCurrentBtn"
+                                        class="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
                                         Clear
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div id="statusBar" class="mb-4 p-3 rounded-lg hidden text-sm"></div>
-                            
+
                             <div class="canvas-container">
-                                <canvas id="annotationCanvas" class="cursor-crosshair border-2 border-gray-300 bg-white"></canvas>
+                                <canvas id="annotationCanvas"
+                                    class="cursor-crosshair border-2 border-gray-300 bg-white"></canvas>
                             </div>
                         </div>
 
@@ -290,17 +337,21 @@
                                 <div class="space-y-2">
                                     <div>
                                         <label class="block text-xs font-semibold mb-1">Table/Plate:</label>
-                                        <input type="text" id="tableName" class="w-full px-2 py-1 border rounded text-sm" placeholder="Tavola I">
+                                        <input type="text" id="tableName"
+                                            class="w-full px-2 py-1 border rounded text-sm" placeholder="Tavola I">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold mb-1">Context:</label>
-                                        <input type="text" id="contextInfo" class="w-full px-2 py-1 border rounded text-sm" placeholder="Bronze Age">
+                                        <input type="text" id="contextInfo"
+                                            class="w-full px-2 py-1 border rounded text-sm" placeholder="Bronze Age">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold mb-1">Notes:</label>
-                                        <textarea id="notesInfo" class="w-full px-2 py-1 border rounded text-sm" rows="2"></textarea>
+                                        <textarea id="notesInfo" class="w-full px-2 py-1 border rounded text-sm"
+                                            rows="2"></textarea>
                                     </div>
-                                    <button id="saveMetadataBtn" class="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                                    <button id="saveMetadataBtn"
+                                        class="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
                                         💾 Save Metadata
                                     </button>
                                 </div>
@@ -319,7 +370,8 @@
                                 <p class="text-xs font-semibold" id="annotationProgress">0 / 0 images completed</p>
                             </div>
 
-                            <button id="finishAnnotationBtn" class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold">
+                            <button id="finishAnnotationBtn"
+                                class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold">
                                 Finish & Process OCR →
                             </button>
                         </div>
@@ -331,27 +383,34 @@
                     <div class="text-center py-12">
                         <h2 class="text-2xl font-bold mb-4">🔍 OCR Processing</h2>
                         <p class="text-gray-600 mb-8">Processing text areas from all annotated plates</p>
-                        
+
                         <div class="max-w-3xl mx-auto mb-8">
                             <div class="bg-gray-200 rounded-full h-8 overflow-hidden">
-                                <div id="ocrProgressBar" class="bg-gradient-to-r from-blue-500 to-green-500 h-full flex items-center justify-center text-white font-bold transition-all" style="width: 0%">
+                                <div id="ocrProgressBar"
+                                    class="bg-gradient-to-r from-blue-500 to-green-500 h-full flex items-center justify-center text-white font-bold transition-all"
+                                    style="width: 0%">
                                     0%
                                 </div>
                             </div>
                             <p id="ocrProgressText" class="mt-2 text-sm text-gray-600">Ready to start</p>
                         </div>
 
-                        <button id="startOcrBtn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-lg mb-4">
+                        <button id="startOcrBtn"
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-lg mb-4">
                             🚀 Start OCR Processing
                         </button>
-                        
-                        <button id="skipOcrBtn" class="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-lg mb-8 ml-4">
+
+                        <button id="skipOcrBtn"
+                            class="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-lg mb-8 ml-4">
                             ✍️ Skip OCR (Manual Input)
                         </button>
 
-                        <div id="ocrLog" class="max-w-4xl mx-auto text-left bg-gray-900 text-green-400 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-xs hidden"></div>
+                        <div id="ocrLog"
+                            class="max-w-4xl mx-auto text-left bg-gray-900 text-green-400 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-xs hidden">
+                        </div>
 
-                        <button id="proceedCleanBtn" class="mt-8 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 hidden">
+                        <button id="proceedCleanBtn"
+                            class="mt-8 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 hidden">
                             Continue to Clean Drawings →
                         </button>
                     </div>
@@ -360,32 +419,41 @@
                 <!-- TAB 4: Clean Drawings (NEW) -->
                 <div class="tab-content hidden" data-tab="clean">
                     <!-- Loading overlay for Clean tab (matching Load tab style) -->
-                    <div id="cleanTabLoadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div id="cleanTabLoadingOverlay"
+                        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
-                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
+                            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4">
+                            </div>
                             <h3 class="text-xl font-semibold text-gray-800 mb-2">Loading Drawings</h3>
                             <p id="cleanTabLoadingText" class="text-gray-600">Please wait...</p>
                         </div>
                     </div>
-                    
+
                     <div class="py-8">
                         <h2 class="text-2xl font-bold mb-4 text-center">🎨 Clean Drawings</h2>
-                        <p class="text-gray-600 mb-8 text-center">Review extracted drawings and use eraser to remove unwanted areas</p>
+                        <p class="text-gray-600 mb-8 text-center">Review extracted drawings and use eraser to remove
+                            unwanted areas</p>
 
                         <div class="mb-4 flex justify-between items-center max-w-4xl mx-auto">
                             <div class="flex gap-2">
-                                <button id="prevCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" title="Previous (←)">← Previous</button>
-                                <span id="cleanIndicator" class="px-4 py-2 bg-gray-100 rounded font-semibold">1 / 1</span>
-                                <button id="nextCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" title="Next (→)">Next →</button>
+                                <button id="prevCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                                    title="Previous (←)">← Previous</button>
+                                <span id="cleanIndicator" class="px-4 py-2 bg-gray-100 rounded font-semibold">1 /
+                                    1</span>
+                                <button id="nextCleanBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                                    title="Next (→)">Next →</button>
                             </div>
                             <div class="flex gap-2">
-                                <button id="eraserBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                <button id="eraserBtn"
+                                    class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
                                     🧹 Eraser Tool <span class="text-xs opacity-75">(E)</span>
                                 </button>
-                                <button id="undoEraseBtn" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
+                                <button id="undoEraseBtn"
+                                    class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
                                     ↶ Undo
                                 </button>
-                                <button id="markCleanBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                                <button id="markCleanBtn"
+                                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                                     ✓ Mark as Clean <span class="text-xs opacity-75">(M)</span>
                                 </button>
                             </div>
@@ -405,26 +473,30 @@
                                 Ready
                             </div>
                             <div class="bg-white rounded-lg p-4 text-center canvas-container">
-                                <canvas id="cleanCanvas" style="max-width: 100%; cursor: crosshair; border: 2px solid #d1d5db; border-radius: 4px;"></canvas>
+                                <canvas id="cleanCanvas"
+                                    style="max-width: 100%; cursor: crosshair; border: 2px solid #d1d5db; border-radius: 4px;"></canvas>
                             </div>
                             <p class="text-xs text-gray-500 mt-4 text-center">
                                 Click and drag with the eraser tool to remove unwanted areas from the drawing
                             </p>
-                            
+
                             <!-- Thumbnails Grid -->
                             <div class="mt-6 bg-white rounded-lg p-4">
                                 <div class="flex justify-between items-center mb-3">
                                     <h3 class="text-sm font-semibold">All Drawings:</h3>
-                                    <span id="cleanedCounter" class="text-xs text-green-600 font-semibold">0 cleaned</span>
+                                    <span id="cleanedCounter" class="text-xs text-green-600 font-semibold">0
+                                        cleaned</span>
                                 </div>
-                                <div id="cleanThumbnailsGrid" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-64 overflow-y-auto">
+                                <div id="cleanThumbnailsGrid"
+                                    class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-64 overflow-y-auto">
                                     <!-- Thumbnails will be loaded here -->
                                 </div>
                             </div>
                         </div>
 
                         <div class="text-center mt-8">
-                            <button id="proceedReviewBtn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <button id="proceedReviewBtn"
+                                class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
                                 Continue to Review Texts →
                             </button>
                         </div>
@@ -442,7 +514,8 @@
                         </div>
 
                         <div class="text-center mt-8">
-                            <button id="proceedExportBtn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <button id="proceedExportBtn"
+                                class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
                                 Continue to Export →
                             </button>
                         </div>
@@ -467,19 +540,23 @@
 
                         <div class="max-w-md mx-auto mb-8">
                             <label class="block text-sm font-semibold mb-2">Export Prefix:</label>
-                            <input type="text" id="exportPrefix" class="w-full px-4 py-2 border rounded" value="ceramic" placeholder="e.g., SantaGiulia_2015">
+                            <input type="text" id="exportPrefix" class="w-full px-4 py-2 border rounded" value="ceramic"
+                                placeholder="e.g., SantaGiulia_2015">
                         </div>
 
-                        <button id="exportBtn" class="px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-lg">
+                        <button id="exportBtn"
+                            class="px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-lg">
                             � Save to Folder (Images + CSV)
                         </button>
 
-                        <button id="proceedParserBtn" class="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 hidden">
+                        <button id="proceedParserBtn"
+                            class="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 hidden">
                             Continue to Few-Shot Parser →
                         </button>
 
                         <p class="mt-4 text-sm text-gray-500">
-                            Export saves: extracted drawings as images in /images/ subfolder + CSV with all metadata and OCR results
+                            Export saves: extracted drawings as images in /images/ subfolder + CSV with all metadata and
+                            OCR results
                         </p>
                     </div>
                 </div>
@@ -488,7 +565,8 @@
                 <div class="tab-content hidden" data-tab="parser">
                     <div class="py-8">
                         <h2 class="text-2xl font-bold mb-4 text-center">🧠 Few-Shot Parser Training</h2>
-                        <p class="text-gray-600 mb-8 text-center">Create training examples for structured data parsing</p>
+                        <p class="text-gray-600 mb-8 text-center">Create training examples for structured data parsing
+                        </p>
 
                         <div class="max-w-6xl mx-auto">
                             <div class="flex gap-6">
@@ -496,7 +574,8 @@
                                 <div class="w-1/4 bg-gray-50 rounded-lg p-6">
                                     <h3 class="text-lg font-semibold mb-4">Available Fields</h3>
                                     <div id="tags-list" class="space-y-2 mb-4"></div>
-                                    <button id="add-tag-btn" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+                                    <button id="add-tag-btn"
+                                        class="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
                                         + Add Field
                                     </button>
                                 </div>
@@ -504,32 +583,44 @@
                                 <!-- Right Panel: Parser Content -->
                                 <div class="w-3/4 bg-gray-50 rounded-lg p-6">
                                     <div class="mb-6">
-                                        <label for="csv-file" class="block text-sm font-medium text-gray-700 mb-2">Upload Exported Excel File:</label>
-                                        <input type="file" id="csv-file" accept=".xlsx,.xls" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                        <label for="csv-file"
+                                            class="block text-sm font-medium text-gray-700 mb-2">Upload Exported Excel
+                                            File:</label>
+                                        <input type="file" id="csv-file" accept=".xlsx,.xls"
+                                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                                     </div>
 
                                     <div id="navigation" class="flex justify-between items-center mb-4 hidden">
-                                        <button id="prev-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">← Previous</button>
+                                        <button id="prev-btn"
+                                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">←
+                                            Previous</button>
                                         <span id="current-index" class="font-bold">1 / 0</span>
-                                        <button id="next-btn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Next →</button>
-                                        <button id="reset-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded ml-4">Reset</button>
+                                        <button id="next-btn"
+                                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Next
+                                            →</button>
+                                        <button id="reset-btn"
+                                            class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded ml-4">Reset</button>
                                     </div>
 
-                                    <div id="ocr-text" class="mb-4 border border-gray-300 p-4 bg-white whitespace-pre-wrap break-words min-h-16 rounded shadow-sm" contenteditable="false"></div>
+                                    <div id="ocr-text"
+                                        class="mb-4 border border-gray-300 p-4 bg-white whitespace-pre-wrap break-words min-h-16 rounded shadow-sm"
+                                        contenteditable="false"></div>
 
                                     <div id="current-json" class="mb-4">
                                         <h3 class="text-lg font-semibold mb-2">Current JSON:</h3>
                                         <pre id="json-preview" class="p-4 bg-gray-100 rounded border"></pre>
                                     </div>
 
-                                    <button id="add-example" class="mb-4 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded hidden">
+                                    <button id="add-example"
+                                        class="mb-4 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded hidden">
                                         ✓ Add Few-Shot Example
                                     </button>
 
                                     <div id="examples" class="mt-8">
                                         <div class="flex justify-between items-center mb-4">
                                             <h3 class="text-xl font-semibold">Added Examples:</h3>
-                                            <button id="clear-examples-btn" class="bg-red-500 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded text-sm">
+                                            <button id="clear-examples-btn"
+                                                class="bg-red-500 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded text-sm">
                                                 🗑️ Clear All Examples
                                             </button>
                                         </div>
@@ -537,15 +628,17 @@
                                     </div>
 
                                     <div id="export" class="mt-8">
-                                        <button id="run-parsing-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                                        <button id="run-parsing-btn"
+                                            class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
                                             🚀 Run Parsing
                                         </button>
                                     </div>
-                                    
+
                                     <!-- Parsing Log -->
                                     <div id="parsing-log" class="mt-6 hidden">
                                         <h3 class="text-lg font-semibold mb-2">Parsing Progress:</h3>
-                                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs" id="parsing-log-content"></div>
+                                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs"
+                                            id="parsing-log-content"></div>
                                     </div>
                                 </div>
                             </div>
@@ -569,18 +662,18 @@
             const progressBar = document.getElementById('splashProgress');
             const titleElement = document.getElementById('splashTitle');
             log.innerHTML = '<p>🔌 Connecting to OCR server...</p>';
-            
+
             // Poll loading status every 500ms
             const pollInterval = setInterval(async () => {
                 try {
                     const response = await fetch('/loading_status');
                     const status = await response.json();
-                    
+
                     // Update progress bar
                     const progress = status.progress || 0;
                     progressBar.style.width = progress + '%';
                     progressBar.textContent = progress + '%';
-                    
+
                     // Update title and log based on status
                     if (status.stage === 'starting') {
                         titleElement.textContent = 'Initializing...';
@@ -607,21 +700,21 @@
                         log.innerHTML = `<p style="color: #4ade80;">✨ ${status.message}</p>`;
                     } else if (status.stage === 'ready') {
                         clearInterval(pollInterval);
-                        
+
                         titleElement.textContent = 'Ready!';
                         progressBar.style.width = '100%';
                         progressBar.textContent = '100%';
-                        
+
                         // Get final health check
                         const healthResponse = await fetch('/health');
                         const healthData = await healthResponse.json();
-                        
+
                         log.innerHTML = `<p style="color: #4ade80;">✓ Server online: ${healthData.status}</p>`;
                         log.innerHTML += `<p style="color: #4ade80;">✓ Model: ${healthData.model}</p>`;
                         log.innerHTML += `<p style="color: #4ade80;">✓ Device: ${healthData.device}</p>`;
                         log.innerHTML += `<p style="color: #4ade80;">✓ CUDA: ${healthData.cuda_available ? 'Available' : 'CPU Mode'}</p>`;
                         log.innerHTML += '<p style="color: #4ade80; font-weight: bold;">✓ Ready to start!</p>';
-                        
+
                         setTimeout(() => {
                             document.getElementById('splashScreen').style.display = 'none';
                         }, 1500);
@@ -636,7 +729,7 @@
                     // Server not ready yet, keep polling
                 }
             }, 500);
-            
+
             // Timeout after 3 minutes
             setTimeout(() => {
                 clearInterval(pollInterval);
@@ -649,15 +742,15 @@
         // ==========================================
         // PROJECT MANAGEMENT
         // ==========================================
-        
+
         let currentProject = null;
-        
+
         // Load projects on page load
         async function loadProjects() {
             try {
                 const response = await fetch('/api/project/list');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     renderProjects(data.projects);
                 }
@@ -665,31 +758,31 @@
                 console.error('Error loading projects:', error);
             }
         }
-        
+
         // Render projects grid
         function renderProjects(projects) {
             const grid = document.getElementById('projectsGrid');
             const emptyState = document.getElementById('emptyProjectsState');
-            
+
             if (projects.length === 0) {
                 grid.classList.add('hidden');
                 emptyState.classList.remove('hidden');
                 return;
             }
-            
+
             grid.classList.remove('hidden');
             emptyState.classList.add('hidden');
-            
+
             grid.innerHTML = projects.map(project => {
                 const created = new Date(project.created_at).toLocaleDateString();
                 const modified = new Date(project.last_modified).toLocaleDateString();
                 const status = project.workflow_status;
-                
+
                 // Calculate completion percentage
                 const totalImages = status.images_count || 0;
                 const annotatedImages = status.annotations_completed || 0;
                 const completionPercent = totalImages > 0 ? Math.round((annotatedImages / totalImages) * 100) : 0;
-                
+
                 return `
                     <div class="project-card bg-white border-2 border-gray-200 rounded-lg p-4 hover:shadow-lg transition cursor-pointer" data-project-id="${project.project_id}">
                         <div class="flex justify-between items-start mb-3">
@@ -730,7 +823,7 @@
                     </div>
                 `;
             }).join('');
-            
+
             // Add event listeners
             grid.querySelectorAll('.project-card').forEach(card => {
                 card.addEventListener('click', (e) => {
@@ -740,7 +833,7 @@
                     }
                 });
             });
-            
+
             grid.querySelectorAll('.open-project-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -748,19 +841,19 @@
                     openProject(projectId);
                 });
             });
-            
+
             grid.querySelectorAll('.delete-project-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const projectId = btn.dataset.projectId;
-                    
+
                     if (confirm('Are you sure you want to delete this project? This cannot be undone.')) {
                         await deleteProject(projectId);
                     }
                 });
             });
         }
-        
+
         // Open project
         async function openProject(projectId) {
             try {
@@ -769,29 +862,29 @@
                 const loadingText = document.getElementById('loadTabLoadingText');
                 overlay.classList.remove('hidden');
                 loadingText.textContent = 'Opening project...';
-                
+
                 const response = await fetch(`/api/project/${projectId}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     currentProject = data.project;
                     console.log('Opened project:', currentProject);
-                    
+
                     // Enable Load tab
                     const loadTab = document.querySelector('.tab-btn[data-tab="load"]');
                     loadTab.disabled = false;
-                    
+
                     // Switch to Load tab
                     switchTab('load');
-                    
+
                     loadingText.textContent = 'Loading images and thumbnails...';
-                    
+
                     // Load project images and annotations
                     await loadProjectImagesWithAnnotations(projectId);
-                    
+
                     // Detect project state and enable appropriate tabs
                     await detectAndRestoreProjectState(projectId);
-                    
+
                     // Hide loading overlay
                     overlay.classList.add('hidden');
                 }
@@ -801,32 +894,32 @@
                 alert('Failed to open project');
             }
         }
-        
+
         // Load project images and check for existing annotations
         async function loadProjectImagesWithAnnotations(projectId) {
             const imagesList = document.getElementById('imagesList');
             let loadedCount = 0;
-            
+
             try {
                 const response = await fetch(`/api/project/${projectId}/images`);
                 const data = await response.json();
-                
+
                 if (data.success && data.images.length > 0) {
                     state.images = [];
                     const annotationStatuses = {}; // Track which images have annotations
                     const totalImages = data.images.length;
-                    
+
                     // Load all images and check for annotations
                     for (const imageName of data.images) {
                         const imageUrl = `/api/project/${projectId}/image/${imageName}`;
                         const thumbUrl = `/api/project/${projectId}/image/${imageName}?thumbnail=true`;
-                        
+
                         state.images.push({
                             name: imageName,
                             url: imageUrl,
                             thumbUrl: thumbUrl
                         });
-                        
+
                         // Check if annotations exist for this image
                         const annotationData = await loadAnnotationsFromProject(imageName);
                         if (annotationData && annotationData.drawings && annotationData.drawings.length > 0) {
@@ -836,7 +929,7 @@
                         } else {
                             annotationStatuses[imageName] = 0;
                         }
-                        
+
                         // Update progress in overlay
                         loadedCount++;
                         const loadingText = document.getElementById('loadTabLoadingText');
@@ -844,16 +937,16 @@
                             loadingText.textContent = `Loading ${loadedCount} of ${totalImages} images...`;
                         }
                     }
-                    
+
                     console.log('Loaded', state.images.length, 'images');
                     console.log('Annotation statuses:', annotationStatuses);
-                    
+
                     // Note: Cleaned drawings will be loaded on-demand when switching to Clean tab
-                    
+
                     // Count total annotations
                     const totalAnnotations = Object.values(annotationStatuses).reduce((sum, count) => sum + count, 0);
                     const imagesWithAnnotations = Object.values(annotationStatuses).filter(count => count > 0).length;
-                    
+
                     // Update project workflow status
                     if (currentProject) {
                         currentProject.workflow_status.annotations_completed = imagesWithAnnotations;
@@ -862,12 +955,12 @@
                             total_drawings: totalAnnotations
                         });
                     }
-                    
+
                     // Show folder info
                     document.getElementById('folderInfo').classList.remove('hidden');
                     document.getElementById('folderName').textContent = currentProject.project_name;
                     document.getElementById('imageCount').textContent = data.count;
-                    
+
                     // Display thumbnails with annotation indicators
                     renderThumbnailsWithAnnotations(projectId, data.images, annotationStatuses);
                 }
@@ -881,14 +974,14 @@
                 `;
             }
         }
-        
+
         // Render thumbnails with visual indicators for annotations
         function renderThumbnailsWithAnnotations(projectId, images, annotationStatuses) {
             const imagesList = document.getElementById('imagesList');
             imagesList.innerHTML = images.map((img, idx) => {
                 const hasAnnotations = annotationStatuses[img] > 0;
                 const annotationCount = annotationStatuses[img] || 0;
-                
+
                 return `
                     <div class="thumbnail relative cursor-pointer border-2 ${hasAnnotations ? 'border-green-500' : 'border-gray-300'} rounded overflow-hidden hover:border-blue-500 transition" data-index="${idx}">
                         <img src="/api/project/${projectId}/image/${img}?thumbnail=true" class="w-full h-24 object-cover" loading="lazy">
@@ -901,7 +994,7 @@
                     </div>
                 `;
             }).join('');
-            
+
             // Add click handlers
             const thumbnails = imagesList.querySelectorAll('.thumbnail');
             thumbnails.forEach((thumb) => {
@@ -914,19 +1007,19 @@
                 });
             });
         }
-        
+
         // Load cleaned drawings from project
         async function loadCleanedDrawingsFromProject(projectId) {
             try {
                 console.log('🧹 Loading cleaned drawings from project...');
-                
+
                 // Get list of all cleaned drawings from the cleaned_drawings folder
                 const response = await fetch(`/api/project/${projectId}/images?folder=cleaned_drawings`);
                 const data = await response.json();
-                
+
                 if (data.success && data.images && data.images.length > 0) {
                     console.log(`   Found ${data.images.length} cleaned drawings`);
-                    
+
                     // Load each cleaned drawing
                     for (const filename of data.images) {
                         // Extract key from filename (e.g., "1342_004_d1_cleaned.png" -> "1342_004.jpg_d1")
@@ -934,18 +1027,18 @@
                         if (match) {
                             const baseImgName = match[1];
                             const drawingNum = match[2];
-                            
+
                             // Find original image name (might have different extension)
                             const originalImg = state.images.find(img => img.name.startsWith(baseImgName));
                             if (originalImg) {
                                 const key = `${originalImg.name}_d${drawingNum}`;
-                                
+
                                 // Make sure full-res image is loaded for this image
                                 if (!state.fullResImages[originalImg.name]) {
                                     console.log(`   Loading full-res image for: ${originalImg.name}`);
                                     const imgElement = new Image();
                                     imgElement.crossOrigin = 'anonymous';
-                                    
+
                                     await new Promise((resolve, reject) => {
                                         imgElement.onload = () => {
                                             state.fullResImages[originalImg.name] = imgElement;
@@ -959,15 +1052,15 @@
                                         imgElement.src = `/api/project/${projectId}/image/${originalImg.name}`;
                                     });
                                 }
-                                
+
                                 // Load the cleaned image
                                 const cleanedImgUrl = `/api/project/${projectId}/image/${filename}?folder=cleaned_drawings`;
-                                
+
                                 // Fetch as data URL
                                 const imgResponse = await fetch(cleanedImgUrl);
                                 const blob = await imgResponse.blob();
                                 const reader = new FileReader();
-                                
+
                                 await new Promise((resolve) => {
                                     reader.onloadend = () => {
                                         if (!state.cleanedDrawings[key]) {
@@ -985,7 +1078,7 @@
                             }
                         }
                     }
-                    
+
                     console.log('✅ All cleaned drawings loaded');
                 } else {
                     console.log('ℹ️ No cleaned drawings found in project (this is normal for new projects)');
@@ -995,39 +1088,39 @@
                 // Don't throw - just log the error and continue
             }
         }
-        
+
         // Detect project state and restore/enable tabs accordingly
         async function detectAndRestoreProjectState(projectId) {
             try {
                 console.log('🔍 Detecting project state...');
-                
+
                 // Check what exists in the project
                 const hasAnnotations = Object.keys(state.annotations).length > 0;
                 const hasCroppedDrawings = await checkFolderHasFiles(projectId, 'cropped_drawings');
                 const hasCleanedDrawings = await checkFolderHasFiles(projectId, 'cleaned_drawings');
-                
+
                 // Check OCR results using dedicated endpoint (not folder check)
                 const hasOCRResults = await checkOCRResultsExist(projectId);
-                
+
                 console.log('Project state:', {
                     hasAnnotations,
                     hasCroppedDrawings,
                     hasOCRResults,
                     hasCleanedDrawings
                 });
-                
+
                 let restoredFeatures = [];
-                
+
                 // Always enable Annotate if we have images
                 if (state.images.length > 0) {
                     enableTab('annotate');
                 }
-                
+
                 // If we have annotations, enable Process tab
                 if (hasAnnotations) {
                     enableTab('process');
                     restoredFeatures.push('annotations');
-                    
+
                     // If cropped drawings exist, pre-load them
                     if (hasCroppedDrawings) {
                         console.log('✅ Found existing cropped drawings, loading...');
@@ -1035,7 +1128,7 @@
                         restoredFeatures.push('cropped drawings');
                     }
                 }
-                
+
                 // If we have OCR results, enable Review and Export tabs
                 if (hasOCRResults) {
                     console.log('✅ Found existing OCR results, loading...');
@@ -1044,27 +1137,27 @@
                     enableTab('export');
                     restoredFeatures.push('OCR results');
                 }
-                
+
                 // If we have cleaned drawings, enable Clean tab
                 if (hasCleanedDrawings || hasCroppedDrawings) {
                     enableTab('clean');
                     console.log('✅ Clean tab enabled (data will load on tab switch)');
                 }
-                
+
                 if (restoredFeatures.length > 0) {
                     console.log(`✅ Project restored with: ${restoredFeatures.join(', ')}`);
                     // Show a brief notification
                     const statusText = `Project restored: ${restoredFeatures.join(', ')}`;
                     console.log(`📋 ${statusText}`);
                 }
-                
+
                 console.log('✅ Project state restored');
-                
+
             } catch (error) {
                 console.error('Error detecting project state:', error);
             }
         }
-        
+
         // Helper: Check if a folder has files
         async function checkFolderHasFiles(projectId, folderType) {
             try {
@@ -1075,7 +1168,7 @@
                 return false;
             }
         }
-        
+
         // Helper: Check if OCR results exist using dedicated endpoint
         async function checkOCRResultsExist(projectId) {
             try {
@@ -1086,22 +1179,22 @@
                 return false;
             }
         }
-        
+
         // Load existing cropped drawings (just metadata, images loaded on demand)
         async function loadExistingCroppedDrawings(projectId) {
             try {
                 const response = await fetch(`/api/project/${projectId}/images?folder=cropped_drawings`);
                 const data = await response.json();
-                
+
                 if (data.success && data.images && data.images.length > 0) {
                     console.log(`✅ Found ${data.images.length} existing cropped drawings`);
-                    
+
                     // Pre-load full resolution images for Clean tab if not already loaded
                     for (const imgName in state.annotations) {
                         if (!state.fullResImages[imgName]) {
                             const imgElement = new Image();
                             imgElement.crossOrigin = 'anonymous';
-                            
+
                             await new Promise((resolve, reject) => {
                                 imgElement.onload = () => {
                                     state.fullResImages[imgName] = imgElement;
@@ -1116,28 +1209,28 @@
                             });
                         }
                     }
-                    
+
                     console.log('✅ Full-resolution images ready for Clean tab');
                 }
             } catch (error) {
                 console.error('Error loading existing crops:', error);
             }
         }
-        
+
         // Load existing OCR results from project
         async function loadExistingOCRResults(projectId) {
             try {
                 console.log('📄 Loading OCR results from project...');
-                
+
                 // Use the new dedicated endpoint
                 const response = await fetch(`/api/project/${projectId}/ocr_results`);
                 const data = await response.json();
-                
+
                 console.log('   OCR API response:', data);
-                
+
                 if (data.success && data.results && data.results.length > 0) {
                     console.log(`   Loading ${data.results.length} OCR results...`);
-                    
+
                     // Restore OCR results to state
                     state.ocrResults = {};
                     data.results.forEach(result => {
@@ -1150,14 +1243,14 @@
                 } else {
                     console.log('⚠️ No OCR results found in project');
                 }
-                
+
                 // Also load corrections if they exist
                 console.log('📝 Loading OCR corrections from project...');
                 const correctionsResponse = await fetch(`/api/project/${projectId}/ocr_corrections`);
                 const correctionsData = await correctionsResponse.json();
-                
+
                 console.log('   Corrections API response:', correctionsData);
-                
+
                 if (correctionsData.success && correctionsData.corrections) {
                     state.corrections = correctionsData.corrections;
                     console.log(`✅ Loaded ${Object.keys(state.corrections).length} OCR corrections`);
@@ -1168,11 +1261,11 @@
                 console.error('❌ Error loading existing OCR results:', error);
             }
         }
-        
+
         // Update project workflow status
         async function updateProjectWorkflowStatus(updates) {
             if (!currentProject) return;
-            
+
             try {
                 const response = await fetch(`/api/project/${currentProject.project_id}/workflow_status`, {
                     method: 'POST',
@@ -1181,9 +1274,9 @@
                     },
                     body: JSON.stringify(updates)
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log('Workflow status updated');
                 }
@@ -1191,16 +1284,16 @@
                 console.error('Error updating workflow status:', error);
             }
         }
-        
+
         // Delete project
         async function deleteProject(projectId) {
             try {
                 const response = await fetch(`/api/project/${projectId}`, {
                     method: 'DELETE'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log('Project deleted:', projectId);
                     await loadProjects();
@@ -1212,39 +1305,39 @@
                 alert('Failed to delete project');
             }
         }
-        
+
         // Load project images
         // New project modal handlers
         document.getElementById('newProjectBtn').addEventListener('click', () => {
             document.getElementById('newProjectModal').classList.remove('hidden');
         });
-        
+
         document.querySelectorAll('.create-project-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.remove('hidden');
             });
         });
-        
+
         document.getElementById('closeNewProjectBtn').addEventListener('click', () => {
             document.getElementById('newProjectModal').classList.add('hidden');
         });
-        
+
         document.getElementById('cancelNewProjectBtn').addEventListener('click', () => {
             document.getElementById('newProjectModal').classList.add('hidden');
         });
-        
+
         // Create new project
         document.getElementById('newProjectForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const name = document.getElementById('projectNameInput').value.trim();
             const description = document.getElementById('projectDescInput').value.trim();
-            
+
             if (!name) {
                 alert('Please enter a project name');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/project/create', {
                     method: 'POST',
@@ -1253,25 +1346,25 @@
                     },
                     body: JSON.stringify({ name, description })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log('Project created:', data.project);
-                    
+
                     // Close modal and reset form BEFORE showing loading
                     document.getElementById('newProjectModal').classList.add('hidden');
                     document.getElementById('newProjectForm').reset();
-                    
+
                     // NOW show loading overlay (after modal is closed)
                     const overlay = document.getElementById('loadTabLoadingOverlay');
                     const loadingText = document.getElementById('loadTabLoadingText');
                     overlay.classList.remove('hidden');
                     loadingText.textContent = 'Loading projects...';
-                    
+
                     // Reload projects
                     await loadProjects();
-                    
+
                     // Optionally open the new project (will update loading text)
                     await openProject(data.project.project_id);
                 } else {
@@ -1283,7 +1376,7 @@
                 alert('Failed to create project');
             }
         });
-        
+
         // Load projects on startup
         loadProjects();
 
@@ -1293,21 +1386,21 @@
         document.getElementById('infoBtn').addEventListener('click', async () => {
             const modal = document.getElementById('infoModal');
             const modalContent = modal.querySelector('.modal-content');
-            
+
             modal.classList.remove('hidden');
             // Trigger reflow to ensure animation plays
             modal.offsetHeight;
             modal.classList.add('show');
-            
+
             // Fetch system info
             try {
                 const response = await fetch('/health');
                 const data = await response.json();
-                
+
                 // Update CPU info
-                document.getElementById('systemCPU').textContent = navigator.hardwareConcurrency ? 
+                document.getElementById('systemCPU').textContent = navigator.hardwareConcurrency ?
                     `${navigator.hardwareConcurrency} cores (Available)` : 'Unknown';
-                
+
                 // Update GPU info
                 if (data.cuda_available) {
                     const gpuInfo = data.device || 'CUDA Available';
@@ -1315,10 +1408,10 @@
                 } else {
                     document.getElementById('systemGPU').textContent = 'Not Available';
                 }
-                
+
                 // MPS is for Apple Silicon - always Not Available on Windows
                 document.getElementById('systemMPS').textContent = 'Not Available';
-                
+
             } catch (err) {
                 console.error('Error fetching system info:', err);
                 document.getElementById('systemCPU').textContent = 'Error loading';
@@ -1329,10 +1422,10 @@
         function closeModal() {
             const modal = document.getElementById('infoModal');
             const modalContent = modal.querySelector('.modal-content');
-            
+
             modalContent.classList.add('closing');
             modal.classList.remove('show');
-            
+
             setTimeout(() => {
                 modal.classList.add('hidden');
                 modalContent.classList.remove('closing');
@@ -1355,7 +1448,7 @@
             ocrResults: {},  // { key: text }
             corrections: {}, // { key: correctedText }
             cleanedDrawings: {}, // { key: true/false }
-            
+
             // Canvas state
             fullResImages: {}, // Store original images
             drawings: [],
@@ -1363,7 +1456,7 @@
             isDrawing: false,
             mode: 'idle',
             currentBox: null,
-            
+
             // Scale management
             canvasScale: 1,         // Scale factor: canvas dimensions / full res dimensions
             maxCanvasWidth: 1600    // Maximum canvas width for performance
@@ -1400,7 +1493,7 @@
                     content.classList.remove('active');
                 }
             });
-            
+
             // Load data when switching to specific tabs
             if (tabName === 'clean' && currentProject) {
                 loadCleanTabData(currentProject.project_id);
@@ -1415,7 +1508,7 @@
                 // Load few-shot examples from project when entering parser tab
                 loadFewShotExamplesFromProject(currentProject.project_id);
             }
-            
+
             console.log('Tab switched successfully to:', tabName);
         }
 
@@ -1438,11 +1531,11 @@
                 switchTab('projects');
                 return;
             }
-            
+
             try {
                 const dirHandle = await window.showDirectoryPicker();
                 const files = [];
-                
+
                 for await (const entry of dirHandle.values()) {
                     if (entry.kind === 'file') {
                         const file = await entry.getFile();
@@ -1468,27 +1561,27 @@
                 files.forEach(file => {
                     formData.append('files', file);
                 });
-                
+
                 const uploadResponse = await fetch(`/api/project/${currentProject.project_id}/upload_images`, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const uploadData = await uploadResponse.json();
-                
+
                 if (!uploadData.success) {
                     overlay.classList.add('hidden');
                     alert('Failed to upload images: ' + uploadData.error);
                     return;
                 }
-                
+
                 console.log(`Uploaded ${uploadData.uploaded} images to project`);
-                
+
                 loadingText.textContent = 'Loading images and generating thumbnails...';
-                
+
                 // Load images from project
                 await loadProjectImagesForWork();
-                
+
                 // Hide loading overlay
                 overlay.classList.add('hidden');
 
@@ -1502,7 +1595,7 @@
         // Load images from current project (when uploading new images)
         async function loadProjectImagesForWork() {
             if (!currentProject) return;
-            
+
             // Use the same function as when opening a project
             await loadProjectImagesWithAnnotations(currentProject.project_id);
         }
@@ -1524,7 +1617,7 @@
         async function loadImageForAnnotation() {
             const img = state.images[state.currentImageIndex];
             console.log('Loading image for annotation:', img);
-            
+
             // Try to load annotations from project
             if (currentProject) {
                 console.log('Loading annotations for:', img.name);
@@ -1536,11 +1629,11 @@
                     console.log('No saved annotations found');
                 }
             }
-            
+
             if (!state.annotations[img.name]) {
                 // Extract filename without extension for table name
                 const fileNameWithoutExt = img.name.replace(/\.[^/.]+$/, '');
-                
+
                 state.annotations[img.name] = {
                     metadata: { tableName: fileNameWithoutExt, context: '', notes: '' },
                     drawings: []
@@ -1579,7 +1672,7 @@
             if (!canvas) {
                 canvas = document.getElementById('annotationCanvas');
                 ctx = canvas.getContext('2d');
-                
+
                 canvas.addEventListener('mousedown', handleMouseDown);
                 canvas.addEventListener('mousemove', handleMouseMove);
                 canvas.addEventListener('mouseup', handleMouseUp);
@@ -1588,7 +1681,7 @@
             // Calculate canvas scale for downsampling (max 1600px width)
             const fullResWidth = currentImage.width;
             const fullResHeight = currentImage.height;
-            
+
             if (fullResWidth > state.maxCanvasWidth) {
                 // Need to downsample
                 state.canvasScale = state.maxCanvasWidth / fullResWidth;
@@ -1602,40 +1695,40 @@
                 canvas.height = fullResHeight;
                 console.log(`Using full resolution: ${canvas.width}x${canvas.height}`);
             }
-            
+
             // Calculate display scale for responsive container
             const container = canvas.parentElement;
             const maxWidth = container.clientWidth - 20;
             displayScale = Math.min(1, maxWidth / canvas.width);
-            
+
             // Apply display scale via CSS
             canvas.style.width = (canvas.width * displayScale) + 'px';
             canvas.style.height = (canvas.height * displayScale) + 'px';
-            
+
             console.log(`Display scale: ${displayScale.toFixed(3)}, canvas style: ${canvas.style.width} x ${canvas.style.height}`);
-            
+
             drawCanvas();
         }
 
         function drawCanvas() {
             if (!currentImage) return;
-            
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+
             // Draw image scaled to canvas size
             ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
 
             // Draw annotations (convert from full-res to canvas coords)
             state.drawings.forEach((drawing, idx) => {
                 const isSelected = state.selectedDrawing === idx;
-                
+
                 // Convert full-res coordinates to canvas coordinates
                 const canvasDrawing = fullResToCanvas(drawing);
-                
+
                 ctx.strokeStyle = isSelected ? '#10b981' : '#3b82f6';
                 ctx.lineWidth = isSelected ? 4 : 3;
                 ctx.strokeRect(canvasDrawing.x, canvasDrawing.y, canvasDrawing.w, canvasDrawing.h);
-                
+
                 ctx.fillStyle = isSelected ? '#10b981' : '#3b82f6';
                 ctx.font = 'bold 18px sans-serif';
                 ctx.fillText(`D${idx + 1}`, canvasDrawing.x, canvasDrawing.y - 8);
@@ -1643,11 +1736,11 @@
                 drawing.textBoxes.forEach((textBox, tIdx) => {
                     // Convert text box coordinates to canvas
                     const canvasTextBox = fullResToCanvas(textBox);
-                    
+
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(canvasTextBox.x, canvasTextBox.y, canvasTextBox.w, canvasTextBox.h);
-                    
+
                     ctx.fillStyle = '#ef4444';
                     ctx.font = '14px sans-serif';
                     ctx.fillText(`T${tIdx + 1}`, canvasTextBox.x, canvasTextBox.y - 5);
@@ -1675,7 +1768,7 @@
         function drawArrow(x1, y1, x2, y2, color) {
             const headlen = 15;
             const angle = Math.atan2(y2 - y1, x2 - x1);
-            
+
             ctx.strokeStyle = color;
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 3]);
@@ -1684,7 +1777,7 @@
             ctx.lineTo(x2, y2);
             ctx.stroke();
             ctx.setLineDash([]);
-            
+
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.moveTo(x2, y2);
@@ -1703,7 +1796,7 @@
                 y: (e.clientY - rect.top) * scaleY
             };
         }
-        
+
         // Convert canvas coordinates to full-res image coordinates
         function canvasToFullRes(canvasCoords) {
             return {
@@ -1713,7 +1806,7 @@
                 h: Math.round(canvasCoords.h / state.canvasScale)
             };
         }
-        
+
         // Convert full-res image coordinates to canvas coordinates
         function fullResToCanvas(fullResCoords) {
             return {
@@ -1753,10 +1846,10 @@
                 w: Math.abs(state.currentBox.w),
                 h: Math.abs(state.currentBox.h)
             };
-            
+
             // Convert canvas coordinates to FULL RES coordinates for storage
             const fullResBox = canvasToFullRes(canvasBox);
-            
+
             console.log('Canvas box:', canvasBox, '→ Full-res box:', fullResBox);
 
             if (state.mode === 'drawing') {
@@ -1801,17 +1894,17 @@
                 context: document.getElementById('contextInfo').value,
                 notes: document.getElementById('notesInfo').value
             };
-            
+
             // Save to project backend
             if (currentProject) {
                 saveAnnotationsToProject(img.name, state.annotations[img.name]);
             }
         }
-        
+
         // Save annotations to project backend
         async function saveAnnotationsToProject(imageName, annotationData) {
             if (!currentProject) return;
-            
+
             try {
                 const response = await fetch(`/api/project/${currentProject.project_id}/annotations/${imageName}`, {
                     method: 'POST',
@@ -1820,9 +1913,9 @@
                     },
                     body: JSON.stringify({ annotations: annotationData })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log(`Annotations saved for ${imageName}`);
                 } else {
@@ -1832,19 +1925,19 @@
                 console.error('Error saving annotations:', error);
             }
         }
-        
+
         // Load annotations from project
         async function loadAnnotationsFromProject(imageName) {
             if (!currentProject) return null;
-            
+
             try {
                 const response = await fetch(`/api/project/${currentProject.project_id}/annotations/${imageName}`);
                 const data = await response.json();
-                
+
                 if (data.success && data.annotations) {
                     return data.annotations;
                 }
-                
+
                 return null;
             } catch (error) {
                 console.error('Error loading annotations:', error);
@@ -1854,7 +1947,7 @@
 
         function updateAnnotationUI() {
             const list = document.getElementById('drawingsList');
-            
+
             if (state.drawings.length === 0) {
                 list.innerHTML = '<p class="text-xs text-gray-500">Draw rectangles to mark vessels</p>';
             } else {
@@ -1894,9 +1987,9 @@
                 const ann = state.annotations[name];
                 return ann.drawings.length > 0 && ann.metadata.tableName;
             }).length;
-            
+
             document.getElementById('annotationProgress').textContent = `${completed} / ${state.images.length} images completed`;
-            
+
             const thumbnails = document.getElementById('imagesList').children;
             state.images.forEach((img, idx) => {
                 const ann = state.annotations[img.name];
@@ -1911,14 +2004,14 @@
             });
         }
 
-        window.addTextArea = function(drawingIdx) {
+        window.addTextArea = function (drawingIdx) {
             state.selectedDrawing = drawingIdx;
             state.mode = 'text';
             drawCanvas();
             updateAnnotationUI();
         };
 
-        window.deleteDrawing = function(drawingIdx) {
+        window.deleteDrawing = function (drawingIdx) {
             state.drawings.splice(drawingIdx, 1);
             if (state.selectedDrawing === drawingIdx) {
                 state.selectedDrawing = null;
@@ -1983,10 +2076,10 @@
             // Only work in annotate tab
             const activeTab = document.querySelector('.tab-content:not(.hidden)');
             if (!activeTab || activeTab.dataset.tab !== 'annotate') return;
-            
+
             // Don't trigger if typing in input fields
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
+
             // D key - Add new drawing
             if (e.key === 'd' || e.key === 'D') {
                 e.preventDefault();
@@ -1994,7 +2087,7 @@
                 state.selectedDrawing = null;
                 updateAnnotationUI();
             }
-            
+
             // T key - Add text area (only if a drawing is selected)
             if (e.key === 't' || e.key === 'T') {
                 e.preventDefault();
@@ -2013,25 +2106,25 @@
                 alert('Please annotate at least one image before proceeding');
                 return;
             }
-            
+
             // Show loading overlay
             const overlay = document.getElementById('cropGenerationOverlay');
             const progressBar = document.getElementById('cropGenerationProgressBar');
             const progressText = document.getElementById('cropGenerationProgressText');
             overlay.classList.remove('hidden');
-            
+
             try {
                 // Save current annotations before switching tabs
                 saveCurrentAnnotations();
-                
+
                 // Generate and save cropped images to project
                 if (currentProject) {
                     await generateAndSaveCroppedImages(progressBar, progressText);
                 }
-                
+
                 // Hide overlay
                 overlay.classList.add('hidden');
-                
+
                 enableTab('process');
                 switchTab('process');
             } catch (error) {
@@ -2040,34 +2133,34 @@
                 alert('Error processing annotations: ' + error.message);
             }
         });
-        
+
         // Generate and save cropped images to project
         async function generateAndSaveCroppedImages(progressBar, progressText) {
             console.log('Generating cropped images...');
-            
+
             let totalCrops = 0;
             let processedCrops = 0;
-            
+
             // Count total crops first
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
                 totalCrops += ann.drawings.length; // Each drawing is a crop
             }
-            
+
             if (progressText) {
                 progressText.textContent = `0 / ${totalCrops} crops`;
             }
-            
+
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
                 const img = state.images.find(i => i.name === imgName);
                 if (!img) continue;
-                
+
                 // Load full res image if not already loaded
                 let imgElement = state.fullResImages[imgName];
                 if (!imgElement) {
                     console.log(`Loading full-resolution image for cropping: ${imgName}`);
-                    
+
                     // Update overlay text
                     if (progressText) {
                         const cropText = document.getElementById('cropGenerationText');
@@ -2075,7 +2168,7 @@
                             cropText.textContent = `Loading image: ${imgName}...`;
                         }
                     }
-                    
+
                     // Create and load image
                     imgElement = new Image();
                     const imageLoaded = new Promise((resolve, reject) => {
@@ -2083,7 +2176,7 @@
                         imgElement.onerror = reject;
                     });
                     imgElement.src = img.url;
-                    
+
                     try {
                         await imageLoaded;
                         state.fullResImages[imgName] = imgElement;
@@ -2092,7 +2185,7 @@
                         console.error(`Failed to load image for cropping: ${imgName}`, err);
                         continue;
                     }
-                    
+
                     // Reset overlay text
                     if (progressText) {
                         const cropText = document.getElementById('cropGenerationText');
@@ -2101,66 +2194,66 @@
                         }
                     }
                 }
-                
+
                 for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
                     const drawing = ann.drawings[dIdx];
-                    
+
                     // Create crop of the drawing (without text)
                     const drawingCanvas = document.createElement('canvas');
                     const drawingCtx = drawingCanvas.getContext('2d');
                     drawingCanvas.width = drawing.w;
                     drawingCanvas.height = drawing.h;
-                    
+
                     // Fill white background
                     drawingCtx.fillStyle = 'white';
                     drawingCtx.fillRect(0, 0, drawing.w, drawing.h);
-                    
+
                     // Draw the cropped area
                     drawingCtx.drawImage(imgElement, drawing.x, drawing.y, drawing.w, drawing.h, 0, 0, drawing.w, drawing.h);
-                    
+
                     // Save drawing crop
                     const drawingImageData = drawingCanvas.toDataURL('image/png');
                     const baseImgName = imgName.replace(/\.[^/.]+$/, '');
                     const drawingFilename = `${baseImgName}_d${dIdx + 1}.png`;
-                    
+
                     await saveCroppedToProject(drawingImageData, drawingFilename);
-                    
+
                     processedCrops++;
-                    
+
                     // Update progress
                     if (progressBar && progressText) {
                         const percent = Math.round((processedCrops / totalCrops) * 100);
                         progressBar.style.width = percent + '%';
                         progressText.textContent = `${processedCrops} / ${totalCrops} crops`;
                     }
-                    
+
                     // Create crops for each text box
                     for (let tIdx = 0; tIdx < drawing.textBoxes.length; tIdx++) {
                         const textBox = drawing.textBoxes[tIdx];
-                        
+
                         const textCanvas = document.createElement('canvas');
                         const textCtx = textCanvas.getContext('2d');
                         textCanvas.width = textBox.w;
                         textCanvas.height = textBox.h;
-                        
+
                         textCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
-                        
+
                         const textImageData = textCanvas.toDataURL('image/png');
                         const textFilename = `${baseImgName}_d${dIdx + 1}_t${tIdx + 1}.png`;
-                        
+
                         await saveCroppedToProject(textImageData, textFilename);
                         totalCrops++;
                     }
                 }
             }
-            
+
             console.log(`Saved ${processedCrops} cropped images to project`);
         }
-        
+
         // Save cropped image to project
         async function saveCroppedToProject(imageData, filename) {
             if (!currentProject) return;
-            
+
             try {
                 const response = await fetch(`/api/project/${currentProject.project_id}/save_cropped`, {
                     method: 'POST',
@@ -2172,9 +2265,9 @@
                         filename: filename
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (!data.success) {
                     console.error('Failed to save cropped image:', filename);
                 }
@@ -2188,7 +2281,7 @@
             const log = document.getElementById('ocrLog');
             const progressBar = document.getElementById('ocrProgressBar');
             const progressText = document.getElementById('ocrProgressText');
-            
+
             log.classList.remove('hidden');
             log.innerHTML = '';
             document.getElementById('startOcrBtn').disabled = true;
@@ -2242,7 +2335,7 @@
                 let imgElement = state.fullResImages[imgName];
                 if (!imgElement) {
                     log.innerHTML += `<p style="color: #cbd5e1;">   ⏳ Loading full-resolution image...</p>`;
-                    
+
                     // Create and load image
                     imgElement = new Image();
                     const imageLoaded = new Promise((resolve, reject) => {
@@ -2250,7 +2343,7 @@
                         imgElement.onerror = reject;
                     });
                     imgElement.src = img.url;
-                    
+
                     try {
                         await imageLoaded;
                         state.fullResImages[imgName] = imgElement;
@@ -2264,31 +2357,31 @@
                 // Process each drawing
                 for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
                     const drawing = ann.drawings[dIdx];
-                    
+
                     // Skip drawings with no text boxes
                     if (drawing.textBoxes.length === 0) {
                         continue;
                     }
-                    
+
                     const key = `${imgName}_d${dIdx + 1}`;
-                    
+
                     log.innerHTML += `<p style="color: #a78bfa;">  🖼️  Drawing ${dIdx + 1} (${drawing.textBoxes.length} text boxes)</p>`;
-                    
+
                     const recognizedTexts = [];
 
                     // Process each text box
                     for (let tIdx = 0; tIdx < drawing.textBoxes.length; tIdx++) {
                         const textBox = drawing.textBoxes[tIdx];
-                        
+
                         log.innerHTML += `<p style="color: #cbd5e1;">     ⏳ Processing T${tIdx + 1} (${Math.round(textBox.w)}x${Math.round(textBox.h)}px)...</p>`;
-                        
+
                         // Extract text area from FULL RES image
                         const tempCanvas = document.createElement('canvas');
                         const tempCtx = tempCanvas.getContext('2d');
                         tempCanvas.width = textBox.w;
                         tempCanvas.height = textBox.h;
                         tempCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
-                        
+
                         const textImageData = tempCanvas.toDataURL('image/png');
 
                         try {
@@ -2327,29 +2420,29 @@
             log.innerHTML += `<p style="color: #4ade80;">\n═══════════════════════════════</p>`;
             log.innerHTML += `<p style="color: #4ade80; font-weight: bold;">✓ All OCR processing complete!</p>`;
             log.innerHTML += `<p style="color: #4ade80;">═══════════════════════════════</p>`;
-            
+
             // Save OCR results to project
             if (currentProject) {
                 await saveOCRResultsToProject();
             }
-            
+
             document.getElementById('proceedCleanBtn').classList.remove('hidden');
             enableTab('clean');
         });
-        
+
         // Save OCR results to project
         async function saveOCRResultsToProject() {
             if (!currentProject) return;
-            
+
             const results = [];
-            
+
             for (const key in state.ocrResults) {
                 results.push({
                     key: key,
                     texts: state.ocrResults[key]
                 });
             }
-            
+
             try {
                 const response = await fetch(`/api/project/${currentProject.project_id}/save_ocr_results`, {
                     method: 'POST',
@@ -2358,9 +2451,9 @@
                     },
                     body: JSON.stringify({ results: results })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log('OCR results saved to project');
                 } else {
@@ -2377,7 +2470,7 @@
                 const log = document.getElementById('ocrLog');
                 log.classList.remove('hidden');
                 log.innerHTML = '<p style="color: #fbbf24;">⚠️  OCR skipped - you will enter text manually in Review tab</p>';
-                
+
                 // Don't disable Start OCR button - let user change their mind
                 document.getElementById('skipOcrBtn').disabled = true;
                 document.getElementById('proceedCleanBtn').classList.remove('hidden');
@@ -2392,49 +2485,49 @@
         // Load data for Clean tab when switching to it
         async function loadCleanTabData(projectId) {
             if (!projectId) return;
-            
+
             console.log('🎨 Loading Clean tab data...');
-            
+
             // Show loading overlay
             const overlay = document.getElementById('cleanTabLoadingOverlay');
             const loadingText = document.getElementById('cleanTabLoadingText');
-            
+
             overlay.classList.remove('hidden');
             loadingText.textContent = 'Preparing to load drawings...';
-            
+
             try {
                 // Count total DRAWINGS to load (not images)
                 let totalDrawings = 0;
                 for (const imgName in state.annotations) {
                     totalDrawings += state.annotations[imgName].drawings.length;
                 }
-                
+
                 console.log(`📊 Total drawings to load: ${totalDrawings}`);
-                
+
                 // Get ALL images that need to be loaded
                 const allImageNames = Object.keys(state.annotations);
                 const totalImages = allImageNames.length;
                 let loadedImages = 0;
-                
+
                 // Update initial progress text with drawing count
                 loadingText.textContent = `Loading images for ${totalDrawings} drawings (0 / ${totalImages})...`;
-                
+
                 // 1. Load full-res images if not already loaded
                 for (const imgName of allImageNames) {
                     if (!state.fullResImages[imgName]) {
                         console.log(`Loading full-res image: ${imgName}`);
                         const imgElement = new Image();
                         imgElement.crossOrigin = 'anonymous';
-                        
+
                         await new Promise((resolve, reject) => {
                             imgElement.onload = () => {
                                 state.fullResImages[imgName] = imgElement;
                                 console.log(`✅ Loaded: ${imgName}`);
-                                
+
                                 // Update progress
                                 loadedImages++;
                                 loadingText.textContent = `Loading images for ${totalDrawings} drawings (${loadedImages} / ${totalImages})...`;
-                                
+
                                 resolve();
                             };
                             imgElement.onerror = () => {
@@ -2450,23 +2543,23 @@
                         console.log(`✅ Already loaded: ${imgName}`);
                     }
                 }
-                
+
                 // 2. Load cleaned drawings from folder
                 loadingText.textContent = 'Loading cleaned drawings...';
-                
+
                 await loadCleanedDrawingsFromProject(projectId);
-                
+
                 loadingText.textContent = 'Initializing canvas...';
-                
+
                 // 3. Initialize Clean tab with first item
                 if (Object.keys(state.annotations).length > 0) {
                     console.log('✅ Clean tab data loaded, initializing canvas...');
-                    
+
                     // Hide overlay BEFORE calling loadClean to avoid UI freeze
                     setTimeout(() => {
                         overlay.classList.add('hidden');
                     }, 100);
-                    
+
                     try {
                         loadClean(0);
                         console.log('✅ Canvas initialized successfully');
@@ -2480,7 +2573,7 @@
                         overlay.classList.add('hidden');
                     }, 300);
                 }
-                
+
             } catch (error) {
                 console.error('❌ Error loading Clean tab data:', error);
                 loadingText.textContent = 'Error loading data: ' + error.message;
@@ -2503,7 +2596,7 @@
 
         function loadClean(idx) {
             cleanItems = [];
-            
+
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
                 ann.drawings.forEach((d, dIdx) => {
@@ -2526,7 +2619,7 @@
             cleanIndex = idx;
             const item = cleanItems[cleanIndex];
             const imgElement = state.fullResImages[item.imgName];
-            
+
             // Check if image is loaded
             if (!imgElement) {
                 console.error(`❌ Image not loaded for ${item.imgName}`);
@@ -2537,7 +2630,7 @@
             if (!cleanCanvas) {
                 cleanCanvas = document.getElementById('cleanCanvas');
                 cleanCtx = cleanCanvas.getContext('2d');
-                
+
                 cleanCanvas.addEventListener('mousedown', handleCleanMouseDown);
                 cleanCanvas.addEventListener('mousemove', handleCleanMouseMove);
                 cleanCanvas.addEventListener('mouseup', handleCleanMouseUp);
@@ -2547,11 +2640,11 @@
             // Set canvas to FULL RES
             cleanCanvas.width = item.drawing.w;
             cleanCanvas.height = item.drawing.h;
-            
+
             // Fill with white background first
             cleanCtx.fillStyle = 'white';
             cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
-            
+
             // Check if a cleaned version exists in state
             if (state.cleanedDrawings[item.key]?.imageData) {
                 // Load the cleaned version
@@ -2580,24 +2673,24 @@
             document.getElementById('cleanPlate').textContent = item.metadata.tableName || item.imgName;
             document.getElementById('cleanDrawingId').textContent = `Drawing ${item.drawingIdx + 1}`;
             document.getElementById('cleanIndicator').textContent = `${cleanIndex + 1} / ${cleanItems.length}`;
-            
+
             eraserMode = false;
             updateCleanUI();
             renderCleanThumbnails();
         }
-        
+
         // Render thumbnails grid for clean tab
         function renderCleanThumbnails() {
             const grid = document.getElementById('cleanThumbnailsGrid');
-            
+
             // Count cleaned drawings
             const cleanedCount = cleanItems.filter(item => state.cleanedDrawings[item.key]?.cleaned).length;
             document.getElementById('cleanedCounter').textContent = `${cleanedCount} / ${cleanItems.length} cleaned`;
-            
+
             grid.innerHTML = cleanItems.map((item, idx) => {
                 const isCleaned = state.cleanedDrawings[item.key]?.cleaned || false;
                 const isActive = idx === cleanIndex;
-                
+
                 // Generate thumbnail for this specific drawing crop
                 let thumbDataUrl = '';
                 const imgElement = state.fullResImages[item.imgName];
@@ -2605,30 +2698,30 @@
                     // Create temporary canvas for thumbnail
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
-                    
+
                     // Calculate thumbnail dimensions (max 150px width, maintain aspect ratio)
                     const maxThumbWidth = 150;
                     const aspectRatio = item.drawing.h / item.drawing.w;
                     const thumbWidth = Math.min(maxThumbWidth, item.drawing.w);
                     const thumbHeight = thumbWidth * aspectRatio;
-                    
+
                     tempCanvas.width = thumbWidth;
                     tempCanvas.height = thumbHeight;
-                    
+
                     // Fill white background
                     tempCtx.fillStyle = 'white';
                     tempCtx.fillRect(0, 0, thumbWidth, thumbHeight);
-                    
+
                     // Draw the cropped region scaled down
                     tempCtx.drawImage(
                         imgElement,
                         item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h,
                         0, 0, thumbWidth, thumbHeight
                     );
-                    
+
                     thumbDataUrl = tempCanvas.toDataURL('image/jpeg', 0.7);
                 }
-                
+
                 return `
                     <div class="clean-thumbnail relative cursor-pointer border-2 ${isActive ? 'border-blue-500 ring-2 ring-blue-300' : isCleaned ? 'border-green-500' : 'border-gray-300'} rounded overflow-hidden hover:border-blue-400 transition" data-index="${idx}">
                         ${thumbDataUrl ? `
@@ -2652,7 +2745,7 @@
                     </div>
                 `;
             }).join('');
-            
+
             // Add click handlers
             grid.querySelectorAll('.clean-thumbnail').forEach(thumb => {
                 thumb.addEventListener('click', async () => {
@@ -2666,11 +2759,11 @@
                 });
             });
         }
-        
+
         // Auto-save current clean drawing
         async function saveCurrentCleanDrawing() {
             const item = cleanItems[cleanIndex];
-            
+
             // Save the cleaned drawing back to state
             const cleanedImageData = cleanCanvas.toDataURL();
             if (!state.cleanedDrawings[item.key]) {
@@ -2678,12 +2771,12 @@
             }
             state.cleanedDrawings[item.key].cleaned = true;
             state.cleanedDrawings[item.key].imageData = cleanedImageData;
-            
+
             // Save to project backend
             if (currentProject) {
                 const baseImgName = item.imgName.replace(/\.[^/.]+$/, '');
                 const cleanedFilename = `${baseImgName}_d${item.drawingIdx + 1}_cleaned.png`;
-                
+
                 try {
                     const response = await fetch(`/api/project/${currentProject.project_id}/save_cropped`, {
                         method: 'POST',
@@ -2696,9 +2789,9 @@
                             folder: 'cleaned_drawings'
                         })
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         console.log('Cleaned drawing auto-saved:', cleanedFilename);
                     }
@@ -2711,7 +2804,7 @@
         function updateCleanUI() {
             const statusBar = document.getElementById('cleanStatusBar');
             const eraserBtn = document.getElementById('eraserBtn');
-            
+
             if (eraserMode) {
                 statusBar.className = 'mb-4 p-3 rounded-lg bg-purple-100 border-2 border-purple-400 text-sm text-center';
                 statusBar.innerHTML = '<strong>ERASER MODE:</strong> Click and drag to erase areas';
@@ -2740,11 +2833,11 @@
         function handleCleanMouseDown(e) {
             if (!eraserMode) return;
             isErasing = true;
-            
+
             // Save state for undo
             undoStack.push(cleanCanvas.toDataURL());
             if (undoStack.length > 20) undoStack.shift(); // Keep max 20 undos
-            
+
             const coords = getCleanCanvasCoords(e);
             eraseAt(coords.x, coords.y);
         }
@@ -2771,29 +2864,29 @@
             eraserMode = !eraserMode;
             updateCleanUI();
         });
-        
+
         // Keyboard shortcuts for clean tab
         document.addEventListener('keydown', (e) => {
             // Only work in clean tab
             const activeTab = document.querySelector('.tab-content:not(.hidden)');
             if (!activeTab || activeTab.dataset.tab !== 'clean') return;
-            
+
             // Don't trigger if typing in input fields
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
+
             // E key - Toggle eraser
             if (e.key === 'e' || e.key === 'E') {
                 e.preventDefault();
                 eraserMode = !eraserMode;
                 updateCleanUI();
             }
-            
+
             // M key - Mark as clean
             if (e.key === 'm' || e.key === 'M') {
                 e.preventDefault();
                 document.getElementById('markCleanBtn').click();
             }
-            
+
             // Arrow keys - Navigate
             if (e.key === 'ArrowLeft') {
                 e.preventDefault();
@@ -2845,10 +2938,10 @@
 
         document.getElementById('markCleanBtn').addEventListener('click', async () => {
             await saveCurrentCleanDrawing();
-            
+
             // Update thumbnails to show it's cleaned
             renderCleanThumbnails();
-            
+
             // Auto-advance to next drawing
             if (cleanIndex < cleanItems.length - 1) {
                 eraserMode = false;
@@ -2866,7 +2959,7 @@
         function loadReviewTexts() {
             const container = document.getElementById('reviewContainer');
             container.innerHTML = '';
-            
+
             console.log('📝 Loading Review Texts...');
             console.log('   OCR Results:', Object.keys(state.ocrResults).length, 'keys');
             console.log('   Corrections:', Object.keys(state.corrections).length, 'keys');
@@ -2878,23 +2971,23 @@
                 ann.drawings.forEach((drawing, dIdx) => {
                     const key = `${imgName}_d${dIdx + 1}`;
                     const ocrTexts = state.ocrResults[key] || [];
-                    
+
                     console.log(`   Drawing ${key}:`, ocrTexts.length, 'OCR texts');
 
                     drawing.textBoxes.forEach((textBox, tIdx) => {
                         const textKey = `${key}_t${tIdx + 1}`;
-                        
+
                         // Extract text box preview
                         const tempCanvas = document.createElement('canvas');
                         const tempCtx = tempCanvas.getContext('2d');
                         tempCanvas.width = textBox.w;
                         tempCanvas.height = textBox.h;
                         tempCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
-                        
+
                         const preview = tempCanvas.toDataURL();
                         const ocrText = ocrTexts[tIdx] || '';
                         const correctedText = state.corrections[textKey] || ocrText;
-                        
+
                         console.log(`      Text ${textKey}: OCR="${ocrText}" | Corrected="${correctedText}"`);
 
                         const div = document.createElement('div');
@@ -2921,7 +3014,7 @@
             if (container.children.length === 0) {
                 container.innerHTML = '<p class="text-gray-500 text-center">No text boxes to review</p>';
             }
-            
+
             // Add zoom functionality to all preview images
             document.querySelectorAll('.text-box-preview').forEach(img => {
                 img.addEventListener('click', () => {
@@ -2933,17 +3026,17 @@
                     document.body.classList.add('modal-open');
                 });
             });
-            
+
             // Add auto-save functionality to all textareas
             let saveTimeout = null;
             document.querySelectorAll('.ocr-correction-textarea').forEach(textarea => {
                 textarea.addEventListener('input', () => {
                     const textKey = textarea.dataset.key;
                     const newValue = textarea.value;
-                    
+
                     // Update state immediately
                     state.corrections[textKey] = newValue;
-                    
+
                     // Debounce the save to backend (wait 1 second after user stops typing)
                     clearTimeout(saveTimeout);
                     saveTimeout = setTimeout(async () => {
@@ -2957,9 +3050,9 @@
                                     },
                                     body: JSON.stringify({ corrections: state.corrections })
                                 });
-                                
+
                                 const data = await response.json();
-                                
+
                                 if (data.success) {
                                     console.log('✅ Auto-save successful');
                                 } else {
@@ -2973,14 +3066,14 @@
                 });
             });
         }
-        
+
         // Close zoom modal handlers
         document.getElementById('closeZoomBtn').addEventListener('click', () => {
             document.getElementById('imageZoomModal').classList.add('hidden');
             // Remove class from body to re-enable hover effects
             document.body.classList.remove('modal-open');
         });
-        
+
         document.getElementById('imageZoomModal').addEventListener('click', (e) => {
             if (e.target === document.getElementById('imageZoomModal')) {
                 document.getElementById('imageZoomModal').classList.add('hidden');
@@ -2995,7 +3088,7 @@
                 const textKey = textarea.dataset.key;
                 state.corrections[textKey] = textarea.value;
             });
-            
+
             // Note: Auto-save already handles saving to backend
             // But we do a final save to ensure everything is persisted
             if (currentProject && Object.keys(state.corrections).length > 0) {
@@ -3008,9 +3101,9 @@
                         },
                         body: JSON.stringify({ corrections: state.corrections })
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         console.log('✅ Final save successful');
                     } else {
@@ -3020,7 +3113,7 @@
                     console.error('Error saving OCR corrections:', error);
                 }
             }
-            
+
             enableTab('export');
             switchTab('export');
             updateExportSummary();
@@ -3033,7 +3126,7 @@
             for (const ann of Object.values(state.annotations)) {
                 totalDrawings += ann.drawings.length;
             }
-            
+
             document.getElementById('exportTotalPlates').textContent = totalPlates;
             document.getElementById('exportTotalDrawings').textContent = totalDrawings;
             document.getElementById('exportOcrCount').textContent = Object.keys(state.ocrResults).length;
@@ -3049,7 +3142,7 @@
             try {
                 // Ask user to select a directory
                 const dirHandle = await window.showDirectoryPicker();
-                
+
                 btn.textContent = '⏳ Generating export...';
 
                 // Create images subfolder
@@ -3073,7 +3166,7 @@
                         const tempCtx = tempCanvas.getContext('2d');
                         tempCanvas.width = drawing.w;
                         tempCanvas.height = drawing.h;
-                        
+
                         // Use cleaned version if available
                         const cleanedData = state.cleanedDrawings[key];
                         if (cleanedData && cleanedData.imageData) {
@@ -3088,7 +3181,7 @@
                         } else {
                             tempCtx.drawImage(imgElement, drawing.x, drawing.y, drawing.w, drawing.h, 0, 0, drawing.w, drawing.h);
                         }
-                        
+
                         // Convert to blob
                         const blob = await new Promise((resolve) => {
                             tempCanvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
@@ -3138,7 +3231,7 @@
 
                 // Generate XLSX file as array buffer
                 const xlsxBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                
+
                 // Save XLSX file
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
                 const xlsxFilename = `${prefix}_data_${timestamp}.xlsx`;
@@ -3151,72 +3244,72 @@
 
                 // Always export ML training data (bounding boxes are saved in project)
                 btn.textContent = '⏳ Exporting ML training data...';
-                
+
                 const mlDataRows = [];
-                
+
                 // Process each image's drawings for ML data (vessels + text boxes)
                 for (const imgName in state.annotations) {
-                        const ann = state.annotations[imgName];
-                        const imgElement = state.fullResImages[imgName];
-                        
-                        for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
-                            const drawing = ann.drawings[dIdx];
-                            
-                            // Add vessel bounding box
-                            mlDataRows.push({
-                                image_name: imgName,
-                                drawing_number: dIdx + 1,
-                                box_type: 'vessel',
-                                x: drawing.x,
-                                y: drawing.y,
-                                width: drawing.w,
-                                height: drawing.h,
-                                label: drawing.label || 'vessel',
-                                image_width: imgElement.naturalWidth,
-                                image_height: imgElement.naturalHeight
-                            });
-                            
-                            // Add text box bounding boxes
-                            if (drawing.textBoxes && drawing.textBoxes.length > 0) {
-                                drawing.textBoxes.forEach((textBox, tIdx) => {
-                                    mlDataRows.push({
-                                        image_name: imgName,
-                                        drawing_number: dIdx + 1,
-                                        box_type: 'text',
-                                        x: textBox.x,
-                                        y: textBox.y,
-                                        width: textBox.w,
-                                        height: textBox.h,
-                                        label: 'text_label',
-                                        text_index: tIdx + 1,
-                                        image_width: imgElement.naturalWidth,
-                                        image_height: imgElement.naturalHeight
-                                    });
+                    const ann = state.annotations[imgName];
+                    const imgElement = state.fullResImages[imgName];
+
+                    for (let dIdx = 0; dIdx < ann.drawings.length; dIdx++) {
+                        const drawing = ann.drawings[dIdx];
+
+                        // Add vessel bounding box
+                        mlDataRows.push({
+                            image_name: imgName,
+                            drawing_number: dIdx + 1,
+                            box_type: 'vessel',
+                            x: drawing.x,
+                            y: drawing.y,
+                            width: drawing.w,
+                            height: drawing.h,
+                            label: drawing.label || 'vessel',
+                            image_width: imgElement.naturalWidth,
+                            image_height: imgElement.naturalHeight
+                        });
+
+                        // Add text box bounding boxes
+                        if (drawing.textBoxes && drawing.textBoxes.length > 0) {
+                            drawing.textBoxes.forEach((textBox, tIdx) => {
+                                mlDataRows.push({
+                                    image_name: imgName,
+                                    drawing_number: dIdx + 1,
+                                    box_type: 'text',
+                                    x: textBox.x,
+                                    y: textBox.y,
+                                    width: textBox.w,
+                                    height: textBox.h,
+                                    label: 'text_label',
+                                    text_index: tIdx + 1,
+                                    image_width: imgElement.naturalWidth,
+                                    image_height: imgElement.naturalHeight
                                 });
-                            }
+                            });
                         }
                     }
-                    
-                    // Create ML data XLSX
-                    const mlWs = XLSX.utils.json_to_sheet(mlDataRows);
-                    const mlWb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(mlWb, mlWs, 'Bounding Boxes');
-                    
-                    const mlXlsxBuffer = XLSX.write(mlWb, { bookType: 'xlsx', type: 'array' });
-                    const mlXlsxFilename = `${prefix}_ml_training_${timestamp}.xlsx`;
-                    const mlXlsxFileHandle = await dirHandle.getFileHandle(mlXlsxFilename, { create: true });
-                    const mlXlsxWritable = await mlXlsxFileHandle.createWritable();
-                    await mlXlsxWritable.write(new Blob([mlXlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-                    await mlXlsxWritable.close();
-                    
+                }
+
+                // Create ML data XLSX
+                const mlWs = XLSX.utils.json_to_sheet(mlDataRows);
+                const mlWb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(mlWb, mlWs, 'Bounding Boxes');
+
+                const mlXlsxBuffer = XLSX.write(mlWb, { bookType: 'xlsx', type: 'array' });
+                const mlXlsxFilename = `${prefix}_ml_training_${timestamp}.xlsx`;
+                const mlXlsxFileHandle = await dirHandle.getFileHandle(mlXlsxFilename, { create: true });
+                const mlXlsxWritable = await mlXlsxFileHandle.createWritable();
+                await mlXlsxWritable.write(new Blob([mlXlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                await mlXlsxWritable.close();
+
                 exportMessage += `\nML training data saved as ${mlXlsxFilename}`;
 
                 alert(exportMessage);
-                
+
                 // Enable parser tab and show button
                 document.getElementById('proceedParserBtn').classList.remove('hidden');
                 enableTab('parser');
-                
+
             } catch (err) {
                 if (err.name === 'AbortError') {
                     alert('Export cancelled');
@@ -3237,13 +3330,13 @@
         // ======================
         // FEW-SHOT EXAMPLES PERSISTENCE
         // ======================
-        
+
         async function saveFewShotExamplesToProject(projectId) {
             if (!projectId) return;
-            
+
             try {
                 console.log(`💾 Saving ${parserState.fewshot.length} few-shot examples to project...`);
-                
+
                 const response = await fetch(`/api/project/${projectId}/save_fewshot_examples`, {
                     method: 'POST',
                     headers: {
@@ -3251,9 +3344,9 @@
                     },
                     body: JSON.stringify({ examples: parserState.fewshot })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log(`✅ Few-shot examples saved: ${data.count} examples`);
                 } else {
@@ -3263,31 +3356,31 @@
                 console.error('❌ Error saving few-shot examples:', error);
             }
         }
-        
+
         async function loadFewShotExamplesFromProject(projectId) {
             if (!projectId) return;
-            
+
             try {
                 console.log('📚 Loading few-shot examples from project...');
-                
+
                 const response = await fetch(`/api/project/${projectId}/fewshot_examples`);
                 const data = await response.json();
-                
+
                 if (data.success && data.examples && data.examples.length > 0) {
                     console.log(`✅ Loaded ${data.count} few-shot examples from project`);
-                    
+
                     // Restore examples to parser state
                     parserState.fewshot = data.examples;
-                    
+
                     // Render examples in UI
                     const container = document.getElementById('examples-container');
                     container.innerHTML = '';
-                    
+
                     for (let i = 0; i < data.examples.length; i += 2) {
                         if (i + 1 < data.examples.length) {
                             const userMsg = data.examples[i];
                             const assistantMsg = data.examples[i + 1];
-                            
+
                             const exampleDiv = document.createElement('div');
                             exampleDiv.classList.add('border', 'border-gray-300', 'p-4', 'mb-4', 'bg-white', 'rounded', 'shadow-sm');
                             exampleDiv.innerHTML = `
@@ -3297,7 +3390,7 @@
                             container.appendChild(exampleDiv);
                         }
                     }
-                    
+
                     console.log('✅ Few-shot examples restored in UI');
                 } else {
                     console.log('ℹ️ No few-shot examples found in project');
@@ -3388,12 +3481,12 @@
                 parserState.allFields.push({ name: fieldName, key: fieldKey, fixed: false });
                 renderTags();
                 renderPopupTags();
-                
+
                 // Add highlight style
                 const styleEl = document.createElement('style');
                 styleEl.textContent = `.${fieldKey} { background-color: ${highlightColors[(parserState.allFields.length - 1) % highlightColors.length]}; }`;
                 document.head.appendChild(styleEl);
-                
+
                 parserState.currentJson[capitalize(fieldName)] = null;
                 updateJsonPreview();
             }
@@ -3422,43 +3515,43 @@
                 reader.onload = (event) => {
                     const data = new Uint8Array(event.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    
+
                     // Get first sheet
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                    
+
                     if (jsonData.length < 2) {
                         alert('Excel file is empty or has no data rows.');
                         return;
                     }
-                    
+
                     const headers = jsonData[0];
                     const rows = jsonData.slice(1);
-                    
+
                     // Find column indices
                     const ocrColIndex = headers.findIndex(h => h && h.toString().includes('ocr_corrected'));
                     const filenameColIndex = headers.findIndex(h => h && h.toString().includes('filename'));
-                    
+
                     if (ocrColIndex === -1) {
                         alert('Column "ocr_corrected" not found in Excel file.');
                         return;
                     }
-                    
+
                     // Parse each row and store both OCR text and filename
                     parserState.ocrLines = [];
                     parserState.filenames = [];
-                    
+
                     rows.forEach(row => {
                         const ocrText = row[ocrColIndex] ? row[ocrColIndex].toString().trim() : '';
-                        const filename = filenameColIndex >= 0 && row[filenameColIndex] ? 
-                                        row[filenameColIndex].toString().trim() : '';
-                        
+                        const filename = filenameColIndex >= 0 && row[filenameColIndex] ?
+                            row[filenameColIndex].toString().trim() : '';
+
                         if (ocrText) {
                             parserState.ocrLines.push(ocrText);
                             parserState.filenames.push(filename);
                         }
                     });
-                    
+
                     if (parserState.ocrLines.length > 0) {
                         document.getElementById('navigation').classList.remove('hidden');
                         document.getElementById('add-example').classList.remove('hidden');
@@ -3474,36 +3567,36 @@
         document.getElementById('ocr-text').addEventListener('mouseup', (e) => {
             const selection = window.getSelection();
             const selectionPopup = document.getElementById('selection-popup');
-            
+
             if (selection.rangeCount > 0 && selection.toString().trim()) {
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
-                
+
                 // Position popup above selection (Leaflet style)
                 const popupWidth = 200;
                 const popupHeight = 250; // Stima altezza massima
-                
+
                 // Calculate left position (centered on selection)
                 let left = rect.left + (rect.width / 2) - (popupWidth / 2);
-                
+
                 // Keep popup within viewport
                 const viewportWidth = window.innerWidth;
                 if (left < 10) left = 10;
                 if (left + popupWidth > viewportWidth - 10) left = viewportWidth - popupWidth - 10;
-                
+
                 // Position above selection
                 let top = rect.top - popupHeight - 15; // 15px gap
-                
+
                 // If not enough space above, position below
                 if (top < 10) {
                     top = rect.bottom + 15;
                 }
-                
+
                 selectionPopup.style.left = `${left}px`;
                 selectionPopup.style.top = `${top}px`;
                 selectionPopup.style.width = `${popupWidth}px`;
                 selectionPopup.classList.remove('hidden');
-                
+
             } else {
                 selectionPopup.classList.add('hidden');
             }
@@ -3514,7 +3607,7 @@
             if (e.target.classList.contains('popup-tag-btn')) {
                 const selection = window.getSelection();
                 const selectionPopup = document.getElementById('selection-popup');
-                
+
                 if (selection.rangeCount > 0) {
                     const range = selection.getRangeAt(0);
                     const fieldKey = e.target.dataset.field;
@@ -3522,7 +3615,7 @@
                     if (field) {
                         const value = range.toString().trim();
                         parserState.currentJson[capitalize(field.name)] = value;
-                        
+
                         // Highlight the selected text
                         const span = document.createElement('span');
                         span.className = fieldKey;
@@ -3535,7 +3628,7 @@
                             span.appendChild(fragment);
                             range.insertNode(span);
                         }
-                        
+
                         updateJsonPreview();
                         selection.removeAllRanges();
                         selectionPopup.classList.add('hidden');
@@ -3603,19 +3696,19 @@
             if (!confirm('Are you sure you want to clear all few-shot examples? This cannot be undone.')) {
                 return;
             }
-            
+
             // Clear from memory
             parserState.fewshot = [];
-            
+
             // Clear from UI
             document.getElementById('examples-container').innerHTML = '';
-            
+
             // Save empty list to project if a project is open
             if (currentProject) {
                 await saveFewShotExamplesToProject(currentProject.project_id);
                 console.log('✅ Few-shot examples cleared from project');
             }
-            
+
             console.log('✅ All few-shot examples cleared');
         });
 
@@ -3625,21 +3718,21 @@
                 alert('No few-shot examples created! Add at least one example first.');
                 return;
             }
-            
+
             const btn = document.getElementById('run-parsing-btn');
             const logDiv = document.getElementById('parsing-log');
             const logContent = document.getElementById('parsing-log-content');
-            
+
             btn.disabled = true;
             btn.textContent = '⏳ Processing...';
             logDiv.classList.remove('hidden');
             logContent.innerHTML = '<p style="color: #60a5fa;">🔍 Starting structured parsing...</p>';
-            
+
             try {
                 logContent.innerHTML += `<p>📊 Total lines to parse: ${parserState.ocrLines.length}</p>`;
                 logContent.innerHTML += `<p>🎯 Using ${parserState.fewshot.length / 2} few-shot examples</p>`;
                 logContent.innerHTML += '<p style="color: #fbbf24;">⏳ Loading Qwen model...</p>';
-                
+
                 // Prepare data for parsing
                 const payload = {
                     ocrLines: parserState.ocrLines,
@@ -3647,17 +3740,17 @@
                     fewshotExamples: parserState.fewshot,
                     useGuided: true
                 };
-                
+
                 // Start polling for progress updates
                 let progressLine = null;
                 const progressInterval = setInterval(async () => {
                     try {
                         const statusResponse = await fetch('/parsing_status');
                         const status = await statusResponse.json();
-                        
+
                         if (status.active) {
                             const progressText = `⏳ Parsing ${status.current}/${status.total}: ${status.current_line}`;
-                            
+
                             if (!progressLine) {
                                 // Add new progress line
                                 logContent.innerHTML += `<p id="parsing-progress-line" style="color: #fbbf24;">${progressText}</p>`;
@@ -3666,34 +3759,34 @@
                                 // Update existing progress line
                                 progressLine.textContent = progressText;
                             }
-                            
+
                             logContent.scrollTop = logContent.scrollHeight;
                         }
                     } catch (e) {
                         // Ignore errors during status polling
                     }
                 }, 500);
-                
+
                 // Call the parsing endpoint
                 logContent.innerHTML += '<p style="color: #4ade80;">✓ Model loaded, starting parsing...</p>';
                 logContent.scrollTop = logContent.scrollHeight;
-                
+
                 const response = await fetch('/api/parse_structured', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
+
                 // Stop progress polling
                 clearInterval(progressInterval);
                 if (progressLine) {
                     progressLine.remove();
                 }
-                
+
                 if (!response.ok) {
                     throw new Error(`Server error: ${response.statusText}`);
                 }
-                
+
                 // Download the Excel file
                 logContent.innerHTML += '<p style="color: #4ade80;">✓ Parsing complete! Preparing Excel download...</p>';
                 const blob = await response.blob();
@@ -3706,12 +3799,12 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                
+
                 logContent.innerHTML += '<p style="color: #4ade80; font-weight: bold;">✅ Excel file downloaded successfully!</p>';
                 logContent.scrollTop = logContent.scrollHeight;
-                
+
                 alert('✅ Parsing complete! Excel file downloaded successfully.');
-                
+
             } catch (error) {
                 console.error('Error during parsing:', error);
                 logContent.innerHTML += `<p style="color: #f87171;">✗ Error: ${error.message}</p>`;
@@ -3738,4 +3831,5 @@
         document.head.appendChild(style);
     </script>
 </body>
+
 </html>
