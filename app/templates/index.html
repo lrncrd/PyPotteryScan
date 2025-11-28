@@ -546,7 +546,7 @@
 
                         <button id="exportBtn"
                             class="px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-lg">
-                            � Save to Folder (Images + CSV)
+                            Save to Folder
                         </button>
 
                         <button id="proceedParserBtn"
@@ -555,7 +555,7 @@
                         </button>
 
                         <p class="mt-4 text-sm text-gray-500">
-                            Export saves: extracted drawings as images in /images/ subfolder + CSV with all metadata and
+                            Export saves: extracted drawings as images in /images/ subfolder +  XLSX with all metadata and
                             OCR results
                         </p>
                     </div>
@@ -3338,7 +3338,7 @@
                 }
             } finally {
                 btn.disabled = false;
-                btn.textContent = '📁 Save to Folder (Images + CSV)';
+                btn.textContent = 'Save to Folder';
             }
         });
 
