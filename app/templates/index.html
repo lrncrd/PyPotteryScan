@@ -57,10 +57,40 @@
                                 tool</p>
                         </div>
                     </div>
-                    <button id="infoBtn"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                        ℹ️ Info
-                    </button>
+                    <div class="flex items-center gap-4">
+                        <a href="https://lrncrd.github.io/PyPottery/pypotteryscan/usage.html" target="_blank" class="pixel-assistant-container" title="Need help?">
+                            <div class="pixel-speech-bubble">Need help?</div>
+                            <!-- SVG Icon -->
+                            <svg width="60" height="60" viewBox="30 45 180 140">
+                                <g id="pixel-monitor">
+                                    <!-- Monitor Body -->
+                                    <rect x="40" y="50" width="160" height="130" rx="15" ry="15" fill="#d0d0d0" stroke="#444" stroke-width="3" />
+                                    <rect x="55" y="65" width="130" height="90" rx="5" ry="5" fill="#a0a0a0" stroke="#444" stroke-width="2" />
+                                    <!-- Screen -->
+                                    <rect id="pixel-screen" x="60" y="70" width="120" height="80" rx="2" ry="2" fill="#111" />
+                                    
+                                    <!-- Face: IDLE (Zzz...) -->
+                                    <g id="pixel-face-idle" transform="translate(120, 115)">
+                                        <text x="0" y="5" text-anchor="middle" font-family="monospace" font-size="24" fill="#0f0" font-weight="bold">Zzz...</text>
+                                    </g>
+                                    
+                                    <!-- Face: AWAKE -->
+                                    <g id="pixel-face-awake" transform="translate(120, 115)">
+                                        <rect x="-30" y="-15" width="10" height="12" rx="2" fill="#0f0" />
+                                        <rect x="20" y="-15" width="10" height="12" rx="2" fill="#0f0" />
+                                        <path d="M-15,10 Q0,25 15,10" stroke="#0f0" stroke-width="4" fill="none" stroke-linecap="round" />
+                                    </g>
+                                    
+                                    <!-- Power Light -->
+                                    <circle cx="180" cy="165" r="3" fill="#e74c3c" stroke="#c0392b" stroke-width="1" />
+                                </g>
+                            </svg>
+                        </a>
+                        <button id="infoBtn"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            ℹ️ Info
+                        </button>
+                    </div>
                 </div>
             </div>
 
