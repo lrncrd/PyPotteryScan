@@ -22,6 +22,10 @@ class ModelManager:
         self.qwen_tokenizer = None
         self.qwen_model = None
         
+        # Model selection state
+        self.selected_model = None  # 'FP4' or 'FP8'
+        self.needs_model_selection = False  # True if user must choose model
+        
         # Timestamps for auto-unload
         self.olmocr_last_used = None
         self.qwen_last_used = None
@@ -50,6 +54,105 @@ class ModelManager:
     def get_parsing_status(self):
         """Get current parsing status"""
         return self.parsing_status
+    
+    def get_available_models(self):
+        """Return list of available OCR models for this hardware"""
+        models = []
+        
+        # FP4 only available on NVIDIA GPU with CUDA
+        cuda_available = torch.cuda.is_available()
+        if cuda_available:
+            models.append({
+                'id': 'FP4',
+                'name': 'OlmOCR 4-bit (FP4)',
+                'size_gb': 5,
+                'performance': 'Good',
+                'description': 'Lighter model, requires NVIDIA GPU',
+                'available': True
+            })
+        else:
+            models.append({
+                'id': 'FP4',
+                'name': 'OlmOCR 4-bit (FP4)',
+                'size_gb': 5,
+                'performance': 'Good',
+                'description': 'Requires NVIDIA GPU (not available)',
+                'available': False
+            })
+        
+        # FP8 available on any system
+        models.append({
+            'id': 'FP8',
+            'name': 'OlmOCR 8-bit (FP8)',
+            'size_gb': 10,
+            'performance': 'Better',
+            'description': 'Higher quality, works on any GPU/CPU',
+            'available': True,
+            'recommended': True
+        })
+        
+        return models
+    
+    def get_selected_model(self):
+        """Get currently selected model from persistence file"""
+        if self.selected_model:
+            return self.selected_model
+        
+        if not self.config:
+            return None
+        
+        selection_file = self.config.get('SELECTED_MODEL_FILE')
+        if selection_file and os.path.exists(selection_file):
+            try:
+                with open(selection_file, 'r') as f:
+                    model_id = f.read().strip()
+                    if model_id in ['FP4', 'FP8']:
+                        self.selected_model = model_id
+                        return model_id
+            except Exception as e:
+                logger.warning(f"Could not read selected model file: {e}")
+        
+        return None
+    
+    def set_selected_model(self, model_id):
+        """Save model selection to persistence file"""
+        if model_id not in ['FP4', 'FP8']:
+            raise ValueError(f"Invalid model ID: {model_id}")
+        
+        # Validate FP4 availability
+        if model_id == 'FP4' and not torch.cuda.is_available():
+            raise ValueError("FP4 requires NVIDIA GPU with CUDA")
+        
+        self.selected_model = model_id
+        
+        if self.config:
+            selection_file = self.config.get('SELECTED_MODEL_FILE')
+            if selection_file:
+                os.makedirs(os.path.dirname(selection_file), exist_ok=True)
+                with open(selection_file, 'w') as f:
+                    f.write(model_id)
+                logger.info(f"✅ Model selection saved: {model_id}")
+        
+        return True
+    
+    def get_olmocr_model_config(self):
+        """Get model ID and directory for currently selected OlmOCR model"""
+        model_id = self.get_selected_model()
+        if not model_id:
+            raise RuntimeError("No OlmOCR model selected")
+        
+        if model_id == 'FP4':
+            return {
+                'model_id': self.config['OLMOCR_FP4_MODEL_ID'],
+                'model_dir': self.config['OLMOCR_FP4_MODEL_DIR'],
+                'name': 'OlmOCR-7B-FP4'
+            }
+        else:  # FP8
+            return {
+                'model_id': self.config['OLMOCR_FP8_MODEL_ID'],
+                'model_dir': self.config['OLMOCR_FP8_MODEL_DIR'],
+                'name': 'OlmOCR-7B-FP8'
+            }
     
     def download_model_with_progress(self, model_id, local_dir, model_name, start_progress=10, end_progress=50):
         """Download model from HuggingFace with progress tracking"""
@@ -91,7 +194,7 @@ class ModelManager:
             return False
     
     def check_and_download_models(self):
-        """Check if models exist locally, download if missing"""
+        """Check if models exist locally, download if missing. Requires model selection first."""
         try:
             if not self.config:
                 raise RuntimeError("ModelManager not initialized with config")
@@ -104,9 +207,15 @@ class ModelManager:
                 'progress': 5
             }
             
-            # Check OlmOCR model
-            olmocr_exists = os.path.exists(self.config['OLMOCR_MODEL_DIR']) and os.path.exists(
-                os.path.join(self.config['OLMOCR_MODEL_DIR'], "config.json")
+            # Check if model is selected
+            selected = self.get_selected_model()
+            
+            # Check which OlmOCR models exist
+            fp4_exists = os.path.exists(self.config['OLMOCR_FP4_MODEL_DIR']) and os.path.exists(
+                os.path.join(self.config['OLMOCR_FP4_MODEL_DIR'], "config.json")
+            )
+            fp8_exists = os.path.exists(self.config['OLMOCR_FP8_MODEL_DIR']) and os.path.exists(
+                os.path.join(self.config['OLMOCR_FP8_MODEL_DIR'], "config.json")
             )
             
             # Check Qwen model
@@ -117,23 +226,55 @@ class ModelManager:
             logger.info("=" * 60)
             logger.info("MODEL STATUS CHECK")
             logger.info("=" * 60)
-            logger.info(f"OlmOCR-7B-FP4: {'✅ Found' if olmocr_exists else '❌ Missing'}")
+            logger.info(f"OlmOCR-7B-FP4: {'✅ Found' if fp4_exists else '❌ Missing'}")
+            logger.info(f"OlmOCR-7B-FP8: {'✅ Found' if fp8_exists else '❌ Missing'}")
             logger.info(f"Qwen3-1.7B: {'✅ Found' if qwen_exists else '❌ Missing'}")
+            logger.info(f"Selected model: {selected or 'None'}")
             logger.info("=" * 60)
             
-            # Download missing models
+            # If no model selected and none exist, need user selection
+            if not selected:
+                # Auto-select if one already exists
+                if fp4_exists and not fp8_exists:
+                    self.set_selected_model('FP4')
+                    selected = 'FP4'
+                elif fp8_exists and not fp4_exists:
+                    self.set_selected_model('FP8')
+                    selected = 'FP8'
+                elif fp4_exists and fp8_exists:
+                    # Both exist, prefer FP8 (better performance)
+                    self.set_selected_model('FP8')
+                    selected = 'FP8'
+                else:
+                    # No model exists, need user selection
+                    self.needs_model_selection = True
+                    self.loading_status = {
+                        'stage': 'model_selection',
+                        'message': 'Please select an OCR model to download',
+                        'progress': 5
+                    }
+                    logger.info("⏸️  Waiting for model selection...")
+                    return 'needs_selection'
+            
+            # Download selected OlmOCR model if missing
+            olmocr_config = self.get_olmocr_model_config()
+            olmocr_exists = os.path.exists(olmocr_config['model_dir']) and os.path.exists(
+                os.path.join(olmocr_config['model_dir'], "config.json")
+            )
+            
             if not olmocr_exists:
-                logger.info("📥 OlmOCR model not found, downloading...")
+                logger.info(f"📥 {olmocr_config['name']} not found, downloading...")
                 if not self.download_model_with_progress(
-                    self.config['OLMOCR_MODEL_ID'], 
-                    self.config['OLMOCR_MODEL_DIR'], 
-                    "OlmOCR-7B-FP4", 10, 50
+                    olmocr_config['model_id'], 
+                    olmocr_config['model_dir'], 
+                    olmocr_config['name'], 10, 50
                 ):
                     return False
             else:
-                logger.info("✅ OlmOCR model found locally")
+                logger.info(f"✅ {olmocr_config['name']} found locally")
                 self.loading_status['progress'] = 50
             
+            # Download Qwen model if missing
             if not qwen_exists:
                 logger.info("📥 Qwen model not found, downloading...")
                 if not self.download_model_with_progress(
@@ -164,22 +305,27 @@ class ModelManager:
             return False
     
     def load_olmocr_model(self):
-        """Load the OlmOCR 4-bit quantized model and processor"""
+        """Load the selected OlmOCR model (FP4 or FP8) and processor"""
         try:
             if not self.config:
                 raise RuntimeError("ModelManager not initialized with config")
             
-            self.loading_status = {'stage': 'loading', 'message': 'Loading OlmOCR model...', 'progress': 92}
+            # Get selected model configuration
+            olmocr_config = self.get_olmocr_model_config()
+            model_dir = olmocr_config['model_dir']
+            model_name = olmocr_config['name']
+            
+            self.loading_status = {'stage': 'loading', 'message': f'Loading {model_name}...', 'progress': 92}
             logger.info("=" * 60)
-            logger.info("Loading OlmOCR-7B-FP4 Model")
+            logger.info(f"Loading {model_name}")
             logger.info("=" * 60)
             
-            logger.info(f"📂 Loading model from: {self.config['OLMOCR_MODEL_DIR']}")
+            logger.info(f"📂 Loading model from: {model_dir}")
             
             # Load processor
             self.loading_status = {'stage': 'loading', 'message': 'Loading processor...', 'progress': 93}
             logger.info("Loading processor...")
-            self.processor = AutoProcessor.from_pretrained(self.config['OLMOCR_MODEL_DIR'], trust_remote_code=True)
+            self.processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True)
             logger.info("✅ Processor loaded successfully")
             
             # Load model with device mapping
@@ -191,22 +337,22 @@ class ModelManager:
                 self.loading_status = {'stage': 'loading', 'message': f'Loading model on GPU: {torch.cuda.get_device_name(0)}', 'progress': 96}
                 
                 self.model = AutoModelForImageTextToText.from_pretrained(
-                    self.config['OLMOCR_MODEL_DIR'],
+                    model_dir,
                     trust_remote_code=True,
                     device_map="auto",
-                    dtype=torch.float16,
+                    torch_dtype=torch.float16,
                     low_cpu_mem_usage=True,
-                    max_memory={0: "7GB", "cpu": "16GB"}
+                    max_memory={0: "10GB", "cpu": "16GB"}
                 )
             else:
                 logger.warning("⚠️  CUDA not available - using CPU (will be SLOW)")
                 self.loading_status = {'stage': 'loading', 'message': 'Loading model on CPU (slower)...', 'progress': 96}
                 
                 self.model = AutoModelForImageTextToText.from_pretrained(
-                    self.config['OLMOCR_MODEL_DIR'],
+                    model_dir,
                     trust_remote_code=True,
                     device_map="cpu",
-                    dtype=torch.float32,
+                    torch_dtype=torch.float32,
                     low_cpu_mem_usage=True
                 )
             
@@ -214,7 +360,7 @@ class ModelManager:
             self.model.eval()
             
             self.loading_status = {'stage': 'ready', 'message': 'Model loaded successfully!', 'progress': 100}
-            logger.info("✅ OlmOCR model loaded successfully!")
+            logger.info(f"✅ {model_name} loaded successfully!")
             logger.info(f"   Device: {next(self.model.parameters()).device}")
             logger.info("=" * 60)
             
@@ -232,7 +378,14 @@ class ModelManager:
         """Check/download models but DON'T load them yet (lazy loading)"""
         try:
             # Only check and download if needed, don't load into memory/GPU
-            if not self.check_and_download_models():
+            result = self.check_and_download_models()
+            
+            # Handle different return values
+            if result == 'needs_selection':
+                # Stay in model_selection stage, don't change status
+                logger.info("⏸️  Waiting for user to select model...")
+                return True  # Not an error, just needs user input
+            elif not result:
                 logger.error("❌ Failed to download models")
                 return False
             

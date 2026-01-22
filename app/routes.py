@@ -74,6 +74,60 @@ def get_parsing_status():
 
 
 # ==================
+# MODEL SELECTION ROUTES
+# ==================
+
+@main_bp.route('/available_models', methods=['GET'])
+def get_available_models():
+    """Get list of available OCR models for this hardware"""
+    return jsonify({
+        'success': True,
+        'models': model_manager.get_available_models(),
+        'selected': model_manager.get_selected_model(),
+        'needs_selection': model_manager.needs_model_selection,
+        'cuda_available': torch.cuda.is_available()
+    })
+
+
+@main_bp.route('/select_model', methods=['POST'])
+def select_model():
+    """Select and download an OCR model"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'model_id' not in data:
+            return jsonify({'error': 'model_id is required'}), 400
+        
+        model_id = data['model_id']
+        
+        # Validate and save selection
+        model_manager.set_selected_model(model_id)
+        model_manager.needs_model_selection = False
+        
+        # Trigger model download in background (will be handled by initialize_models)
+        import threading
+        def download_async():
+            try:
+                model_manager.check_and_download_models()
+            except Exception as e:
+                logger.error(f"Error downloading model: {e}")
+        
+        threading.Thread(target=download_async, daemon=True).start()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Model {model_id} selected, download started',
+            'model_id': model_id
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error selecting model: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================
 # OCR ROUTES
 # ==================
 

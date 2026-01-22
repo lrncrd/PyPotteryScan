@@ -15,14 +15,24 @@ class Config:
     
     # Model directories
     MODELS_BASE_DIR = os.path.join(BASE_DIR, "models")
-    OLMOCR_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp4")
     QWEN_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "qwen3-1.7b")
+    
+    # OlmOCR Model Options
+    # FP4 (4-bit): ~5GB, requires NVIDIA GPU + CUDA
+    OLMOCR_FP4_MODEL_ID = "lrncrd/olmOCR-7B-FP4"
+    OLMOCR_FP4_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp4")
+    
+    # FP8 (8-bit): ~10GB, works on any GPU/CPU, better performance
+    OLMOCR_FP8_MODEL_ID = "allenai/olmOCR-2-7B-1025-FP8"
+    OLMOCR_FP8_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp8")
+    
+    # Selected model persistence file
+    SELECTED_MODEL_FILE = os.path.join(MODELS_BASE_DIR, "selected_model.txt")
     
     # Projects directory
     PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
     
-    # HuggingFace model IDs
-    OLMOCR_MODEL_ID = "lrncrd/olmOCR-7B-FP4"
+    # HuggingFace model IDs (Qwen for parsing)
     QWEN_MODEL_ID = "Qwen/Qwen3-1.7B"
     
     # Server settings
@@ -40,11 +50,17 @@ class Config:
         """Return configuration as dictionary"""
         return {
             'MODELS_BASE_DIR': cls.MODELS_BASE_DIR,
-            'OLMOCR_MODEL_DIR': cls.OLMOCR_MODEL_DIR,
             'QWEN_MODEL_DIR': cls.QWEN_MODEL_DIR,
-            'OLMOCR_MODEL_ID': cls.OLMOCR_MODEL_ID,
             'QWEN_MODEL_ID': cls.QWEN_MODEL_ID,
-            'PROJECTS_DIR': cls.PROJECTS_DIR
+            'PROJECTS_DIR': cls.PROJECTS_DIR,
+            # OlmOCR FP4 (4-bit)
+            'OLMOCR_FP4_MODEL_ID': cls.OLMOCR_FP4_MODEL_ID,
+            'OLMOCR_FP4_MODEL_DIR': cls.OLMOCR_FP4_MODEL_DIR,
+            # OlmOCR FP8 (8-bit)
+            'OLMOCR_FP8_MODEL_ID': cls.OLMOCR_FP8_MODEL_ID,
+            'OLMOCR_FP8_MODEL_DIR': cls.OLMOCR_FP8_MODEL_DIR,
+            # Selection persistence
+            'SELECTED_MODEL_FILE': cls.SELECTED_MODEL_FILE,
         }
 
 

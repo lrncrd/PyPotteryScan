@@ -1,0 +1,64 @@
+{
+  "num_fewshot_examples": 3,
+  "iteration": 3,
+  "random_seed": 3,
+  "fewshot_indices": [
+    47,
+    18,
+    56
+  ],
+  "num_test_records": 57,
+  "field_accuracies": {
+    "Inventory": 64.91228070175438,
+    "Site": 98.24561403508771,
+    "Year": 96.49122807017544,
+    "US": 98.24561403508771,
+    "Area": 66.66666666666666,
+    "Cut": 98.24561403508771,
+    "Sector": 96.49122807017544,
+    "Notes": 100.0,
+    "Phase": 87.71929824561403
+  },
+  "field_precision": {
+    "Inventory": 64.91228070175438,
+    "Site": 98.24561403508771,
+    "Year": 96.49122807017544,
+    "US": 98.24561403508771,
+    "Area": 78.26086956521739,
+    "Cut": 0.0,
+    "Sector": 0.0,
+    "Notes": 100.0,
+    "Phase": 0.0
+  },
+  "field_recall": {
+    "Inventory": 67.27272727272727,
+    "Site": 98.24561403508771,
+    "Year": 96.49122807017544,
+    "US": 98.24561403508771,
+    "Area": 65.45454545454545,
+    "Cut": 0.0,
+    "Sector": 0.0,
+    "Notes": 100.0,
+    "Phase": 0.0
+  },
+  "field_f1": {
+    "Inventory": 66.07142857142856,
+    "Site": 98.24561403508773,
+    "Year": 96.49122807017544,
+    "US": 98.24561403508773,
+    "Area": 71.2871287128713,
+    "Cut": 0.0,
+    "Sector": 0.0,
+    "Notes": 100.0,
+    "Phase": 0.0
+  },
+  "average_accuracy": 89.66861598440545,
+  "average_precision": 59.572845156369176,
+  "average_recall": 58.41219209640263,
+  "average_f1": 58.92677926940564,
+  "exact_match_accuracy": 54.385964912280706,
+  "exact_matches": 31,
+  "partial_match_score": 83.83040935672514,
+  "partial_match_std": 19.214509097851376,
+  "total_errors": 53
+}
