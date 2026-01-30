@@ -7,14 +7,15 @@
 [![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/lrncrd/PyPotteryScan)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![GPU Support](https://img.shields.io/badge/GPU-CUDA%20%7C%20MPS-green.svg)](https://github.com/lrncrd/PyPotteryScan)
+[![Status](https://img.shields.io/badge/Status-Development-orange)](https://github.com/lrncrd/PyPotteryScan)
 
 </div>
 
-**Part of the [PyPottery Suite](https://github.com/lrncrd/PyPotterySuite)** - A comprehensive collection of AI-powered archaeological documentation tools.
+**Part of the [PyPottery Suite](https://github.com/lrncrd/PyPottery)** - A comprehensive collection of AI-powered archaeological documentation tools.
 
 `PyPotteryScan` is a Flask-based web application for processing and digitizing archaeological pottery drawings with OCR (Optical Character Recognition). It provides a comprehensive workflow for extracting individual drawings from scanned plates, automatically recognizing text annotations, and preparing clean images for digital cataloging.
 
-📚 **[Full Documentation](docs/)** | 🔗 **[Suite Overview](https://github.com/lrncrd/PyPotterySuite)** | 💬 **[Discussions](https://github.com/lrncrd/PyPotteryScan/discussions)**
+📚 **[Full Documentation](docs/)** | 🔗 **[Suite Overview](https://github.com/lrncrd/PyPottery)** | 💬 **[Discussions](https://github.com/lrncrd/PyPotteryScan/discussions)**
 
 ## Features
 
@@ -26,7 +27,6 @@
 - **🎨 Drawing Cleanup**: Interactive eraser tool for removing text annotations from pottery drawings
 - **📝 Text Review**: Review and correct OCR results with zoom functionality for detailed verification
 - **💾 Full Persistence**: All work is automatically saved - annotations, crops, cleaned drawings, and OCR results
-- **⌨️ Keyboard Shortcuts**: Efficient workflow with shortcuts (D=Drawing, T=Text, E=Eraser, M=Mark Clean, Arrows=Navigate)
 - **📦 Export Tools**: Generate standardized CSV outputs with all metadata and OCR text
 - **🌐 Modern Web Interface**: Clean, responsive web UI accessible from any browser
 
@@ -112,18 +112,10 @@
 The application automatically downloads OCR models from HuggingFace on first launch:
 
 - **OlmOCR-7B-FP4**: Vision-language model for text recognition (~4.5GB, NVIDIA GPU only)
+- **OlmOCR-7B-0825-FP8**: Vision-language model for text recognition (~8.5GB)
 - **Qwen3-1.7B**: Language model for text processing (~4GB)
 
 Models are cached in the `models/` directory.
-
-> ⚠️ **IMPORTANT - GPU Requirements**: The included OlmOCR-7B-FP4 quantized model **requires an NVIDIA GPU with CUDA support**. Users with MPS (Apple Silicon) or CPU-only systems must use alternative model versions:
-> 
-> - Edit `app/config.py` and change:
->   ```python
->   OCR_MODEL_PATH = "allenai/olmOCR-7B-0825-FP8"  
->   ```
-> - **Disk space**: ~10GB
-
 
 ## Getting Started
 
@@ -447,12 +439,6 @@ Generate final CSV export with all metadata and OCR text.
 - `←` - Previous drawing
 - `→` - Next drawing
 
-## Known Issues & Limitations
-
-### Current Limitations
-
-- **OCR Model Requirements**: The default OlmOCR-7B-FP4 model requires an NVIDIA GPU with CUDA support. Users without compatible hardware must switch to alternative models.
-
 ## Documentation
 
 📖 **Complete documentation available in the [docs/](docs/) folder**:
@@ -463,17 +449,9 @@ Generate final CSV export with all metadata and OCR text.
 - **[Annotation Workflow](docs/annotation-workflow.md)** - Detailed annotation guide
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 
-🌐 **Suite Documentation**: [PyPottery Suite Wiki](https://github.com/lrncrd/PyPotterySuite)
+🌐 **Suite Documentation**: [PyPottery Wiki](https://github.com/lrncrd/PyPottery)
 
-## The PyPottery Suite
 
-PyPotteryScan works seamlessly with other tools in the PyPottery ecosystem:
-
-- **[PyPotteryLayout](https://github.com/lrncrd/PyPotteryLayout)** - Create publication tables from extracted drawings
-- **[PyPotteryLens](https://github.com/lrncrd/PyPotteryLens)** - AI classification and typology (in development)
-- **[PyPotteryInk](https://github.com/lrncrd/PyPotteryInk)** - Vector tracing and enhancement (planned)
-
-**→ [Learn more about the suite](https://github.com/lrncrd/PyPotterySuite)**
 
 ## Contributing
 
