@@ -13,8 +13,12 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     DEBUG = False
     
-    # Model directories
-    MODELS_BASE_DIR = os.path.join(BASE_DIR, "models")
+    # Model directories - shared across the suite when launched by the PyPottery
+    # Suite launcher (PYPOTTERY_MODEL_CACHE set, so a model already downloaded by
+    # another app isn't fetched again, and updating this app doesn't wipe the
+    # already-downloaded models). Standalone (no launcher), self-contained as before.
+    _suite_model_cache = os.environ.get('PYPOTTERY_MODEL_CACHE')
+    MODELS_BASE_DIR = os.path.join(_suite_model_cache, "scan") if _suite_model_cache else os.path.join(BASE_DIR, "models")
     QWEN_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "qwen3-1.7b")
     
     # OlmOCR Model Options
