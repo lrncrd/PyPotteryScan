@@ -21,11 +21,7 @@ class Config:
     # FP4 (4-bit): ~5GB, requires NVIDIA GPU + CUDA
     OLMOCR_FP4_MODEL_ID = "lrncrd/olmOCR-7B-FP4"
     OLMOCR_FP4_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp4")
-    
-    # FP8 (8-bit): ~10GB, works on any GPU/CPU, better performance
-    OLMOCR_FP8_MODEL_ID = "allenai/olmOCR-2-7B-1025-FP8"
-    OLMOCR_FP8_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp8")
-    
+
     # Selected model persistence file
     SELECTED_MODEL_FILE = os.path.join(MODELS_BASE_DIR, "selected_model.txt")
     
@@ -56,9 +52,6 @@ class Config:
             # OlmOCR FP4 (4-bit)
             'OLMOCR_FP4_MODEL_ID': cls.OLMOCR_FP4_MODEL_ID,
             'OLMOCR_FP4_MODEL_DIR': cls.OLMOCR_FP4_MODEL_DIR,
-            # OlmOCR FP8 (8-bit)
-            'OLMOCR_FP8_MODEL_ID': cls.OLMOCR_FP8_MODEL_ID,
-            'OLMOCR_FP8_MODEL_DIR': cls.OLMOCR_FP8_MODEL_DIR,
             # Selection persistence
             'SELECTED_MODEL_FILE': cls.SELECTED_MODEL_FILE,
         }

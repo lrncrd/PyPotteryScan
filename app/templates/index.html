@@ -53,25 +53,18 @@
                         <p id="fp4Requirement" style="font-size: 12px; color: #fbbf24;">⚠️ Requires NVIDIA GPU</p>
                     </div>
 
-                    <!-- FP8 Card -->
-                    <div id="fp8Card" class="model-card"
+                    <!-- None Card -->
+                    <div id="noneCard" class="model-card"
                         style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; width: 250px; cursor: pointer; border: 2px solid #10b981; transition: all 0.3s;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h3 style="font-size: 18px; font-weight: bold;">🎯 FP8 (8-bit)</h3>
-                            <span
-                                style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">★
-                                RECOMMENDED</span>
-                        </div>
-                        <p style="font-size: 14px; color: #a0aec0; margin-bottom: 8px;">Higher quality results</p>
+                        <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">🚫 No OCR model</h3>
+                        <p style="font-size: 14px; color: #a0aec0; margin-bottom: 8px;">Skip the download and continue
+                            without automatic text recognition</p>
                         <div style="margin: 12px 0;">
                             <span
-                                style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">~10
+                                style="background: #64748b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">0
                                 GB</span>
-                            <span
-                                style="background: #8b5cf6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 4px;">Better</span>
                         </div>
-                        <p style="font-size: 12px; color: #4ade80;">✓ Works on any GPU/CPU</p>
+                        <p style="font-size: 12px; color: #94a3b8;">✍️ You'll enter recognized text manually</p>
                     </div>
                 </div>
 
@@ -767,13 +760,13 @@
 
     <script>
         // Model selection state
-        let selectedModel = 'FP8'; // Default selection
+        let selectedModel = 'NONE'; // Default selection, upgraded to FP4 if CUDA is detected
         let cudaAvailable = false;
 
         // Initialize model selection UI
         function initModelSelection() {
             const fp4Card = document.getElementById('fp4Card');
-            const fp8Card = document.getElementById('fp8Card');
+            const noneCard = document.getElementById('noneCard');
             const confirmBtn = document.getElementById('confirmModelBtn');
 
             // Card selection handlers
@@ -781,13 +774,13 @@
                 if (cudaAvailable) {
                     selectedModel = 'FP4';
                     fp4Card.style.border = '2px solid #10b981';
-                    fp8Card.style.border = '2px solid transparent';
+                    noneCard.style.border = '2px solid transparent';
                 }
             };
 
-            fp8Card.onclick = () => {
-                selectedModel = 'FP8';
-                fp8Card.style.border = '2px solid #10b981';
+            noneCard.onclick = () => {
+                selectedModel = 'NONE';
+                noneCard.style.border = '2px solid #10b981';
                 fp4Card.style.border = '2px solid transparent';
             };
 
@@ -877,6 +870,11 @@
                             } else {
                                 fp4Req.innerHTML = '✓ NVIDIA GPU detected';
                                 fp4Req.style.color = '#4ade80';
+
+                                // Auto-select FP4 by default when a GPU is available
+                                selectedModel = 'FP4';
+                                fp4Card.style.border = '2px solid #10b981';
+                                document.getElementById('noneCard').style.border = '2px solid transparent';
                             }
                         } catch (e) {
                             console.error('Error checking models:', e);
@@ -910,6 +908,8 @@
                         // Get final health check
                         const healthResponse = await fetch('/health');
                         const healthData = await healthResponse.json();
+
+                        window.ocrAvailable = healthData.ocr_available;
 
                         log.innerHTML = `<p style="color: #4ade80;">✓ Server online: ${healthData.status}</p>`;
                         log.innerHTML += `<p style="color: #4ade80;">✓ Model: ${healthData.model}</p>`;
@@ -2483,6 +2483,11 @@
             const log = document.getElementById('ocrLog');
             const progressBar = document.getElementById('ocrProgressBar');
             const progressText = document.getElementById('ocrProgressText');
+
+            if (window.ocrAvailable === false) {
+                alert('No OCR model is installed on this system. Use "Skip OCR (Manual Input)" to enter text manually instead.');
+                return;
+            }
 
             log.classList.remove('hidden');
             log.innerHTML = '';

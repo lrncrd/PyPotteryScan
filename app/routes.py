@@ -49,12 +49,16 @@ def health_check():
     device = 'not loaded yet'
     if model_loaded:
         device = str(next(model_manager.model.parameters()).device)
-    
+
+    selected_model = model_manager.get_selected_model()
+    ocr_available = model_manager.has_ocr_model()
+
     return jsonify({
         'status': 'healthy',
-        'ocr_engine': 'OlmOCR-7B',
-        'model': 'allenai/olmOCR-7B-0825-FP8 (4-bit quantized)',
-        'quantization': '4-bit',
+        'ocr_engine': 'OlmOCR-7B' if ocr_available else 'None (OCR disabled)',
+        'model': 'OlmOCR-7B-FP4' if ocr_available else 'No OCR model selected',
+        'ocr_available': ocr_available,
+        'selected_model': selected_model,
         'model_loaded': model_loaded,
         'cuda_available': torch.cuda.is_available(),
         'device': device
@@ -228,7 +232,13 @@ def ocr_endpoint():
         
         if 'image' not in data:
             return jsonify({'error': 'No image data provided'}), 400
-        
+
+        if not model_manager.has_ocr_model():
+            return jsonify({
+                'success': False,
+                'error': 'No OCR model installed. OCR is disabled for this installation.'
+            }), 409
+
         # Process the image
         result_text = process_image_ocr(data['image'])
         
@@ -258,7 +268,13 @@ def batch_ocr_endpoint():
         
         if 'images' not in data or not isinstance(data['images'], list):
             return jsonify({'error': 'No images array provided'}), 400
-        
+
+        if not model_manager.has_ocr_model():
+            return jsonify({
+                'success': False,
+                'error': 'No OCR model installed. OCR is disabled for this installation.'
+            }), 409
+
         results = []
         for i, image_data in enumerate(data['images']):
             try:

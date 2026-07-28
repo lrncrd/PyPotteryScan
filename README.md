@@ -109,11 +109,12 @@
 
 ### Model Downloads
 
-The application automatically downloads OCR models from HuggingFace on first launch:
+On first launch, you're asked to choose an OCR model to download from HuggingFace:
 
 - **OlmOCR-7B-FP4**: Vision-language model for text recognition (~4.5GB, NVIDIA GPU only)
-- **OlmOCR-7B-0825-FP8**: Vision-language model for text recognition (~8.5GB)
-- **Qwen3-1.7B**: Language model for text processing (~4GB)
+- **No OCR model**: Skip the download and enter recognized text manually
+
+Additionally, **Qwen3-1.7B** (~4GB) is downloaded for text processing, regardless of the OCR choice.
 
 Models are cached in the `models/` directory.
 
