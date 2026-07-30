@@ -38,7 +38,7 @@ project_manager = ProjectManager(projects_root=Config.PROJECTS_DIR)
 @main_bp.route('/')
 def index():
     """Render main interface"""
-    return render_template('index.html', version='0.2.0')
+    return render_template('index.html', version=Config.VERSION)
 
 
 @main_bp.route('/health', methods=['GET'])

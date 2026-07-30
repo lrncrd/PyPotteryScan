@@ -2,7 +2,9 @@ name: Auto Release
 
 # Every push to main gets a new patch release automatically (e.g. v0.1.0 -> v0.1.1,
 # or 2.1.0 -> 2.1.1), so the PyPottery Suite launcher can detect and download the
-# update. No manual tagging or release step needed.
+# update, and the app's own displayed version (read from the VERSION file at
+# runtime) always matches the published release. No manual tagging, version
+# bumping, or release step needed.
 
 "on":
   push:
@@ -47,16 +49,36 @@ jobs:
             new_tag="${prefix}${major}.${minor}.$((patch + 1))"
           fi
 
+          plain_version="${new_tag#v}"
+
           echo "Previous tag: $latest_tag"
           echo "New tag: $new_tag"
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+          echo "plain_version=$plain_version" >> "$GITHUB_OUTPUT"
+
+      - name: Bump VERSION file
+        run: |
+          # Keeps the app's own displayed version (read from this file at
+          # runtime - see app.py) in lockstep with the release tag below.
+          # [skip ci] on this bot commit prevents it from re-triggering this
+          # same workflow (which would otherwise loop forever).
+          echo -n "${{ steps.version.outputs.plain_version }}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bump version to ${{ steps.version.outputs.new_tag }} [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "VERSION unchanged, nothing to commit"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.new_tag }}
           name: ${{ steps.version.outputs.new_tag }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: main
           generate_release_notes: true
           draft: false
           prerelease: false

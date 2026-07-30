@@ -6,12 +6,27 @@ import os
 # Base directory
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
+
+def _read_version(default: str) -> str:
+    """Read the release version from VERSION (bumped automatically by the
+    auto-release GitHub Action on every release), falling back to `default`
+    for local/dev runs where that file doesn't exist yet."""
+    version_file = os.path.join(BASE_DIR, "VERSION")
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            return f.read().strip() or default
+    except OSError:
+        return default
+
+
 class Config:
     """Default Flask configuration"""
-    
+
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     DEBUG = False
+
+    VERSION = _read_version("0.1.0")
     
     # Model directories - shared across the suite when launched by the PyPottery
     # Suite launcher (PYPOTTERY_MODEL_CACHE set, so a model already downloaded by
