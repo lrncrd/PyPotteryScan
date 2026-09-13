@@ -25,8 +25,10 @@ class Config:
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     DEBUG = False
+    TEMPLATES_AUTO_RELOAD = True
+    SEND_FILE_MAX_AGE_DEFAULT = 0
 
-    VERSION = _read_version("0.1.0")
+    VERSION = _read_version("0.1.1")
     
     # Model directories - shared across the suite when launched by the PyPottery
     # Suite launcher (PYPOTTERY_MODEL_CACHE set, so a model already downloaded by
@@ -40,6 +42,10 @@ class Config:
     # FP4 (4-bit): ~5GB, requires NVIDIA GPU + CUDA
     OLMOCR_FP4_MODEL_ID = "lrncrd/olmOCR-7B-FP4"
     OLMOCR_FP4_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "olmocr-7b-fp4")
+
+    # GLM-OCR: ~2GB (BF16, 0.9B params), works on CPU or GPU
+    GLM_OCR_MODEL_ID = "zai-org/GLM-OCR"
+    GLM_OCR_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "glm-ocr")
 
     # Selected model persistence file
     SELECTED_MODEL_FILE = os.path.join(MODELS_BASE_DIR, "selected_model.txt")
@@ -71,6 +77,9 @@ class Config:
             # OlmOCR FP4 (4-bit)
             'OLMOCR_FP4_MODEL_ID': cls.OLMOCR_FP4_MODEL_ID,
             'OLMOCR_FP4_MODEL_DIR': cls.OLMOCR_FP4_MODEL_DIR,
+            # GLM-OCR
+            'GLM_OCR_MODEL_ID': cls.GLM_OCR_MODEL_ID,
+            'GLM_OCR_MODEL_DIR': cls.GLM_OCR_MODEL_DIR,
             # Selection persistence
             'SELECTED_MODEL_FILE': cls.SELECTED_MODEL_FILE,
         }

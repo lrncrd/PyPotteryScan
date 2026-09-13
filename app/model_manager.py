@@ -23,7 +23,7 @@ class ModelManager:
         self.qwen_model = None
         
         # Model selection state
-        self.selected_model = None  # 'FP4' or 'NONE' (no OCR model)
+        self.selected_model = None  # 'FP4', 'GLM', or 'NONE' (no OCR model)
         self.needs_model_selection = False  # True if user must choose model
         
         # Timestamps for auto-unload
@@ -81,6 +81,17 @@ class ModelManager:
                 'available': False
             })
 
+        # GLM-OCR: lightweight (0.9B), works on CPU or GPU
+        models.append({
+            'id': 'GLM',
+            'name': 'GLM-OCR',
+            'size_gb': 2,
+            'performance': 'Fast',
+            'description': 'Lightweight vision-language OCR model (0.9B), works on CPU or GPU',
+            'available': True,
+            'recommended': not cuda_available
+        })
+
         # No OCR model: always available, downloads nothing
         models.append({
             'id': 'NONE',
@@ -106,7 +117,7 @@ class ModelManager:
             try:
                 with open(selection_file, 'r') as f:
                     model_id = f.read().strip()
-                    if model_id in ['FP4', 'NONE']:
+                    if model_id in ['FP4', 'GLM', 'NONE']:
                         self.selected_model = model_id
                         return model_id
             except Exception as e:
@@ -116,11 +127,11 @@ class ModelManager:
 
     def has_ocr_model(self):
         """Whether an OCR model is selected and usable"""
-        return self.get_selected_model() == 'FP4'
+        return self.get_selected_model() in ('FP4', 'GLM')
 
     def set_selected_model(self, model_id):
         """Save model selection to persistence file"""
-        if model_id not in ['FP4', 'NONE']:
+        if model_id not in ['FP4', 'GLM', 'NONE']:
             raise ValueError(f"Invalid model ID: {model_id}")
 
         # Validate FP4 availability
@@ -139,16 +150,25 @@ class ModelManager:
 
         return True
 
-    def get_olmocr_model_config(self):
-        """Get model ID and directory for currently selected OlmOCR model"""
+    def get_active_ocr_model_config(self):
+        """Get model ID, directory and engine type for the currently selected OCR model"""
         model_id = self.get_selected_model()
         if not model_id or model_id == 'NONE':
             raise RuntimeError("No OCR model selected")
 
+        if model_id == 'GLM':
+            return {
+                'model_id': self.config['GLM_OCR_MODEL_ID'],
+                'model_dir': self.config['GLM_OCR_MODEL_DIR'],
+                'name': 'GLM-OCR',
+                'engine': 'GLM'
+            }
+
         return {
             'model_id': self.config['OLMOCR_FP4_MODEL_ID'],
             'model_dir': self.config['OLMOCR_FP4_MODEL_DIR'],
-            'name': 'OlmOCR-7B-FP4'
+            'name': 'OlmOCR-7B-FP4',
+            'engine': 'FP4'
         }
     
     def download_model_with_progress(self, model_id, local_dir, model_name, start_progress=10, end_progress=50):
@@ -212,6 +232,11 @@ class ModelManager:
                 os.path.join(self.config['OLMOCR_FP4_MODEL_DIR'], "config.json")
             )
 
+            # Check if GLM-OCR model exists
+            glm_exists = os.path.exists(self.config['GLM_OCR_MODEL_DIR']) and os.path.exists(
+                os.path.join(self.config['GLM_OCR_MODEL_DIR'], "config.json")
+            )
+
             # Check Qwen model
             qwen_exists = os.path.exists(self.config['QWEN_MODEL_DIR']) and os.path.exists(
                 os.path.join(self.config['QWEN_MODEL_DIR'], "config.json")
@@ -221,16 +246,20 @@ class ModelManager:
             logger.info("MODEL STATUS CHECK")
             logger.info("=" * 60)
             logger.info(f"OlmOCR-7B-FP4: {'✅ Found' if fp4_exists else '❌ Missing'}")
+            logger.info(f"GLM-OCR: {'✅ Found' if glm_exists else '❌ Missing'}")
             logger.info(f"Qwen3-1.7B: {'✅ Found' if qwen_exists else '❌ Missing'}")
             logger.info(f"Selected model: {selected or 'None'}")
             logger.info("=" * 60)
 
             # If no model selected and none exist, need user selection
             if not selected:
-                # Auto-select FP4 if it already exists
+                # Auto-select whichever OCR model already exists on disk
                 if fp4_exists:
                     self.set_selected_model('FP4')
                     selected = 'FP4'
+                elif glm_exists:
+                    self.set_selected_model('GLM')
+                    selected = 'GLM'
                 else:
                     # No model exists, need user selection
                     self.needs_model_selection = True
@@ -242,12 +271,12 @@ class ModelManager:
                     logger.info("⏸️  Waiting for model selection...")
                     return 'needs_selection'
 
-            # Download selected OlmOCR model if missing (skip entirely if 'NONE')
+            # Download selected OCR model if missing (skip entirely if 'NONE')
             if selected == 'NONE':
-                logger.info("ℹ️  No OCR model selected, skipping OlmOCR download")
+                logger.info("ℹ️  No OCR model selected, skipping OCR model download")
                 self.loading_status['progress'] = 50
             else:
-                olmocr_config = self.get_olmocr_model_config()
+                olmocr_config = self.get_active_ocr_model_config()
                 olmocr_exists = os.path.exists(olmocr_config['model_dir']) and os.path.exists(
                     os.path.join(olmocr_config['model_dir'], "config.json")
                 )
@@ -295,69 +324,114 @@ class ModelManager:
             return False
     
     def load_olmocr_model(self):
-        """Load the selected OlmOCR model (FP4) and processor"""
+        """Load the currently selected OCR model (OlmOCR-FP4 or GLM-OCR) and its processor/tokenizer"""
         try:
             if not self.config:
                 raise RuntimeError("ModelManager not initialized with config")
-            
+
             # Get selected model configuration
-            olmocr_config = self.get_olmocr_model_config()
+            olmocr_config = self.get_active_ocr_model_config()
             model_dir = olmocr_config['model_dir']
             model_name = olmocr_config['name']
-            
+            engine = olmocr_config['engine']
+
             self.loading_status = {'stage': 'loading', 'message': f'Loading {model_name}...', 'progress': 92}
             logger.info("=" * 60)
             logger.info(f"Loading {model_name}")
             logger.info("=" * 60)
-            
+
             logger.info(f"📂 Loading model from: {model_dir}")
-            
-            # Load processor
-            self.loading_status = {'stage': 'loading', 'message': 'Loading processor...', 'progress': 93}
-            logger.info("Loading processor...")
-            self.processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True)
-            logger.info("✅ Processor loaded successfully")
-            
-            # Load model with device mapping
-            self.loading_status = {'stage': 'loading', 'message': 'Loading model to device...', 'progress': 95}
-            logger.info("Loading model...")
-            
-            if torch.cuda.is_available():
-                logger.info(f"🎮 CUDA available! GPU: {torch.cuda.get_device_name(0)}")
-                self.loading_status = {'stage': 'loading', 'message': f'Loading model on GPU: {torch.cuda.get_device_name(0)}', 'progress': 96}
-                
-                self.model = AutoModelForImageTextToText.from_pretrained(
-                    model_dir,
-                    trust_remote_code=True,
-                    device_map="auto",
-                    torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True,
-                    max_memory={0: "10GB", "cpu": "16GB"}
-                )
+
+            if engine == 'GLM':
+                self._load_glm_ocr_model(model_dir)
             else:
-                logger.warning("⚠️  CUDA not available - using CPU (will be SLOW)")
-                self.loading_status = {'stage': 'loading', 'message': 'Loading model on CPU (slower)...', 'progress': 96}
-                
-                self.model = AutoModelForImageTextToText.from_pretrained(
-                    model_dir,
-                    trust_remote_code=True,
-                    device_map="cpu",
-                    torch_dtype=torch.float32,
-                    low_cpu_mem_usage=True
-                )
-            
+                self._load_olmocr_fp4_model(model_dir)
+
             self.loading_status = {'stage': 'finalizing', 'message': 'Finalizing model setup...', 'progress': 98}
             self.model.eval()
-            
+
             self.loading_status = {'stage': 'ready', 'message': 'Model loaded successfully!', 'progress': 100}
             logger.info(f"✅ {model_name} loaded successfully!")
             logger.info(f"   Device: {next(self.model.parameters()).device}")
             logger.info("=" * 60)
-            
+
         except Exception as e:
             self.loading_status = {'stage': 'error', 'message': f'Error loading model: {str(e)}', 'progress': 0}
             logger.error(f"❌ Error loading model: {str(e)}")
             raise
+
+    def _load_olmocr_fp4_model(self, model_dir):
+        """Load OlmOCR-7B-FP4 (requires CUDA) into self.model / self.processor"""
+        # Load processor
+        self.loading_status = {'stage': 'loading', 'message': 'Loading processor...', 'progress': 93}
+        logger.info("Loading processor...")
+        self.processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True)
+        logger.info("✅ Processor loaded successfully")
+
+        # Load model with device mapping
+        self.loading_status = {'stage': 'loading', 'message': 'Loading model to device...', 'progress': 95}
+        logger.info("Loading model...")
+
+        if torch.cuda.is_available():
+            logger.info(f"🎮 CUDA available! GPU: {torch.cuda.get_device_name(0)}")
+            self.loading_status = {'stage': 'loading', 'message': f'Loading model on GPU: {torch.cuda.get_device_name(0)}', 'progress': 96}
+
+            self.model = AutoModelForImageTextToText.from_pretrained(
+                model_dir,
+                trust_remote_code=True,
+                device_map="auto",
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True,
+                max_memory={0: "10GB", "cpu": "16GB"}
+            )
+        else:
+            logger.warning("⚠️  CUDA not available - using CPU (will be SLOW)")
+            self.loading_status = {'stage': 'loading', 'message': 'Loading model on CPU (slower)...', 'progress': 96}
+
+            self.model = AutoModelForImageTextToText.from_pretrained(
+                model_dir,
+                trust_remote_code=True,
+                device_map="cpu",
+                torch_dtype=torch.float32,
+                low_cpu_mem_usage=True
+            )
+
+    def _load_glm_ocr_model(self, model_dir):
+        """Load GLM-OCR (lightweight, CPU or GPU) into self.model / self.processor"""
+        self.loading_status = {'stage': 'loading', 'message': 'Loading processor...', 'progress': 93}
+        logger.info("Loading processor...")
+        # Use AutoProcessor (resolves to Glm46VProcessor), not a bare AutoTokenizer:
+        # the tokenizer alone doesn't turn chat-template image content into pixel
+        # values, so the model would silently generate as if no image was passed.
+        self.processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True)
+        logger.info("✅ Processor loaded successfully")
+
+        self.loading_status = {'stage': 'loading', 'message': 'Loading model to device...', 'progress': 95}
+        logger.info("Loading model...")
+
+        dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+        if torch.cuda.is_available():
+            logger.info(f"🎮 CUDA available! GPU: {torch.cuda.get_device_name(0)}")
+            self.loading_status = {'stage': 'loading', 'message': f'Loading model on GPU: {torch.cuda.get_device_name(0)}', 'progress': 96}
+        else:
+            logger.info("💻 CUDA not available - using CPU")
+            self.loading_status = {'stage': 'loading', 'message': 'Loading model on CPU...', 'progress': 96}
+
+        try:
+            from transformers import AutoModelForMultimodalLM
+            model_cls = AutoModelForMultimodalLM
+        except ImportError:
+            logger.warning("⚠️  AutoModelForMultimodalLM not available in this transformers version, "
+                            "falling back to AutoModelForImageTextToText")
+            model_cls = AutoModelForImageTextToText
+
+        self.model = model_cls.from_pretrained(
+            model_dir,
+            trust_remote_code=True,
+            device_map="auto",
+            torch_dtype=dtype,
+            low_cpu_mem_usage=True
+        )
     
     def load_qwen_model(self):
         """DEPRECATED: Use ensure_qwen_loaded() instead. Load Qwen model for parsing (cached globally)"""

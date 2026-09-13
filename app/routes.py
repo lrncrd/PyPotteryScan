@@ -52,11 +52,13 @@ def health_check():
 
     selected_model = model_manager.get_selected_model()
     ocr_available = model_manager.has_ocr_model()
+    engine_names = {'FP4': 'OlmOCR-7B', 'GLM': 'GLM-OCR'}
+    model_names = {'FP4': 'OlmOCR-7B-FP4', 'GLM': 'GLM-OCR'}
 
     return jsonify({
         'status': 'healthy',
-        'ocr_engine': 'OlmOCR-7B' if ocr_available else 'None (OCR disabled)',
-        'model': 'OlmOCR-7B-FP4' if ocr_available else 'No OCR model selected',
+        'ocr_engine': engine_names.get(selected_model, 'None (OCR disabled)'),
+        'model': model_names.get(selected_model, 'No OCR model selected'),
         'ocr_available': ocr_available,
         'selected_model': selected_model,
         'model_loaded': model_loaded,
@@ -147,35 +149,40 @@ def preprocess_image(image):
 
 
 def process_image_ocr(image_data):
-    """Process image with OlmOCR and return recognized text"""
+    """Process image with the selected OCR engine (OlmOCR-FP4 or GLM-OCR) and return recognized text"""
     try:
         # Lazy load model only when needed
         model, processor = model_manager.ensure_olmocr_loaded()
-        
+        engine = model_manager.get_selected_model()
+
         # Decode base64 image
         if image_data.startswith('data:image'):
             image_data = image_data.split(',')[1]
-        
+
         image_bytes = base64.b64decode(image_data)
         image = Image.open(io.BytesIO(image_bytes))
-        
+
         logger.info(f"📷 Image size: {image.size}")
-        
+
         # Preprocess image
         image = preprocess_image(image)
-        
-        # OlmOCR uses chat format
+
+        # GLM-OCR's own SDK uses a short "Text Recognition:" instruction for plain
+        # text regions (see glmocr/config.yaml task_prompt_mapping upstream);
+        # OlmOCR was trained on the longer "Extract all text..." phrasing.
+        prompt_text = "Text Recognition:" if engine == 'GLM' else "Extract all text from this image:"
         messages = [
             {
                 "role": "user",
                 "content": [
                     {"type": "image", "image": image},
-                    {"type": "text", "text": "Extract all text from this image:"},
+                    {"type": "text", "text": prompt_text},
                 ],
             }
         ]
-        
-        # Prepare prompt
+
+        # Prepare prompt (both engines use an AutoProcessor, which turns the
+        # PIL image in the chat template into actual pixel values)
         inputs = processor.apply_chat_template(
             messages,
             add_generation_prompt=True,
@@ -183,13 +190,13 @@ def process_image_ocr(image_data):
             return_dict=True,
             return_tensors="pt"
         )
-        
+
         # Move to model device
         device = next(model.parameters()).device
         inputs = inputs.to(device)
-        
+
         # Generate text
-        logger.info("🔍 Processing with OlmOCR...")
+        logger.info(f"🔍 Processing with {'GLM-OCR' if engine == 'GLM' else 'OlmOCR'}...")
         with torch.no_grad():
             output_ids = model.generate(
                 **inputs,
@@ -197,23 +204,23 @@ def process_image_ocr(image_data):
                 do_sample=False,
                 pad_token_id=processor.tokenizer.pad_token_id,
             )
-        
+
         # Decode generated tokens
         input_len = inputs.input_ids.shape[1]
         generated_ids = [output_id[input_len:] for output_id in output_ids]
         generated_text = processor.batch_decode(
-            generated_ids, 
-            skip_special_tokens=True, 
+            generated_ids,
+            skip_special_tokens=True,
             clean_up_tokenization_spaces=True
         )[0]
-        
+
         # Force single line
         generated_text = generated_text.replace('\n', ' ').replace('\r', ' ')
         generated_text = ' '.join(generated_text.split())
-        
+
         logger.info(f"✨ Result: '{generated_text}'")
         return generated_text.strip() if generated_text.strip() else "No text detected"
-        
+
     except Exception as e:
         logger.error(f"❌ Error processing image: {str(e)}")
         import traceback

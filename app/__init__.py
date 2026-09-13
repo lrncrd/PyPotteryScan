@@ -16,6 +16,7 @@ def create_app(config=None):
     
     # Load default config
     app.config.from_object('app.config.Config')
+    app.jinja_env.auto_reload = True
     
     # Override with custom config if provided
     if config:

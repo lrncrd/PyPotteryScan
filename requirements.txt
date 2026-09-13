@@ -1,6 +1,6 @@
 flask
 torch
-transformers
+transformers>=5.17.0
 pillow
 accelerate
 bitsandbytes
