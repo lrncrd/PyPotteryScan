@@ -304,8 +304,13 @@ h4, .h4 {
     margin: 3px 0;
 }
 
+#splashErrorActions:not(.hidden) {
+    display: flex;
+}
+
 /* Model selection cards in splash screen */
 .model-card {
+    position: relative;
     background: #ffffff !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-md) !important;
@@ -318,6 +323,35 @@ h4, .h4 {
     border-color: var(--border-hover) !important;
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+}
+
+/* Selected state: needs !important to beat the base .model-card border above,
+   and must read clearly on its own (background tint + badge), not just a border
+   color that looks identical to the transient :hover state. */
+.model-card.selected {
+    border: 2px solid var(--primary) !important;
+    background: var(--primary-soft) !important;
+    box-shadow: var(--shadow-md);
+}
+
+.model-card-check {
+    display: none;
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 15px;
+    box-shadow: 0 2px 6px rgba(194, 65, 12, 0.35);
+}
+
+.model-card.selected .model-card-check {
+    display: flex;
 }
 
 .model-card h3 {

@@ -63,7 +63,8 @@ def health_check():
         'selected_model': selected_model,
         'model_loaded': model_loaded,
         'cuda_available': torch.cuda.is_available(),
-        'device': device
+        'device': device,
+        'qwen_available': model_manager.qwen_available
     })
 
 
@@ -110,11 +111,16 @@ def select_model():
         model_manager.set_selected_model(model_id)
         model_manager.needs_model_selection = False
         
-        # Trigger model download in background (will be handled by initialize_models)
+        # Trigger model download in background. Calls initialize_models(), not
+        # check_and_download_models() directly: the latter stops at the 'ready_to_load'
+        # stage and only initialize_models() advances it to 'ready' — calling it directly
+        # left the splash screen stuck forever on "Loading into memory..." after every
+        # first-time download, since app.py's own startup path (which does call
+        # initialize_models()) only runs once, before any model is ever chosen here.
         import threading
         def download_async():
             try:
-                model_manager.check_and_download_models()
+                model_manager.initialize_models()
             except Exception as e:
                 logger.error(f"Error downloading model: {e}")
         

@@ -25,6 +25,13 @@ class ModelManager:
         # Model selection state
         self.selected_model = None  # 'FP4', 'GLM', or 'NONE' (no OCR model)
         self.needs_model_selection = False  # True if user must choose model
+        self.qwen_available = True  # False when the few-shot parsing model failed to download
+
+        # Per-model download progress, rebuilt each run of check_and_download_models() and
+        # mutated in place by download_model_with_progress()/_poll_download_progress() so the
+        # splash screen can show one live bar per model instead of one bar jumping between
+        # fixed checkpoints. See get_loading_status().
+        self.download_entries = []
         
         # Timestamps for auto-unload
         self.olmocr_last_used = None
@@ -48,8 +55,10 @@ class ModelManager:
         }
     
     def get_loading_status(self):
-        """Get current loading status"""
-        return self.loading_status
+        """Get current loading status, with the live per-model download progress attached"""
+        status = dict(self.loading_status)
+        status['downloads'] = self.download_entries
+        return status
     
     def get_parsing_status(self):
         """Get current parsing status"""
@@ -59,7 +68,9 @@ class ModelManager:
         """Return list of available OCR model choices for this hardware"""
         models = []
 
-        # FP4 only available on NVIDIA GPU with CUDA
+        # FP4 only available on NVIDIA GPU with CUDA. GLM-OCR is the recommended default
+        # on every machine; FP4 is offered as a higher-quality alternative when a GPU exists,
+        # not auto-selected for the user.
         cuda_available = torch.cuda.is_available()
         if cuda_available:
             models.append({
@@ -69,7 +80,7 @@ class ModelManager:
                 'performance': 'Good',
                 'description': 'Vision-language OCR model, requires NVIDIA GPU',
                 'available': True,
-                'recommended': True
+                'recommended': False
             })
         else:
             models.append({
@@ -89,7 +100,7 @@ class ModelManager:
             'performance': 'Fast',
             'description': 'Lightweight vision-language OCR model (0.9B), works on CPU or GPU',
             'available': True,
-            'recommended': not cuda_available
+            'recommended': True
         })
 
         # No OCR model: always available, downloads nothing
@@ -171,21 +182,174 @@ class ModelManager:
             'engine': 'FP4'
         }
     
-    def download_model_with_progress(self, model_id, local_dir, model_name, start_progress=10, end_progress=50):
-        """Download model from HuggingFace with progress tracking"""
+    @staticmethod
+    def _friendly_download_error(model_name, exc):
+        """Turn a raw download exception into a short, actionable message for the splash screen"""
+        text = str(exc)
+        if 'CERTIFICATE_VERIFY_FAILED' in text or 'SSLError' in text or 'SSLCertVerificationError' in text:
+            return (
+                f"Couldn't verify HuggingFace's SSL certificate while downloading {model_name}. "
+                "This is common behind corporate firewalls, VPNs, or antivirus SSL inspection. "
+                "Check your network settings, or retry once you're on a different connection."
+            )
+        if 'MaxRetryError' in text or 'ConnectionError' in text or 'timed out' in text.lower():
+            return (
+                f"Couldn't reach HuggingFace to download {model_name}. "
+                "Check your internet connection and retry."
+            )
+        return f"Error downloading {model_name}: {text}"
+
+    @staticmethod
+    def _get_local_dir_size(path):
+        """Bytes currently on disk under `path`, including huggingface_hub's in-progress
+        partial/temp files — used to measure real download progress rather than trust a
+        fixed checkpoint."""
+        total = 0
+        if not os.path.isdir(path):
+            return 0
+        for root, _dirs, files in os.walk(path):
+            for fname in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, fname))
+                except OSError:
+                    pass
+        return total
+
+    @staticmethod
+    def _get_repo_total_size(model_id):
+        """Best-effort total download size in bytes for a HuggingFace repo, from its file
+        listing. Returns None if it can't be determined (e.g. offline) — callers fall back
+        to reporting bytes downloaded without a percentage."""
         try:
-            logger.info(f"📥 Downloading {model_name} from HuggingFace...")
-            self.loading_status = {
-                'stage': 'downloading',
-                'message': f'Downloading {model_name}...',
-                'progress': start_progress,
-                'download_model': model_name
-            }
-            
-            logger.info(f"   Downloading from: {model_id}")
-            logger.info(f"   Saving to: {local_dir}")
-            
-            # Download with snapshot_download
+            from huggingface_hub import HfApi
+            info = HfApi().model_info(model_id, files_metadata=True, timeout=10)
+            sizes = [s.size for s in (info.siblings or []) if s.size]
+            return sum(sizes) if sizes else None
+        except Exception as e:
+            logger.warning(f"Could not fetch size info for {model_id}: {e}")
+            return None
+
+    def _make_download_entry(self, entry_id, name):
+        """Register a new live-progress entry for one model download (see download_entries)."""
+        entry = {
+            'id': entry_id,
+            'name': name,
+            'status': 'pending',  # pending | downloading | done | error
+            'progress': 0,
+            'bytes_done': 0,
+            'bytes_total': None
+        }
+        self.download_entries.append(entry)
+        return entry
+
+    def _poll_download_progress(self, local_dir, total_bytes, entry, stop_event):
+        """Runs in a background thread alongside a blocking snapshot_download() call,
+        updating `entry` from real bytes on disk every second. This is a fallback signal
+        only (see _install_tqdm_progress_hook for the primary one): with Xet-backed repos,
+        huggingface_hub's Rust download extension doesn't grow the destination file
+        visibly while chunks are in flight, so disk size alone can appear to stall even
+        though the download is progressing — the max() below just means this poller can
+        never pull the displayed value backward below what the tqdm hook already reported."""
+        while not stop_event.is_set():
+            try:
+                done = self._get_local_dir_size(local_dir)
+                entry['bytes_done'] = max(entry['bytes_done'], done)
+                if total_bytes:
+                    entry['progress'] = max(entry['progress'], min(99, int(entry['bytes_done'] / total_bytes * 100)))
+            except Exception:
+                pass
+            stop_event.wait(1.0)
+
+    @staticmethod
+    def _install_tqdm_progress_hook(entry):
+        """Monkey-patches the tqdm class huggingface_hub uses internally so every
+        byte-progress bar it creates — for both the plain-HTTP and Xet download paths,
+        which both call `_get_progress_bar_context` from the same module — reports live
+        into `entry`. This mirrors exactly the numbers a user watching the terminal's own
+        tqdm bars sees, instead of inferring progress indirectly from disk usage (which,
+        for Xet repos, only reflects the finished file, not bytes in flight).
+
+        Multiple bars can be open at once (snapshot_download parallelizes across files),
+        so byte counts from still-open bars and bytes already attributed by closed ones
+        are tracked separately and summed. Returns a restore() callback to undo the patch.
+        """
+        import sys
+        import huggingface_hub.utils.tqdm  # ensures it's imported; `huggingface_hub.utils`
+        # re-exports the `tqdm` class under its own name, which shadows the submodule on
+        # attribute access (`huggingface_hub.utils.tqdm` -> the class, not this module) —
+        # so the real submodule has to be fetched from sys.modules by its dotted name.
+        hf_tqdm_module = sys.modules['huggingface_hub.utils.tqdm']
+        original_cls = hf_tqdm_module.tqdm
+
+        lock = threading.Lock()
+        state = {'completed_bytes': 0, 'active': {}}
+
+        def recompute():
+            with lock:
+                total_done = state['completed_bytes'] + sum(state['active'].values())
+            entry['bytes_done'] = max(entry['bytes_done'], total_done)
+            if entry.get('bytes_total'):
+                entry['progress'] = max(entry['progress'], min(99, int(entry['bytes_done'] / entry['bytes_total'] * 100)))
+
+        class _TrackingTqdm(original_cls):
+            # tqdm's __init__ short-circuits before setting most attributes (including
+            # `unit`) when disable=True, which huggingface_hub does pass depending on log
+            # level — so `unit` has to be read defensively, not assumed present.
+            def update(self, n=1):
+                result = super().update(n)
+                if getattr(self, 'unit', None) == 'B':
+                    with lock:
+                        state['active'][id(self)] = getattr(self, 'n', 0)
+                    recompute()
+                return result
+
+            def close(self):
+                if getattr(self, 'unit', None) == 'B':
+                    with lock:
+                        state['completed_bytes'] += state['active'].pop(id(self), 0)
+                    recompute()
+                return super().close()
+
+        hf_tqdm_module.tqdm = _TrackingTqdm
+
+        def restore():
+            hf_tqdm_module.tqdm = original_cls
+
+        return restore
+
+    def download_model_with_progress(self, model_id, local_dir, model_name, entry, required=True):
+        """Download model from HuggingFace, reporting live byte-level progress into `entry`
+        (one of self.download_entries) — primarily via a tqdm hook that mirrors
+        huggingface_hub's own progress bars (see _install_tqdm_progress_hook), backed up
+        by a disk-usage poller (see _poll_download_progress) in case that hook ever misses
+        an update.
+
+        When required=False, a failure is logged and reported as a warning instead of
+        blocking the whole app on the splash screen's error stage (e.g. the Qwen parsing
+        model, which is not needed to reach the main app).
+        """
+        entry['status'] = 'downloading'
+        self.loading_status['stage'] = 'downloading'
+        self.loading_status['message'] = f'Downloading {model_name}...'
+        self.loading_status['download_model'] = model_name
+
+        logger.info(f"📥 Downloading {model_name} from HuggingFace...")
+        logger.info(f"   Downloading from: {model_id}")
+        logger.info(f"   Saving to: {local_dir}")
+
+        entry['bytes_total'] = self._get_repo_total_size(model_id)
+
+        restore_tqdm = self._install_tqdm_progress_hook(entry)
+
+        stop_event = threading.Event()
+        poller = threading.Thread(
+            target=self._poll_download_progress,
+            args=(local_dir, entry['bytes_total'], entry, stop_event),
+            daemon=True
+        )
+        poller.start()
+
+        try:
             snapshot_download(
                 repo_id=model_id,
                 local_dir=local_dir,
@@ -194,21 +358,32 @@ class ModelManager:
                 force_download=False,
                 token=None
             )
-            
-            self.loading_status['progress'] = end_progress
-            self.loading_status['message'] = f'{model_name} downloaded successfully!'
-            
+
+            entry['status'] = 'done'
+            entry['progress'] = 100
+            if entry['bytes_total']:
+                entry['bytes_done'] = entry['bytes_total']
+
             logger.info(f"✅ {model_name} downloaded successfully to {local_dir}")
             return True
-            
+
         except Exception as e:
-            logger.error(f"❌ Error downloading {model_name}: {str(e)}")
-            self.loading_status = {
-                'stage': 'error',
-                'message': f'Error downloading {model_name}: {str(e)}',
-                'progress': 0
-            }
+            friendly_message = self._friendly_download_error(model_name, e)
+            entry['status'] = 'error'
+            entry['error'] = friendly_message
+            if required:
+                logger.error(f"❌ Error downloading {model_name}: {str(e)}")
+                self.loading_status['stage'] = 'error'
+                self.loading_status['message'] = friendly_message
+                self.loading_status['progress'] = 0
+            else:
+                logger.warning(f"⚠️  Optional download failed for {model_name}, continuing without it: {str(e)}")
             return False
+
+        finally:
+            stop_event.set()
+            poller.join(timeout=2)
+            restore_tqdm()
     
     def check_and_download_models(self):
         """Check if models exist locally, download if missing. Requires model selection first."""
@@ -217,13 +392,14 @@ class ModelManager:
                 raise RuntimeError("ModelManager not initialized with config")
             
             os.makedirs(self.config['MODELS_BASE_DIR'], exist_ok=True)
-            
+
+            self.download_entries = []
             self.loading_status = {
                 'stage': 'checking',
                 'message': 'Checking models...',
                 'progress': 5
             }
-            
+
             # Check if model is selected
             selected = self.get_selected_model()
 
@@ -247,7 +423,7 @@ class ModelManager:
             logger.info("=" * 60)
             logger.info(f"OlmOCR-7B-FP4: {'✅ Found' if fp4_exists else '❌ Missing'}")
             logger.info(f"GLM-OCR: {'✅ Found' if glm_exists else '❌ Missing'}")
-            logger.info(f"Qwen3-1.7B: {'✅ Found' if qwen_exists else '❌ Missing'}")
+            logger.info(f"Qwen3.5-2B: {'✅ Found' if qwen_exists else '❌ Missing'}")
             logger.info(f"Selected model: {selected or 'None'}")
             logger.info("=" * 60)
 
@@ -271,47 +447,56 @@ class ModelManager:
                     logger.info("⏸️  Waiting for model selection...")
                     return 'needs_selection'
 
-            # Download selected OCR model if missing (skip entirely if 'NONE')
+            # Download selected OCR model if missing (skip entirely if 'NONE'). Each model gets
+            # its own live-progress entry (see _make_download_entry) so the splash screen can
+            # show one real bar per download instead of one bar jumping between checkpoints.
             if selected == 'NONE':
                 logger.info("ℹ️  No OCR model selected, skipping OCR model download")
-                self.loading_status['progress'] = 50
             else:
                 olmocr_config = self.get_active_ocr_model_config()
                 olmocr_exists = os.path.exists(olmocr_config['model_dir']) and os.path.exists(
                     os.path.join(olmocr_config['model_dir'], "config.json")
                 )
+                ocr_entry = self._make_download_entry('ocr', olmocr_config['name'])
 
                 if not olmocr_exists:
                     logger.info(f"📥 {olmocr_config['name']} not found, downloading...")
                     if not self.download_model_with_progress(
                         olmocr_config['model_id'],
                         olmocr_config['model_dir'],
-                        olmocr_config['name'], 10, 50
+                        olmocr_config['name'], ocr_entry
                     ):
                         return False
                 else:
                     logger.info(f"✅ {olmocr_config['name']} found locally")
-                    self.loading_status['progress'] = 50
-            
-            # Download Qwen model if missing
+                    ocr_entry['status'] = 'done'
+                    ocr_entry['progress'] = 100
+
+            # Download Qwen model if missing. Not required: it only powers the optional
+            # few-shot parsing tab, so a failed download degrades that one feature
+            # instead of blocking the whole app on the splash screen.
+            qwen_entry = self._make_download_entry('qwen', 'Qwen3.5-2B')
             if not qwen_exists:
                 logger.info("📥 Qwen model not found, downloading...")
-                if not self.download_model_with_progress(
-                    self.config['QWEN_MODEL_ID'], 
-                    self.config['QWEN_MODEL_DIR'], 
-                    "Qwen3-1.7B", 50, 90
-                ):
-                    return False
+                self.qwen_available = self.download_model_with_progress(
+                    self.config['QWEN_MODEL_ID'],
+                    self.config['QWEN_MODEL_DIR'],
+                    "Qwen3.5-2B", qwen_entry, required=False
+                )
+                if not self.qwen_available:
+                    logger.warning("⚠️  Qwen3.5-2B unavailable — few-shot parsing will be disabled until it can be downloaded")
             else:
                 logger.info("✅ Qwen model found locally")
-                self.loading_status['progress'] = 90
-            
+                self.qwen_available = True
+                qwen_entry['status'] = 'done'
+                qwen_entry['progress'] = 100
+
             self.loading_status = {
                 'stage': 'ready_to_load',
                 'message': 'Models ready, loading...',
                 'progress': 90
             }
-            
+
             return True
             
         except Exception as e:

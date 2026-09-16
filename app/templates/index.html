@@ -175,8 +175,8 @@
 
         /* Archaeological Terminal & OCR Workstation */
         .ocr-terminal {
-            background: #12100e;
-            border: 1px solid #292524;
+            background: var(--obsidian-surface);
+            border: 1px solid var(--obsidian-border);
             border-radius: 8px;
             overflow: hidden;
             display: flex;
@@ -186,44 +186,25 @@
         }
         .ocr-terminal-bar {
             height: 36px;
-            background: #1c1917;
-            border-bottom: 1px solid #292524;
+            background: var(--nero-caffe);
+            border-bottom: 1px solid var(--obsidian-border);
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 14px;
             user-select: none;
         }
-        .ocr-terminal-dots {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-        .ocr-terminal-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .ocr-terminal-dot.dot-red { background: #ef4444; }
-        .ocr-terminal-dot.dot-yellow { background: #f59e0b; }
-        .ocr-terminal-dot.dot-green { background: #10b981; }
         .ocr-terminal-title {
             font-size: 0.74rem;
-            color: #a8a29e;
+            color: var(--dark-fg-muted);
             font-family: var(--font-mono, monospace);
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .ocr-terminal-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
         .ocr-terminal-body {
-            background: #12100e;
-            color: #f5f5f4;
+            background: var(--obsidian-surface);
+            color: var(--dark-fg);
             font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             font-size: 0.78rem;
             line-height: 1.65;
@@ -232,42 +213,44 @@
             max-height: 380px;
             overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: #44403c #12100e;
+            scrollbar-color: var(--dark-surface-border) var(--obsidian-surface);
         }
         .ocr-terminal-body::-webkit-scrollbar {
             width: 6px;
         }
         .ocr-terminal-body::-webkit-scrollbar-track {
-            background: #12100e;
+            background: var(--obsidian-surface);
         }
         .ocr-terminal-body::-webkit-scrollbar-thumb {
-            background: #44403c;
+            background: var(--dark-surface-border);
             border-radius: 3px;
         }
+        /* Minimal log line: a lowercase label column (like `git`/`npm`/`cargo` CLI output)
+           instead of colored pill tags. Color is reserved for outcome — ok/err — not for
+           categorizing every line in a different hue. */
         .ocr-term-line {
-            margin: 4px 0;
+            margin: 2px 0;
             display: flex;
             align-items: baseline;
-            gap: 8px;
+            gap: 10px;
             word-break: break-word;
         }
-        .ocr-term-tag {
-            font-size: 0.68rem;
-            font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        .ocr-term-label {
             flex-shrink: 0;
-            font-family: var(--font-mono, monospace);
+            width: 74px;
+            text-align: right;
+            font-size: 0.72rem;
+            text-transform: lowercase;
+            letter-spacing: 0.02em;
+            color: var(--dark-fg-muted);
         }
-        .ocr-term-tag.tag-info { background: rgba(14, 165, 233, 0.18); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.35); }
-        .ocr-term-tag.tag-plate { background: rgba(194, 65, 12, 0.2); color: #fb923c; border: 1px solid rgba(194, 65, 12, 0.4); }
-        .ocr-term-tag.tag-draw { background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
-        .ocr-term-tag.tag-box { background: rgba(234, 179, 8, 0.15); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.35); }
-        .ocr-term-tag.tag-ok { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
-        .ocr-term-tag.tag-err { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-        .ocr-term-tag.tag-model { background: rgba(13, 148, 136, 0.2); color: #2dd4bf; border: 1px solid rgba(13, 148, 136, 0.4); }
+        .ocr-term-text {
+            color: var(--dark-fg);
+        }
+        .ocr-term-line.ocr-term-ok .ocr-term-label,
+        .ocr-term-line.ocr-term-ok .ocr-term-text { color: #5eead4; }
+        .ocr-term-line.ocr-term-err .ocr-term-label,
+        .ocr-term-line.ocr-term-err .ocr-term-text { color: #fb7185; }
     </style>
 </head>
 
@@ -285,6 +268,11 @@
                 <div id="splashProgress" class="splash-progress-bar">0%</div>
             </div>
 
+            <!-- Per-model download bars: shown instead of the single bar above while models
+                 are actually downloading, driven by real bytes-on-disk progress from the
+                 server (see /loading_status `downloads`), not fixed checkpoints. -->
+            <div id="downloadBarsContainer" class="hidden" style="max-width: 440px; margin: 8px auto 0; text-align: left;"></div>
+
             <!-- Model Selection UI (hidden by default) -->
             <div id="modelSelectionUI" class="hidden" style="max-width: 600px; margin: 0 auto;">
                 <h2 class="text-sm font-semibold text-stone-700 mb-4" id="modelSelectionHeading">Select which OCR model to download:</h2>
@@ -292,7 +280,8 @@
                 <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
                     <!-- FP4 Card -->
                     <div id="fp4Card" class="model-card"
-                        style="background: #ffffff; border-radius: 8px; padding: 18px; width: 250px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s; text-align: left;">
+                        style="padding: 18px; width: 250px; cursor: pointer; text-align: left;">
+                        <div class="model-card-check"><i class="bi bi-check-lg"></i></div>
                         <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                             <i class="bi bi-lightning-charge-fill" style="color: var(--primary);"></i> FP4 (4-bit)
                         </h3>
@@ -306,11 +295,13 @@
                         </p>
                     </div>
 
-                    <!-- GLM-OCR Card -->
-                    <div id="glmCard" class="model-card"
-                        style="background: #ffffff; border-radius: 8px; padding: 18px; width: 250px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s; text-align: left;">
+                    <!-- GLM-OCR Card: the default selection on every machine, GPU or not -->
+                    <div id="glmCard" class="model-card selected"
+                        style="padding: 18px; width: 250px; cursor: pointer; text-align: left;">
+                        <div class="model-card-check"><i class="bi bi-check-lg"></i></div>
                         <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                             <i class="bi bi-cpu-fill" style="color: var(--teal);"></i> GLM-OCR
+                            <span style="background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary-border); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: auto;">Recommended</span>
                         </h3>
                         <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">Lightweight local OCR, works without a GPU</p>
                         <div style="margin: 10px 0;">
@@ -324,7 +315,8 @@
 
                     <!-- None Card -->
                     <div id="noneCard" class="model-card"
-                        style="background: #ffffff; border-radius: 8px; padding: 18px; width: 250px; cursor: pointer; border: 2px solid var(--primary); transition: all 0.3s; text-align: left;">
+                        style="padding: 18px; width: 250px; cursor: pointer; text-align: left;">
+                        <div class="model-card-check"><i class="bi bi-check-lg"></i></div>
                         <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                             <i class="bi bi-dash-circle" style="color: var(--text-muted);"></i> No OCR model
                         </h3>
@@ -346,6 +338,21 @@
 
             <div class="splash-log" id="splashLog">
                 <p><i class="bi bi-plug mr-1"></i> Connecting to server...</p>
+            </div>
+
+            <!-- Error Recovery Actions: only shown when loading_status.stage === 'error', so a
+                 failed download (e.g. a network/SSL block on a dig-house connection) never leaves
+                 the user stuck on the splash screen with no way forward. -->
+            <div id="splashErrorActions" class="hidden" style="gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px;">
+                <button id="retryDownloadBtn" class="btn btn-primary" style="padding: 10px 22px; font-size: 14px;">
+                    <i class="bi bi-arrow-repeat mr-1"></i> Retry Download
+                </button>
+                <button id="changeModelBtn" class="btn btn-secondary" style="padding: 10px 22px; font-size: 14px;">
+                    <i class="bi bi-arrow-left-right mr-1"></i> Choose a Different Model
+                </button>
+                <button id="continueNoOcrBtn" class="btn btn-secondary" style="padding: 10px 22px; font-size: 14px;">
+                    <i class="bi bi-dash-circle mr-1"></i> Continue Without OCR
+                </button>
             </div>
         </div>
     </div>
@@ -768,52 +775,8 @@
                 <!-- TAB 3: Process OCR -->
                 <div class="tab-content hidden" data-tab="process">
                     <div class="py-8 max-w-4xl mx-auto">
-                        <!-- Heading -->
-                        <div class="text-center mb-6">
-                            <h2 class="text-2xl font-bold mb-2 text-stone-800 flex items-center justify-center gap-2">
-                                <i class="bi bi-cpu" style="color: var(--primary);"></i> OCR Text Extraction
-                            </h2>
-                            <p class="text-stone-600 text-sm">
-                                Transcribe catalog numbers, stratigraphic notes, and epigraphic labels from annotated drawings using local AI
-                            </p>
-                        </div>
-
                         <!-- Main Drafting Workstation Card -->
                         <div class="bg-white border border-[#e8e3d8] rounded-lg p-6 shadow-sm mb-6">
-                            <!-- Queue Status Strip -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 p-3.5 bg-[#fbf9f5] border border-[#e8e3d8] rounded-lg text-xs text-stone-700">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-full bg-white border border-[#e8e3d8] flex items-center justify-center text-stone-600 shadow-xs">
-                                        <i class="bi bi-images text-sm" style="color: var(--primary);"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-stone-500 text-[11px] uppercase tracking-wider font-semibold">Plates</div>
-                                        <div class="font-bold text-stone-800 font-mono text-sm" id="ocrQueuePlates">0 annotated</div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-full bg-white border border-[#e8e3d8] flex items-center justify-center text-stone-600 shadow-xs">
-                                        <i class="bi bi-bounding-box text-sm" style="color: var(--teal);"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-stone-500 text-[11px] uppercase tracking-wider font-semibold">Text Boxes</div>
-                                        <div class="font-bold text-stone-800 font-mono text-sm" id="ocrQueueBoxes">0 queued</div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-full bg-white border border-[#e8e3d8] flex items-center justify-center text-stone-600 shadow-xs">
-                                        <i class="bi bi-cpu-fill text-sm text-amber-600"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-stone-500 text-[11px] uppercase tracking-wider font-semibold">Neural Engine</div>
-                                        <div class="font-bold text-stone-800 font-mono text-xs flex items-center gap-1.5" id="ocrQueueEngine">
-                                            <span>GLM-OCR</span>
-                                            <span class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">READY</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Progress Track (PRODUCT.md Compliant: 22px height, Terracotta Gradient) -->
                             <div class="mb-5">
                                 <div class="flex justify-between items-center text-xs mb-1.5">
@@ -847,26 +810,15 @@
 
                         <!-- Archaeological Dark Terminal -->
                         <div class="ocr-terminal">
-                            <!-- Terminal Window Bar -->
+                            <!-- Terminal Window Bar: just enough to identify the log and clear it -->
                             <div class="ocr-terminal-bar">
-                                <div class="ocr-terminal-dots">
-                                    <span class="ocr-terminal-dot dot-red" title="Close"></span>
-                                    <span class="ocr-terminal-dot dot-yellow" title="Minimize"></span>
-                                    <span class="ocr-terminal-dot dot-green" title="Expand"></span>
-                                    <span class="ocr-terminal-title ml-2">
-                                        <i class="bi bi-terminal text-stone-400"></i>
-                                        <span>pypottery-ocr-engine</span>
-                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-mono font-normal text-stone-400 border border-stone-700 bg-stone-800/60">v0.1.1</span>
-                                    </span>
-                                </div>
-                                <div class="ocr-terminal-actions">
-                                    <span id="ocrTerminalStatusBadge" class="text-xs font-mono text-emerald-400 flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span> IDLE
-                                    </span>
-                                    <button id="clearOcrLogBtn" type="button" class="text-xs text-stone-400 hover:text-stone-200 transition-colors flex items-center gap-1 font-mono px-2 py-0.5 rounded hover:bg-stone-800" title="Clear console output">
-                                        <i class="bi bi-trash3 text-xs"></i> Clear
-                                    </button>
-                                </div>
+                                <span class="ocr-terminal-title">
+                                    <i class="bi bi-terminal text-stone-400"></i>
+                                    <span>OCR Log</span>
+                                </span>
+                                <button id="clearOcrLogBtn" type="button" class="text-xs text-stone-400 hover:text-stone-200 transition-colors flex items-center gap-1 font-mono px-2 py-0.5 rounded hover:bg-stone-800" title="Clear console output">
+                                    <i class="bi bi-trash3 text-xs"></i> Clear
+                                </button>
                             </div>
                             <!-- Terminal Log Viewport -->
                             <div id="ocrLog" class="ocr-terminal-body">
@@ -1163,6 +1115,21 @@
         let selectedModel = 'NONE'; // Default selection, upgraded to FP4/GLM once CUDA is detected
         let cudaAvailable = false;
         let modelSelectionDefaulted = false; // Ensures the auto-selected default only applies once
+        // True while the user has backed out of an error to pick a different model. The status
+        // poller keeps running through the 'error' stage (see checkServer) so a retry can resume
+        // automatically; this flag stops it from re-showing the error panel over that choice.
+        let choosingAlternateModel = false;
+
+        // Highlights whichever model card matches the current `selectedModel`, clearing the
+        // others. Shared by card clicks and by "Choose a Different Model" (whose selectedModel
+        // may have just been synced from the server, e.g. a saved 'FP4' pick the card UI was
+        // never shown for).
+        function syncCardSelectionUI() {
+            const cardIdByModel = { FP4: 'fp4Card', GLM: 'glmCard', NONE: 'noneCard' };
+            Object.entries(cardIdByModel).forEach(([modelId, elementId]) => {
+                document.getElementById(elementId)?.classList.toggle('selected', modelId === selectedModel);
+            });
+        }
 
         // Initialize model selection UI
         function initModelSelection() {
@@ -1171,31 +1138,22 @@
             const noneCard = document.getElementById('noneCard');
             const confirmBtn = document.getElementById('confirmModelBtn');
 
-            function clearCardBorders() {
-                fp4Card.style.border = '2px solid transparent';
-                glmCard.style.border = '2px solid transparent';
-                noneCard.style.border = '2px solid transparent';
-            }
-
             // Card selection handlers
             fp4Card.onclick = () => {
                 if (cudaAvailable) {
                     selectedModel = 'FP4';
-                    clearCardBorders();
-                    fp4Card.style.border = '2px solid var(--primary)';
+                    syncCardSelectionUI();
                 }
             };
 
             glmCard.onclick = () => {
                 selectedModel = 'GLM';
-                clearCardBorders();
-                glmCard.style.border = '2px solid var(--primary)';
+                syncCardSelectionUI();
             };
 
             noneCard.onclick = () => {
                 selectedModel = 'NONE';
-                clearCardBorders();
-                noneCard.style.border = '2px solid var(--primary)';
+                syncCardSelectionUI();
             };
 
             // Confirm button handler
@@ -1203,30 +1161,115 @@
                 try {
                     confirmBtn.disabled = true;
                     confirmBtn.innerHTML = '<i class="bi bi-arrow-repeat spin mr-1"></i> Starting download...';
-
-                    const response = await fetch('/select_model', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model_id: selectedModel })
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        // Hide selection UI, show progress bar
-                        document.getElementById('modelSelectionUI').classList.add('hidden');
-                        document.getElementById('progressBarContainer').classList.remove('hidden');
-                        document.getElementById('loadingSpinner').classList.remove('hidden');
-                    } else {
-                        alert('Error: ' + data.error);
-                        confirmBtn.disabled = false;
-                        confirmBtn.innerHTML = '<i class="bi bi-cloud-arrow-down mr-1"></i> Download Selected Model';
-                    }
+                    await submitModelSelection(selectedModel);
                 } catch (err) {
                     alert('Network error: ' + err.message);
+                } finally {
                     confirmBtn.disabled = false;
                     confirmBtn.innerHTML = '<i class="bi bi-cloud-arrow-down mr-1"></i> Download Selected Model';
                 }
             };
+        }
+
+        // Ask the server to (re)download/select an OCR model, then swap the splash screen
+        // back into its progress view. Shared by the initial model-selection confirm button
+        // and by the error-recovery actions (retry / continue without OCR).
+        async function submitModelSelection(modelId) {
+            const response = await fetch('/select_model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model_id: modelId })
+            });
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Unknown error');
+            }
+
+            selectedModel = modelId;
+            choosingAlternateModel = false;
+            document.getElementById('modelSelectionUI').classList.add('hidden');
+            document.getElementById('splashErrorActions').classList.add('hidden');
+            document.getElementById('progressBarContainer').classList.remove('hidden');
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+            document.getElementById('splashProgress').style.background = 'linear-gradient(90deg, #c2410c, #ea580c)';
+        }
+
+        // Wire the error-recovery actions shown when a download fails: retry the same
+        // model, switch to a different one, or skip OCR entirely and continue.
+        function initErrorRecoveryActions() {
+            const retryBtn = document.getElementById('retryDownloadBtn');
+            const changeModelBtn = document.getElementById('changeModelBtn');
+            const continueNoOcrBtn = document.getElementById('continueNoOcrBtn');
+
+            async function attempt(btn, modelId, busyLabel) {
+                const originalLabel = btn.innerHTML;
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = `<i class="bi bi-arrow-repeat spin mr-1"></i> ${busyLabel}`;
+                    await submitModelSelection(modelId);
+                } catch (err) {
+                    alert('Network error: ' + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = originalLabel;
+                }
+            }
+
+            retryBtn.onclick = () => attempt(retryBtn, selectedModel, 'Retrying...');
+            continueNoOcrBtn.onclick = () => attempt(continueNoOcrBtn, 'NONE', 'Continuing...');
+
+            changeModelBtn.onclick = () => {
+                choosingAlternateModel = true;
+                document.getElementById('splashErrorActions').classList.add('hidden');
+                document.getElementById('modelSelectionUI').classList.remove('hidden');
+                document.getElementById('progressBarContainer').classList.add('hidden');
+                document.getElementById('loadingSpinner').classList.add('hidden');
+                document.getElementById('splashTitle').textContent = 'Model Setup';
+                document.getElementById('splashLog').innerHTML = '<p style="color: var(--text-dim);">Select a different model to download</p>';
+                // Highlight whichever model actually failed (synced from the server just
+                // before this panel was shown), not whatever the cards defaulted to.
+                syncCardSelectionUI();
+            };
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes) return '0 MB';
+            const mb = bytes / (1024 * 1024);
+            return mb < 1024 ? `${mb.toFixed(0)} MB` : `${(mb / 1024).toFixed(2)} GB`;
+        }
+
+        // Renders one real progress bar per entry in /loading_status's `downloads` list (the
+        // OCR model and the Qwen parsing model), each driven by actual bytes on disk rather
+        // than a fixed checkpoint, so the bar keeps moving for as long as the download does.
+        function renderDownloadBars(downloads) {
+            const container = document.getElementById('downloadBarsContainer');
+            if (!downloads || downloads.length === 0) {
+                container.classList.add('hidden');
+                container.innerHTML = '';
+                return;
+            }
+            container.classList.remove('hidden');
+            container.innerHTML = downloads.map(d => {
+                const pct = d.status === 'done' ? 100 : (d.progress || 0);
+                const isError = d.status === 'error';
+                const barBackground = isError ? 'var(--danger-color)' : 'linear-gradient(90deg, #c2410c, #ea580c)';
+                let statusLabel;
+                if (d.status === 'pending') statusLabel = 'Waiting…';
+                else if (d.status === 'done') statusLabel = 'Done';
+                else if (isError) statusLabel = 'Failed';
+                else statusLabel = d.bytes_total ? `${formatBytes(d.bytes_done)} / ${formatBytes(d.bytes_total)}` : formatBytes(d.bytes_done);
+                return `
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 3px;">
+                            <span>${d.name}</span>
+                            <span>${statusLabel}</span>
+                        </div>
+                        <div class="splash-progress" style="margin: 0;">
+                            <div class="splash-progress-bar" style="width: ${pct}%; background: ${barBackground};">${d.status === 'downloading' || d.status === 'done' ? pct + '%' : ''}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Check server and poll loading status
@@ -1241,6 +1284,7 @@
             log.innerHTML = '<p><i class="bi bi-plug mr-1"></i> Connecting to OCR server...</p>';
 
             initModelSelection();
+            initErrorRecoveryActions();
 
             // Poll loading status every 500ms
             const pollInterval = setInterval(async () => {
@@ -1252,6 +1296,7 @@
                     const progress = status.progress || 0;
                     progressBar.style.width = progress + '%';
                     progressBar.textContent = progress + '%';
+                    renderDownloadBars(status.downloads);
 
                     // Update title and log based on status
                     if (status.stage === 'starting') {
@@ -1276,16 +1321,15 @@
                             const fp4Card = document.getElementById('fp4Card');
                             const fp4Req = document.getElementById('fp4Requirement');
 
-                            const glmCard = document.getElementById('glmCard');
-                            const noneCard = document.getElementById('noneCard');
-
                             if (!cudaAvailable) {
                                 fp4Card.style.opacity = '0.5';
                                 fp4Card.style.cursor = 'not-allowed';
                                 fp4Req.innerHTML = '<i class="bi bi-x-circle mr-1"></i> NVIDIA GPU not detected';
-                                fp4Req.style.color = '#b91c1c';
+                                fp4Req.style.color = 'var(--danger-color)';
                             } else {
-                                fp4Req.innerHTML = '<i class="bi bi-check-circle-fill mr-1"></i> NVIDIA GPU detected';
+                                // GPU present: FP4 is available but GLM-OCR stays the default
+                                // selection below, so invite the switch instead of assuming it.
+                                fp4Req.innerHTML = '<i class="bi bi-check-circle-fill mr-1"></i> NVIDIA GPU detected — select this instead for higher quality';
                                 fp4Req.style.color = 'var(--teal)';
                             }
 
@@ -1294,19 +1338,13 @@
                             // and would otherwise stomp on the user's manual card click.
                             if (!modelSelectionDefaulted) {
                                 modelSelectionDefaulted = true;
-                                if (!cudaAvailable) {
-                                    // Auto-select GLM-OCR by default when no GPU is available
-                                    selectedModel = 'GLM';
-                                    glmCard.style.border = '2px solid var(--primary)';
-                                    fp4Card.style.border = '2px solid transparent';
-                                    noneCard.style.border = '2px solid transparent';
-                                } else {
-                                    // Auto-select FP4 by default when a GPU is available
-                                    selectedModel = 'FP4';
-                                    fp4Card.style.border = '2px solid var(--primary)';
-                                    glmCard.style.border = '2px solid transparent';
-                                    noneCard.style.border = '2px solid transparent';
-                                }
+                                // GLM-OCR is the default regardless of hardware: it's small,
+                                // fast, and works everywhere. Users with an NVIDIA GPU are
+                                // invited (via the FP4 card's badge above) to switch to FP4
+                                // for higher quality, but nothing is auto-selected for them.
+                                // The GLM card already carries the "selected" class in the
+                                // markup, so no DOM change is needed here.
+                                selectedModel = 'GLM';
                             }
                         } catch (e) {
                             console.error('Error checking models:', e);
@@ -1315,17 +1353,20 @@
                         log.innerHTML = `<p style="color: var(--text-dim);">First time setup - please select a model to download</p>`;
                     } else if (status.stage === 'downloading') {
                         titleElement.textContent = 'Downloading Models...';
+                        // The per-model bars below carry the real progress now; this single
+                        // legacy bar would otherwise just sit at its last coarse checkpoint.
+                        progressBarContainer.classList.add('hidden');
                         const modelName = status.download_model || 'Model';
-                        log.innerHTML = `<p style="color: #b45309;"><i class="bi bi-cloud-arrow-down mr-1"></i> Downloading ${modelName}...</p>`;
-                        log.innerHTML += `<p style="color: var(--primary);"><i class="bi bi-hourglass-split mr-1"></i> Progress: ${progress}%</p>`;
-                        log.innerHTML += `<p style="color: #94a3b8; font-size: 12px;">This may take several minutes depending on your internet connection...</p>`;
+                        log.innerHTML = `<p style="color: var(--warning-color);"><i class="bi bi-cloud-arrow-down mr-1"></i> Downloading ${modelName}...</p>`;
+                        log.innerHTML += `<p style="color: var(--dark-fg-muted); font-size: 12px;">This may take several minutes depending on your internet connection...</p>`;
                     } else if (status.stage === 'ready_to_load') {
+                        progressBarContainer.classList.remove('hidden');
                         titleElement.textContent = 'Loading Models...';
                         log.innerHTML = `<p style="color: var(--teal);"><i class="bi bi-check-circle-fill mr-1"></i> Models downloaded successfully!</p>`;
                         log.innerHTML += `<p style="color: var(--primary);"><i class="bi bi-box-seam mr-1"></i> Loading into memory...</p>`;
                     } else if (status.stage === 'loading') {
                         titleElement.textContent = 'Loading Models...';
-                        log.innerHTML = `<p style="color: #b45309;"><i class="bi bi-box-seam mr-1"></i> ${status.message}</p>`;
+                        log.innerHTML = `<p style="color: var(--warning-color);"><i class="bi bi-box-seam mr-1"></i> ${status.message}</p>`;
                         log.innerHTML += `<p style="color: var(--teal);"><i class="bi bi-hourglass-split mr-1"></i> Progress: ${progress}%</p>`;
                     } else if (status.stage === 'finalizing') {
                         titleElement.textContent = 'Almost Ready...';
@@ -1342,22 +1383,43 @@
                         const healthData = await healthResponse.json();
 
                         window.ocrAvailable = healthData.ocr_available;
+                        window.qwenAvailable = healthData.qwen_available;
 
                         log.innerHTML = `<p style="color: var(--teal);"><i class="bi bi-check-circle-fill mr-1"></i> Server online: ${healthData.status}</p>`;
                         log.innerHTML += `<p style="color: var(--teal);"><i class="bi bi-check-circle-fill mr-1"></i> Model: ${healthData.model}</p>`;
                         log.innerHTML += `<p style="color: var(--teal);"><i class="bi bi-check-circle-fill mr-1"></i> Device: ${healthData.device}</p>`;
                         log.innerHTML += `<p style="color: var(--teal);"><i class="bi bi-check-circle-fill mr-1"></i> CUDA: ${healthData.cuda_available ? 'Available' : 'CPU Mode'}</p>`;
-                        log.innerHTML += '<p style="color: #4ade80; font-weight: bold;"><i class="bi bi-check-circle-fill mr-1"></i> Ready to start!</p>';
+                        log.innerHTML += '<p style="color: var(--teal); font-weight: bold;"><i class="bi bi-check-circle-fill mr-1"></i> Ready to start!</p>';
 
                         setTimeout(() => {
                             document.getElementById('splashScreen').style.display = 'none';
                         }, 1500);
-                    } else if (status.stage === 'error') {
-                        clearInterval(pollInterval);
-                        titleElement.textContent = 'Error';
-                        progressBar.style.background = '#b91c1c';
-                        log.innerHTML = `<p style="color: #b91c1c;"><i class="bi bi-x-circle-fill mr-1"></i> Error: ${status.message}</p>`;
-                        log.innerHTML += '<p style="color: #b45309;">Please check the console for details</p>';
+                    } else if (status.stage === 'error' && !choosingAlternateModel) {
+                        // Keep polling (unlike the 'ready' terminal stage): a retry/continue
+                        // action below moves the backend out of 'error' on its own, and this
+                        // same interval needs to notice that without a manual restart. Skipped
+                        // while choosingAlternateModel is true so it doesn't fight the user's
+                        // "Choose a Different Model" panel switch every 500ms.
+                        titleElement.textContent = 'Setup Paused';
+                        loadingSpinner.classList.add('hidden');
+                        progressBarContainer.classList.add('hidden');
+                        progressBar.style.background = 'var(--danger-color)';
+                        log.innerHTML = `<p style="color: var(--danger-color);"><i class="bi bi-x-circle-fill mr-1"></i> ${status.message}</p>`;
+                        document.getElementById('splashErrorActions').classList.remove('hidden');
+
+                        // A model chosen on a previous run (saved to disk) auto-starts its
+                        // download on boot without ever going through the card UI below, so
+                        // the client-side `selectedModel` is still its unset default here.
+                        // Sync it from the server before Retry can use it.
+                        try {
+                            const modelsResp = await fetch('/available_models');
+                            const modelsData = await modelsResp.json();
+                            if (modelsData.selected) {
+                                selectedModel = modelsData.selected;
+                            }
+                        } catch (e) {
+                            console.error('Error syncing selected model:', e);
+                        }
                     }
                 } catch (err) {
                     // Server not ready yet, keep polling
@@ -3350,26 +3412,14 @@
 
         // TAB 3: Process OCR with Archaeological Dark Terminal
         function updateOcrQueueStats() {
-            let platesCount = 0;
             let boxesCount = 0;
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
                 if (ann && ann.drawings && ann.drawings.length > 0) {
-                    platesCount++;
                     ann.drawings.forEach(d => {
                         if (d.textBoxes) boxesCount += d.textBoxes.length;
                     });
                 }
-            }
-            const pEl = document.getElementById('ocrQueuePlates');
-            const bEl = document.getElementById('ocrQueueBoxes');
-            const engEl = document.getElementById('ocrQueueEngine');
-            if (pEl) pEl.textContent = `${platesCount} annotated`;
-            if (bEl) bEl.textContent = `${boxesCount} queued`;
-            if (engEl) {
-                const modelName = window.ocrModelName || 'GLM-OCR';
-                const cudaTag = window.cudaAvailable ? 'CUDA' : 'CPU';
-                engEl.innerHTML = `<span>${modelName}</span> <span class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">${cudaTag}</span>`;
             }
             const countEl = document.getElementById('ocrProgressCount');
             if (countEl) countEl.textContent = `0 / ${boxesCount} text boxes`;
@@ -3380,22 +3430,22 @@
             if (!log || log.dataset.hasRun === 'true') return;
             const model = window.ocrModelName || 'GLM-OCR';
             const cuda = window.cudaAvailable ? 'CUDA (Hardware Accelerated)' : 'Standard CPU Mode';
+            // No repeated banner/subtitle here — the terminal bar above already carries the
+            // app name and version, so this is just the status a minimal shell would print.
             log.innerHTML = `
-<div style="color: #ea580c; font-weight: 700; margin-bottom: 4px;">🏺 PyPotteryScan OCR Subsystem [v0.1.1]</div>
-<div style="color: #78716c; margin-bottom: 12px; font-size: 0.73rem;">Archaeological Ceramic Epigraphic Recognition & Stratigraphic Text Extraction</div>
-<div class="ocr-term-line"><span class="ocr-term-tag tag-model">ENGINE</span> <span>${model} <span style="color: #78716c;">(${cuda})</span></span></div>
-<div class="ocr-term-line"><span class="ocr-term-tag tag-info">PIPELINE</span> <span style="color: #a8a29e;">Full-res Bounding Box Crop → VLM Inference → Stratigraphic Field Normalization</span></div>
-<div class="ocr-term-line"><span class="ocr-term-tag tag-ok">STATUS</span> <span style="color: #34d399;">Ready for batch execution.</span></div>
-<div style="color: #78716c; margin-top: 12px; border-top: 1px dashed #292524; padding-top: 8px;">Press <strong style="color: #ea580c;">[Start OCR Processing]</strong> to begin transcription, or <strong style="color: #a8a29e;">[Skip OCR]</strong> to input text manually in Review tab.</div>
+<div class="ocr-term-line"><span class="ocr-term-label">engine</span><span class="ocr-term-text">${model} <span style="color: var(--dark-fg-muted);">(${cuda})</span></span></div>
+<div class="ocr-term-line"><span class="ocr-term-label">pipeline</span><span class="ocr-term-text" style="color: var(--dark-fg-muted);">Full-res crop &rarr; VLM inference &rarr; field normalization</span></div>
+<div class="ocr-term-line ocr-term-ok"><span class="ocr-term-label">status</span><span class="ocr-term-text">Ready for batch execution.</span></div>
+<div style="color: var(--dark-fg-muted); margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--obsidian-border); font-size: 0.78rem;">Press <strong style="color: var(--primary-light);">Start OCR Processing</strong> to begin, or <strong style="color: var(--dark-fg-muted);">Skip OCR</strong> to enter text manually.</div>
             `;
         }
 
-        function appendOcrTerminalLine(tag, text, type = 'info') {
+        function appendOcrTerminalLine(label, text, type = 'info') {
             const log = document.getElementById('ocrLog');
             if (!log) return;
             const line = document.createElement('div');
-            line.className = 'ocr-term-line';
-            line.innerHTML = `<span class="ocr-term-tag tag-${type}">${tag}</span> <span>${text}</span>`;
+            line.className = (type === 'ok' || type === 'err') ? `ocr-term-line ocr-term-${type}` : 'ocr-term-line';
+            line.innerHTML = `<span class="ocr-term-label">${label.toLowerCase()}</span><span class="ocr-term-text">${text}</span>`;
             log.appendChild(line);
             log.scrollTop = log.scrollHeight;
         }
@@ -3413,7 +3463,6 @@
             const progressBar = document.getElementById('ocrProgressBar');
             const progressText = document.getElementById('ocrProgressText');
             const progressPercent = document.getElementById('ocrProgressPercent');
-            const statusBadge = document.getElementById('ocrTerminalStatusBadge');
 
             if (window.ocrAvailable === false) {
                 alert('No OCR model is installed on this system. Use "Skip OCR (Manual Input)" to enter text manually instead.');
@@ -3445,10 +3494,6 @@
             log.innerHTML = '';
             document.getElementById('startOcrBtn').disabled = true;
             document.getElementById('skipOcrBtn').disabled = true;
-            if (statusBadge) {
-                statusBadge.className = 'text-xs font-mono text-amber-400 flex items-center gap-1.5';
-                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse"></span> PROCESSING';
-            }
 
             appendOcrTerminalLine('INIT', `Starting batch OCR extraction across ${imagesWithTextBoxes} plates (${totalTexts} text boxes)...`, 'info');
 
@@ -3540,12 +3585,8 @@
 
             appendOcrTerminalLine('COMPLETE', `All ${totalTexts} text areas transcribed successfully!`, 'ok');
 
-            if (statusBadge) {
-                statusBadge.className = 'text-xs font-mono text-emerald-400 flex items-center gap-1.5';
-                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> COMPLETED';
-            }
             if (progressText) {
-                progressText.innerHTML = '<i class="bi bi-check-circle-fill mr-1 text-emerald-600"></i> Extraction complete!';
+                progressText.innerHTML = '<i class="bi bi-check-circle-fill mr-1" style="color: var(--teal);"></i> Extraction complete!';
             }
             if (progressPercent) progressPercent.textContent = '100%';
 
@@ -3595,11 +3636,6 @@
         document.getElementById('skipOcrBtn').addEventListener('click', () => {
             if (confirm('Skip OCR and input text manually in Review tab?')) {
                 appendOcrTerminalLine('SKIPPED', 'Automated OCR skipped by user. Manual transcription enabled in Review tab.', 'box');
-                const statusBadge = document.getElementById('ocrTerminalStatusBadge');
-                if (statusBadge) {
-                    statusBadge.className = 'text-xs font-mono text-stone-400 flex items-center gap-1.5';
-                    statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-stone-400 inline-block"></span> SKIPPED';
-                }
 
                 // Don't disable Start OCR button - let user change their mind
                 document.getElementById('skipOcrBtn').disabled = true;
@@ -5284,6 +5320,11 @@
 
         // Run parsing
         document.getElementById('run-parsing-btn').addEventListener('click', async () => {
+            if (window.qwenAvailable === false) {
+                alert('The parsing model (Qwen3.5-2B) could not be downloaded on this system, so structured parsing is unavailable. Check your internet connection and restart PyPotteryScan to retry the download.');
+                return;
+            }
+
             if (parserState.fewshot.length === 0) {
                 alert('No few-shot examples created! Add at least one example first.');
                 return;

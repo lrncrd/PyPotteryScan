@@ -114,7 +114,7 @@ On first launch, you're asked to choose an OCR model to download from HuggingFac
 - **OlmOCR-7B-FP4**: Vision-language model for text recognition (~4.5GB, NVIDIA GPU only)
 - **No OCR model**: Skip the download and enter recognized text manually
 
-Additionally, **Qwen3-1.7B** (~4GB) is downloaded for text processing, regardless of the OCR choice.
+Additionally, **Qwen3.5-2B** is downloaded for text processing, regardless of the OCR choice. If this download fails, PyPotteryScan still starts normally; only structured few-shot parsing is disabled until it succeeds.
 
 Models are cached in the `models/` directory.
 

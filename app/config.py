@@ -36,7 +36,7 @@ class Config:
     # already-downloaded models). Standalone (no launcher), self-contained as before.
     _suite_model_cache = os.environ.get('PYPOTTERY_MODEL_CACHE')
     MODELS_BASE_DIR = os.path.join(_suite_model_cache, "scan") if _suite_model_cache else os.path.join(BASE_DIR, "models")
-    QWEN_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "qwen3-1.7b")
+    QWEN_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "qwen3.5-2b")
     
     # OlmOCR Model Options
     # FP4 (4-bit): ~5GB, requires NVIDIA GPU + CUDA
@@ -54,7 +54,7 @@ class Config:
     PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
     
     # HuggingFace model IDs (Qwen for parsing)
-    QWEN_MODEL_ID = "Qwen/Qwen3-1.7B"
+    QWEN_MODEL_ID = "Qwen/Qwen3.5-2B"
     
     # Server settings
     HOST = '0.0.0.0'
