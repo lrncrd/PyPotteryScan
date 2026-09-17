@@ -102,6 +102,59 @@
             cursor: grab;
             transition: transform 0.15s ease;
         }
+        input[type="range"].straighten-range {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 170px;
+            height: 8px;
+            border-radius: 9999px;
+            outline: none;
+            cursor: pointer;
+            background: #e8e3d8;
+            transition: background 0.1s ease;
+        }
+        input[type="range"].straighten-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3.5px solid #c2410c;
+            box-shadow: 0 2px 6px rgba(194, 65, 12, 0.4);
+            cursor: grab;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        input[type="range"].straighten-range::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.15), 0 3px 8px rgba(194, 65, 12, 0.5);
+        }
+        input[type="range"].straighten-range::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.25);
+            box-shadow: 0 0 0 6px rgba(194, 65, 12, 0.25), 0 4px 12px rgba(194, 65, 12, 0.6);
+        }
+        input[type="range"].straighten-range::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3.5px solid #c2410c;
+            box-shadow: 0 2px 6px rgba(194, 65, 12, 0.4);
+            cursor: grab;
+            transition: transform 0.15s ease;
+        }
+        .btn-grid-active {
+            background: rgba(13, 148, 136, 0.15) !important;
+            color: #0f766e !important;
+            border-color: #0d9488 !important;
+            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25) !important;
+            font-weight: 600 !important;
+        }
+        #cleanCanvasOuterWrapper.hide-bg-grid {
+            background-image: none !important;
+            background-color: #faf9f6 !important;
+        }
         .size-badge-pill {
             font-family: var(--font-mono, monospace);
             font-size: 0.82rem;
@@ -1231,10 +1284,62 @@
 
                             </div>
 
+                            <!-- Straighten & Orientation Bar (Straighten tilted drawings with slider & alignment grid) -->
+                            <div class="slicing-bar-card mb-3" style="background: #ffffff; border-color: #e5dfd5;">
+                                <!-- Left: Straighten Title & 90° Rotations -->
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-stone-700 flex items-center gap-1.5" title="Straighten / Raddrizza disegno">
+                                        <i class="bi bi-arrow-repeat" style="color: var(--primary);"></i> Straighten:
+                                    </span>
+                                    <div class="flex items-center gap-1">
+                                        <button id="rotateCcw90Btn" type="button" class="btn btn-secondary px-2 py-1 text-xs" title="Rotate 90° Counter-Clockwise">
+                                            <i class="bi bi-arrow-counterclockwise"></i> -90°
+                                        </button>
+                                        <button id="rotateCw90Btn" type="button" class="btn btn-secondary px-2 py-1 text-xs" title="Rotate 90° Clockwise">
+                                            <i class="bi bi-arrow-clockwise"></i> +90°
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Center: Slider with fine step and angle readout -->
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <div class="flex items-center gap-1">
+                                        <button id="straightenFineMinusBtn" type="button" class="btn btn-secondary px-1.5 py-0.5 text-xs font-mono" title="Fine tilt -0.5°">-0.5°</button>
+                                        <button id="straightenStepMinusBtn" type="button" class="btn btn-secondary px-1.5 py-0.5 text-xs font-mono" title="Micro-tilt -0.1°">-0.1°</button>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                        <input type="range" id="straightenSlider" min="-45" max="45" step="0.1" value="0" class="straighten-range" title="Drag to straighten drawing (-45° to +45°)">
+                                        <span id="straightenAngleDisplay" class="size-badge-pill font-mono" style="min-width: 54px;">0.0°</span>
+                                    </div>
+
+                                    <div class="flex items-center gap-1">
+                                        <button id="straightenStepPlusBtn" type="button" class="btn btn-secondary px-1.5 py-0.5 text-xs font-mono" title="Micro-tilt +0.1°">+0.1°</button>
+                                        <button id="straightenFinePlusBtn" type="button" class="btn btn-secondary px-1.5 py-0.5 text-xs font-mono" title="Fine tilt +0.5°">+0.5°</button>
+                                    </div>
+
+                                    <button id="straightenResetBtn" type="button" class="btn btn-secondary px-2 py-1 text-xs" title="Reset angle to 0.0° (R)">
+                                        <i class="bi bi-x-circle mr-1"></i> 0°
+                                    </button>
+                                    <button id="trimBordersBtn" type="button" class="btn btn-secondary px-2 py-1 text-xs" title="Auto-Fit: trim excess empty white borders around the vessel">
+                                        <i class="bi bi-crop mr-1"></i> Auto-Fit
+                                    </button>
+                                </div>
+
+                                <!-- Right: Alignment Grid Guide Toggle -->
+                                <div class="flex items-center gap-2">
+                                    <button id="toggleGridBtn" type="button" class="btn btn-secondary px-2.5 py-1 text-xs" title="Toggle horizontal & vertical alignment grid guide (G)">
+                                        <i class="bi bi-grid-3x3 mr-1"></i> <span id="gridBtnText">Grid Guide</span>
+                                    </button>
+                                </div>
+                            </div>
+
 
                             <!-- Drafting Canvas Viewport -->
-                            <div id="cleanCanvasOuterWrapper" class="bg-white rounded-lg p-4 text-center canvas-container border border-stone-200 overflow-auto flex justify-center items-center" style="min-height: 400px; max-height: 72vh;">
-                                <div id="cleanCanvasRelativeWrapper">
+                            <div id="cleanCanvasOuterWrapper" class="bg-white rounded-lg p-4 text-center canvas-container border border-stone-200 overflow-auto flex justify-center items-center" style="min-height: 400px; max-height: 72vh; position: relative;">
+                                <canvas id="cleanGridOverlay"
+                                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; z-index: 10;"></canvas>
+                                <div id="cleanCanvasRelativeWrapper" style="position: relative; display: inline-block; z-index: 5;">
                                     <canvas id="cleanCanvas" class="shadow-sm transition-shadow duration-150"
                                         style="max-width: 100%; border: 1.5px solid #d6cbbe; border-radius: 4px; background: #ffffff;"></canvas>
                                 </div>
@@ -1246,8 +1351,8 @@
                             </div>
 
                             <div class="mt-3 flex flex-wrap justify-between items-center text-xs text-stone-500 px-1 gap-2">
-                                <span><i class="bi bi-info-circle mr-1"></i> Click and drag to erase text and extraneous marks. Mouse wheel: adjust eraser size.</span>
-                                <span class="font-mono">Keys: <strong>E</strong> Eraser | <strong>[ ]</strong> Size | <strong>M</strong> Mark Clean | <strong>Ctrl+Z</strong> Undo</span>
+                                <span><i class="bi bi-info-circle mr-1"></i> Click and drag to erase text. Use Straighten slider to align tilted drawings. Mouse wheel: eraser size.</span>
+                                <span class="font-mono">Keys: <strong>E</strong> Eraser | <strong>G</strong> Grid | <strong>R</strong> Reset 0° | <strong>[ ]</strong> Size | <strong>M</strong> Mark Clean | <strong>Ctrl+Z</strong> Undo</span>
                             </div>
 
                             <!-- Thumbnails Navigation Strip -->
@@ -2196,8 +2301,8 @@
                     <div class="project-card p-4 hover:shadow-md transition cursor-pointer" data-project-id="${project.project_id}">
                         <div class="flex justify-between items-start mb-3">
                             <h3 class="text-base font-bold text-stone-800 truncate flex-1">${project.project_name}</h3>
-                            <button class="delete-project-btn text-stone-400 hover:text-red-600 ml-2 p-1 transition" data-project-id="${project.project_id}" onclick="event.stopPropagation();" title="Delete Project">
-                                <i class="bi bi-trash3"></i>
+                            <button class="delete-project-btn" data-project-id="${project.project_id}" onclick="event.stopPropagation();" title="Delete Project">
+                                <i class="bi bi-trash3 pointer-events-none"></i>
                             </button>
                         </div>
                         
@@ -2974,6 +3079,14 @@
 
         function switchTab(tabName) {
             console.log('Switching to tab:', tabName);
+
+            // If leaving clean tab, commit any rotation and auto-save
+            const activeCleanTab = document.querySelector('.tab-content[data-tab="clean"]:not(.hidden)');
+            if (activeCleanTab && tabName !== 'clean' && typeof commitCleanRotation === 'function' && typeof saveCurrentCleanDrawing === 'function') {
+                commitCleanRotation();
+                saveCurrentCleanDrawing();
+            }
+
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 const isActive = btn.dataset.tab === tabName;
                 btn.classList.toggle('active', isActive);
@@ -5083,10 +5196,13 @@
             }
         }
 
-        // TAB 4: Clean Drawings with Eraser (Upgraded with Preview, Continuous Strokes, Zoom & Presets)
+        // TAB 4: Clean Drawings with Eraser & Straighten Tool (Upgraded with Preview, Continuous Strokes, Zoom & Presets)
         let cleanIndex = 0;
         let cleanItems = [];
         let cleanCanvas, cleanCtx;
+        let cleanSourceCanvas = null, cleanSourceCtx = null;
+        let currentStraightenAngle = 0;
+        let isGridActive = false;
         let isErasing = false;
         let eraserMode = false;
         let eraserSize = 20;
@@ -5141,6 +5257,9 @@
                     if (preview) preview.style.display = 'none';
                     handleCleanMouseUp();
                 });
+                window.addEventListener('mouseup', () => {
+                    if (isErasing) handleCleanMouseUp();
+                });
                 cleanCanvas.addEventListener('mouseenter', (e) => {
                     if (eraserMode) {
                         updateBrushPreview(e);
@@ -5164,28 +5283,49 @@
                 }, { passive: false });
             }
 
-            // Set canvas to FULL RES
-            cleanCanvas.width = item.drawing.w;
-            cleanCanvas.height = item.drawing.h;
-
-            // Fill with white background first
-            cleanCtx.fillStyle = 'white';
-            cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+            currentStraightenAngle = 0;
+            resetStraightenSliderUI();
 
             // Check if a cleaned version exists in state
             if (state.cleanedDrawings[item.key]?.imageData) {
                 // Load the cleaned version
                 const cleanedImg = new Image();
                 cleanedImg.onload = () => {
+                    cleanCanvas.width = cleanedImg.naturalWidth || cleanedImg.width;
+                    cleanCanvas.height = cleanedImg.naturalHeight || cleanedImg.height;
+                    cleanCtx.fillStyle = '#ffffff';
+                    cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
                     cleanCtx.drawImage(cleanedImg, 0, 0);
+                    initCleanSourceCanvas();
+                    resetStraightenSliderUI();
+                    applyCleanCanvasDimensions();
+                    if (isGridActive) drawCleanGrid();
                     // Save to undo stack
                     undoStack = [cleanCanvas.toDataURL()];
+
+                    // AUTO-RECOVERY GUARDRAIL:
+                    // If canvas was previously blown up into an enormous whitespace rectangle
+                    // (e.g. natural dimensions > 1.25x original detection crop), auto-trim immediately!
+                    const origMax = Math.max(item.drawing.w, item.drawing.h);
+                    const curMax = Math.max(cleanCanvas.width, cleanCanvas.height);
+                    if (curMax > origMax * 1.25) {
+                        console.log(`[Clean] Auto-recovering bloated canvas (${cleanCanvas.width}x${cleanCanvas.height} vs original max ${origMax})`);
+                        trimCanvasWhitespace(24);
+                    }
                 };
                 cleanedImg.src = state.cleanedDrawings[item.key].imageData;
                 console.log('Loading cleaned version for:', item.key);
             } else {
                 // Draw original image at full resolution
+                cleanCanvas.width = item.drawing.w;
+                cleanCanvas.height = item.drawing.h;
+                cleanCtx.fillStyle = '#ffffff';
+                cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
                 cleanCtx.drawImage(imgElement, item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h, 0, 0, item.drawing.w, item.drawing.h);
+                initCleanSourceCanvas();
+                resetStraightenSliderUI();
+                applyCleanCanvasDimensions();
+                if (isGridActive) drawCleanGrid();
                 // Save initial state for undo
                 undoStack = [cleanCanvas.toDataURL()];
                 console.log('Loading original version for:', item.key);
@@ -5200,7 +5340,9 @@
             document.getElementById('cleanDrawingId').textContent = `Drawing D${item.drawingIdx + 1}`;
             const dimEl = document.getElementById('cleanDimensions');
             if (dimEl) {
-                dimEl.textContent = `${Math.round(item.drawing.w)} × ${Math.round(item.drawing.h)} px`;
+                const curW = cleanCanvas ? cleanCanvas.width : item.drawing.w;
+                const curH = cleanCanvas ? cleanCanvas.height : item.drawing.h;
+                dimEl.textContent = `${Math.round(curW)} × ${Math.round(curH)} px`;
             }
             document.getElementById('cleanIndicator').textContent = `${cleanIndex + 1} / ${cleanItems.length}`;
 
@@ -5214,17 +5356,423 @@
             const item = cleanItems[cleanIndex];
             if (!item || !cleanCanvas) return;
 
-            const maxDisplayWidth = 800;
-            const baseScale = Math.min(1, maxDisplayWidth / item.drawing.w);
+            const outerWrapper = document.getElementById('cleanCanvasOuterWrapper');
+            const availableW = outerWrapper && outerWrapper.clientWidth > 100 ? outerWrapper.clientWidth - 48 : 800;
+            const maxDisplayWidth = Math.max(700, Math.min(1050, availableW));
+
+            const curW = cleanCanvas.width || item.drawing.w;
+            const curH = cleanCanvas.height || item.drawing.h;
+            const baseScale = Math.min(1, maxDisplayWidth / curW);
             cleanDisplayScale = baseScale * cleanZoom;
 
-            cleanCanvas.style.width = Math.round(item.drawing.w * cleanDisplayScale) + 'px';
-            cleanCanvas.style.height = Math.round(item.drawing.h * cleanDisplayScale) + 'px';
+            const dispW = Math.round(curW * cleanDisplayScale);
+            const dispH = Math.round(curH * cleanDisplayScale);
+
+            cleanCanvas.style.width = dispW + 'px';
+            cleanCanvas.style.height = dispH + 'px';
 
             const zoomDisplay = document.getElementById('cleanZoomDisplay');
             if (zoomDisplay) {
                 zoomDisplay.textContent = Math.round(cleanZoom * 100) + '%';
             }
+
+            const dimEl = document.getElementById('cleanDimensions');
+            if (dimEl) {
+                dimEl.textContent = `${Math.round(curW)} × ${Math.round(curH)} px`;
+            }
+
+            resizeCleanGridOverlay();
+        }
+
+        // STRAIGHTEN & ROTATION UTILITIES
+        function initCleanSourceCanvas() {
+            if (!cleanSourceCanvas) {
+                cleanSourceCanvas = document.createElement('canvas');
+                cleanSourceCtx = cleanSourceCanvas.getContext('2d');
+            }
+            if (!cleanCanvas) return;
+            cleanSourceCanvas.width = cleanCanvas.width;
+            cleanSourceCanvas.height = cleanCanvas.height;
+            cleanSourceCtx.fillStyle = '#ffffff';
+            cleanSourceCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+            cleanSourceCtx.drawImage(cleanCanvas, 0, 0);
+        }
+
+        function applyStraightenAngle(angle) {
+            if (!cleanSourceCanvas || !cleanCanvas) return;
+            currentStraightenAngle = Math.round(angle * 10) / 10;
+
+            // Update UI readout
+            const display = document.getElementById('straightenAngleDisplay');
+            if (display) {
+                const sign = currentStraightenAngle > 0 ? '+' : '';
+                display.textContent = `${sign}${currentStraightenAngle.toFixed(1)}°`;
+            }
+
+            const slider = document.getElementById('straightenSlider');
+            if (slider && Math.abs(parseFloat(slider.value) - currentStraightenAngle) > 0.05) {
+                slider.value = currentStraightenAngle;
+            }
+            updateStraightenSliderFill(currentStraightenAngle);
+
+            const srcW = cleanSourceCanvas.width;
+            const srcH = cleanSourceCanvas.height;
+
+            if (Math.abs(currentStraightenAngle) < 0.001) {
+                cleanCanvas.width = srcW;
+                cleanCanvas.height = srcH;
+                cleanCtx.fillStyle = '#ffffff';
+                cleanCtx.fillRect(0, 0, srcW, srcH);
+                cleanCtx.drawImage(cleanSourceCanvas, 0, 0);
+            } else {
+                const rad = (currentStraightenAngle * Math.PI) / 180;
+                const sin = Math.abs(Math.sin(rad));
+                const cos = Math.abs(Math.cos(rad));
+
+                // 1. Dynamic Bounding Box: Expand canvas dynamically so wide or tilted vessels never get clipped
+                let newW = Math.ceil(srcW * cos + srcH * sin);
+                let newH = Math.ceil(srcH * cos + srcW * sin);
+
+                // 2. Geometric Guardrail: Cap maximum dimension by the physical diagonal of the vessel
+                const item = cleanItems[cleanIndex];
+                if (item && item.drawing) {
+                    const origDiag = Math.ceil(Math.sqrt(item.drawing.w * item.drawing.w + item.drawing.h * item.drawing.h));
+                    const maxAllowed = Math.round(origDiag * 1.15) + 32;
+                    newW = Math.min(newW, maxAllowed);
+                    newH = Math.min(newH, maxAllowed);
+                }
+
+                cleanCanvas.width = newW;
+                cleanCanvas.height = newH;
+                cleanCtx.fillStyle = '#ffffff';
+                cleanCtx.fillRect(0, 0, newW, newH);
+
+                cleanCtx.imageSmoothingEnabled = true;
+                cleanCtx.imageSmoothingQuality = 'high';
+
+                cleanCtx.save();
+                cleanCtx.translate(newW / 2, newH / 2);
+                cleanCtx.rotate(rad);
+                cleanCtx.drawImage(cleanSourceCanvas, -srcW / 2, -srcH / 2);
+                cleanCtx.restore();
+            }
+
+            applyCleanCanvasDimensions();
+            if (isGridActive) drawCleanGrid();
+        }
+
+        function updateStraightenSliderFill(val) {
+            const slider = document.getElementById('straightenSlider');
+            if (!slider) return;
+            const min = -45, max = 45;
+            const pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+            if (val > 0.05) {
+                slider.style.background = `linear-gradient(to right, #e8e3d8 0%, #e8e3d8 50%, #c2410c 50%, #c2410c ${pct}%, #e8e3d8 ${pct}%, #e8e3d8 100%)`;
+            } else if (val < -0.05) {
+                slider.style.background = `linear-gradient(to right, #e8e3d8 0%, #e8e3d8 ${pct}%, #c2410c ${pct}%, #c2410c 50%, #e8e3d8 50%, #e8e3d8 100%)`;
+            } else {
+                slider.style.background = '#e8e3d8';
+            }
+        }
+
+        function resetStraightenSliderUI() {
+            currentStraightenAngle = 0;
+            const slider = document.getElementById('straightenSlider');
+            if (slider) {
+                slider.value = 0;
+                slider.style.background = '#e8e3d8';
+            }
+            const display = document.getElementById('straightenAngleDisplay');
+            if (display) display.textContent = '0.0°';
+        }
+
+        function commitCleanRotation() {
+            if (Math.abs(currentStraightenAngle) > 0.001 && cleanCanvas) {
+                // Auto-trim empty corner wedges around the vessel so whitespace never compounds
+                const trimmed = trimCanvasWhitespace(24);
+                if (!trimmed) {
+                    initCleanSourceCanvas();
+                    resetStraightenSliderUI();
+                    undoStack.push(cleanCanvas.toDataURL());
+                    if (undoStack.length > 30) undoStack.shift();
+                    triggerCleanAutoSave();
+                    renderCleanThumbnails();
+                }
+            }
+        }
+
+        // Auto-Fit / Trim Whitespace guardrail: crops away runaway white borders around the vessel
+        function trimCanvasWhitespace(padding = 24) {
+            if (!cleanCanvas || !cleanCtx) return false;
+            const w = cleanCanvas.width;
+            const h = cleanCanvas.height;
+            if (w <= 20 || h <= 20) return false;
+
+            currentStraightenAngle = 0;
+
+            let imgData;
+            try {
+                imgData = cleanCtx.getImageData(0, 0, w, h);
+            } catch (e) {
+                console.error('[Clean] Cannot get image data for trimming:', e);
+                return false;
+            }
+            const data = imgData.data;
+            const threshold = 245; // Treat pixels with R,G,B >= 245 as blank background
+            let minX = w, maxX = -1, minY = h, maxY = -1;
+
+            // 1. Scan top bound (minY)
+            topLoop: for (let y = 0; y < h; y++) {
+                const row = y * w * 4;
+                for (let x = 0; x < w; x++) {
+                    const idx = row + x * 4;
+                    if (data[idx + 3] > 50 && (data[idx] < threshold || data[idx + 1] < threshold || data[idx + 2] < threshold)) {
+                        minY = y;
+                        break topLoop;
+                    }
+                }
+            }
+
+            if (minY === h) {
+                showCleanAutosaveBadge('No drawing found');
+                return false;
+            }
+
+            // 2. Scan bottom bound (maxY)
+            bottomLoop: for (let y = h - 1; y >= minY; y--) {
+                const row = y * w * 4;
+                for (let x = 0; x < w; x++) {
+                    const idx = row + x * 4;
+                    if (data[idx + 3] > 50 && (data[idx] < threshold || data[idx + 1] < threshold || data[idx + 2] < threshold)) {
+                        maxY = y;
+                        break bottomLoop;
+                    }
+                }
+            }
+
+            // 3. Scan left bound (minX) within [minY, maxY]
+            leftLoop: for (let x = 0; x < w; x++) {
+                for (let y = minY; y <= maxY; y++) {
+                    const idx = (y * w + x) * 4;
+                    if (data[idx + 3] > 50 && (data[idx] < threshold || data[idx + 1] < threshold || data[idx + 2] < threshold)) {
+                        minX = x;
+                        break leftLoop;
+                    }
+                }
+            }
+
+            // 4. Scan right bound (maxX) within [minY, maxY]
+            rightLoop: for (let x = w - 1; x >= minX; x--) {
+                for (let y = minY; y <= maxY; y++) {
+                    const idx = (y * w + x) * 4;
+                    if (data[idx + 3] > 50 && (data[idx] < threshold || data[idx + 1] < threshold || data[idx + 2] < threshold)) {
+                        maxX = x;
+                        break rightLoop;
+                    }
+                }
+            }
+
+            const cropX = Math.max(0, minX - padding);
+            const cropY = Math.max(0, minY - padding);
+            const cropR = Math.min(w, maxX + 1 + padding);
+            const cropB = Math.min(h, maxY + 1 + padding);
+            const cropW = cropR - cropX;
+            const cropH = cropB - cropY;
+
+            // Skip if canvas is already compact (less than 12px change)
+            if (cropX <= 6 && cropY <= 6 && (w - cropR) <= 6 && (h - cropB) <= 6) {
+                showCleanAutosaveBadge('Already fitted');
+                return false;
+            }
+
+            const temp = document.createElement('canvas');
+            temp.width = cropW;
+            temp.height = cropH;
+            const tempCtx = temp.getContext('2d');
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, cropW, cropH);
+            tempCtx.drawImage(cleanCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+            cleanCanvas.width = cropW;
+            cleanCanvas.height = cropH;
+            cleanCtx.fillStyle = '#ffffff';
+            cleanCtx.fillRect(0, 0, cropW, cropH);
+            cleanCtx.drawImage(temp, 0, 0);
+
+            initCleanSourceCanvas();
+            resetStraightenSliderUI();
+            applyCleanCanvasDimensions();
+            if (isGridActive) drawCleanGrid();
+
+            undoStack.push(cleanCanvas.toDataURL());
+            if (undoStack.length > 30) undoStack.shift();
+            triggerCleanAutoSave();
+            renderCleanThumbnails();
+            showCleanAutosaveBadge('Auto-fitted');
+            return true;
+        }
+
+        function stepStraightenAngle(delta) {
+            let newAngle = Math.round((currentStraightenAngle + delta) * 10) / 10;
+            newAngle = Math.max(-45, Math.min(45, newAngle));
+            applyStraightenAngle(newAngle);
+            undoStack.push(cleanCanvas.toDataURL());
+            if (undoStack.length > 30) undoStack.shift();
+            triggerCleanAutoSave();
+            renderCleanThumbnails();
+        }
+
+        function rotateCleanCanvas90(direction) {
+            if (!cleanCanvas) return;
+            commitCleanRotation();
+
+            const srcW = cleanCanvas.width;
+            const srcH = cleanCanvas.height;
+            const newW = srcH;
+            const newH = srcW;
+
+            const temp = document.createElement('canvas');
+            temp.width = newW;
+            temp.height = newH;
+            const tempCtx = temp.getContext('2d');
+
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, newW, newH);
+            tempCtx.imageSmoothingEnabled = true;
+            tempCtx.imageSmoothingQuality = 'high';
+
+            tempCtx.save();
+            tempCtx.translate(newW / 2, newH / 2);
+            tempCtx.rotate((direction * 90 * Math.PI) / 180);
+            tempCtx.drawImage(cleanCanvas, -srcW / 2, -srcH / 2);
+            tempCtx.restore();
+
+            cleanCanvas.width = newW;
+            cleanCanvas.height = newH;
+            cleanCtx.drawImage(temp, 0, 0);
+
+            initCleanSourceCanvas();
+            resetStraightenSliderUI();
+            applyCleanCanvasDimensions();
+            if (isGridActive) drawCleanGrid();
+
+            undoStack.push(cleanCanvas.toDataURL());
+            if (undoStack.length > 30) undoStack.shift();
+            triggerCleanAutoSave();
+            renderCleanThumbnails();
+        }
+
+        function toggleCleanGrid() {
+            isGridActive = !isGridActive;
+            updateCleanGridUI();
+        }
+
+        function updateCleanGridUI() {
+            const gridOverlay = document.getElementById('cleanGridOverlay');
+            const toggleBtn = document.getElementById('toggleGridBtn');
+            const outerWrapper = document.getElementById('cleanCanvasOuterWrapper');
+            if (!gridOverlay || !toggleBtn) return;
+
+            if (isGridActive) {
+                gridOverlay.style.display = 'block';
+                toggleBtn.classList.add('btn-grid-active');
+                toggleBtn.classList.remove('btn-secondary');
+                if (outerWrapper) outerWrapper.classList.add('hide-bg-grid');
+                drawCleanGrid();
+            } else {
+                gridOverlay.style.display = 'none';
+                toggleBtn.classList.remove('btn-grid-active');
+                toggleBtn.classList.add('btn-secondary');
+                if (outerWrapper) outerWrapper.classList.remove('hide-bg-grid');
+            }
+        }
+
+        function resizeCleanGridOverlay() {
+            if (isGridActive) drawCleanGrid();
+        }
+
+        function drawCleanGrid() {
+            const gridOverlay = document.getElementById('cleanGridOverlay');
+            const outerWrapper = document.getElementById('cleanCanvasOuterWrapper');
+            if (!gridOverlay || !outerWrapper || !isGridActive) return;
+
+            // Use client dimensions of outerWrapper so grid matches visible viewport
+            const w = outerWrapper.clientWidth;
+            const h = outerWrapper.clientHeight;
+            if (w === 0 || h === 0) return;
+
+            if (gridOverlay.width !== w || gridOverlay.height !== h) {
+                gridOverlay.width = w;
+                gridOverlay.height = h;
+            }
+
+            const gctx = gridOverlay.getContext('2d');
+            gctx.clearRect(0, 0, w, h);
+
+            // Step size is constant: EXACTLY 30px (never shifts or resizes with slider)
+            const step = 30;
+
+            // Find center of cleanCanvas on screen relative to outerWrapper
+            let midX = Math.round(w / 2);
+            let midY = Math.round(h / 2);
+
+            if (cleanCanvas) {
+                const cRect = cleanCanvas.getBoundingClientRect();
+                const wRect = outerWrapper.getBoundingClientRect();
+                midX = Math.round(cRect.left - wRect.left + cRect.width / 2);
+                midY = Math.round(cRect.top - wRect.top + cRect.height / 2);
+            }
+
+            // 1. Stable Blue Grid Lines (constant spacing, never mutating)
+            gctx.lineWidth = 1;
+            gctx.strokeStyle = 'rgba(2, 132, 199, 0.35)';
+
+            // Horizontal lines extending upward and downward from midY
+            for (let y = midY; y >= 0; y -= step) {
+                gctx.beginPath();
+                gctx.moveTo(0, Math.round(y) + 0.5);
+                gctx.lineTo(w, Math.round(y) + 0.5);
+                gctx.stroke();
+            }
+            for (let y = midY + step; y < h; y += step) {
+                gctx.beginPath();
+                gctx.moveTo(0, Math.round(y) + 0.5);
+                gctx.lineTo(w, Math.round(y) + 0.5);
+                gctx.stroke();
+            }
+
+            // Vertical lines extending left and right from midX
+            for (let x = midX; x >= 0; x -= step) {
+                gctx.beginPath();
+                gctx.moveTo(Math.round(x) + 0.5, 0);
+                gctx.lineTo(Math.round(x) + 0.5, h);
+                gctx.stroke();
+            }
+            for (let x = midX + step; x < w; x += step) {
+                gctx.beginPath();
+                gctx.moveTo(Math.round(x) + 0.5, 0);
+                gctx.lineTo(Math.round(x) + 0.5, h);
+                gctx.stroke();
+            }
+
+            // 2. Central Reference Lines (Rim level baseline & Symmetry axis)
+            gctx.lineWidth = 1.5;
+            gctx.strokeStyle = 'rgba(194, 65, 12, 0.85)';
+            gctx.setLineDash([6, 4]);
+
+            // Central horizontal line
+            gctx.beginPath();
+            gctx.moveTo(0, Math.round(midY) + 0.5);
+            gctx.lineTo(w, Math.round(midY) + 0.5);
+            gctx.stroke();
+
+            // Central vertical line
+            gctx.beginPath();
+            gctx.moveTo(Math.round(midX) + 0.5, 0);
+            gctx.lineTo(Math.round(midX) + 0.5, h);
+            gctx.stroke();
+
+            gctx.setLineDash([]);
         }
 
         function setCleanZoom(newZoom) {
@@ -5402,6 +5950,7 @@
                 thumb.addEventListener('click', async () => {
                     const targetIdx = parseInt(thumb.dataset.index);
                     if (targetIdx !== cleanIndex) {
+                        commitCleanRotation();
                         // Auto-save current before switching
                         await saveCurrentCleanDrawing();
                         eraserMode = false;
@@ -5506,9 +6055,8 @@
             if (!eraserMode) return;
             isErasing = true;
 
-            // Save state for undo
-            undoStack.push(cleanCanvas.toDataURL());
-            if (undoStack.length > 30) undoStack.shift(); // Keep max 30 undos
+            // Commit any unbaked rotation before erasing
+            commitCleanRotation();
 
             const coords = getCleanCanvasCoords(e);
             lastCleanCoords = coords;
@@ -5532,7 +6080,11 @@
             if (isErasing) {
                 isErasing = false;
                 lastCleanCoords = null;
+                initCleanSourceCanvas();
+                undoStack.push(cleanCanvas.toDataURL());
+                if (undoStack.length > 30) undoStack.shift();
                 triggerCleanAutoSave();
+                renderCleanThumbnails();
             }
         }
 
@@ -5565,9 +6117,18 @@
                 const previousState = undoStack[undoStack.length - 1];
                 const img = new Image();
                 img.onload = () => {
+                    cleanCanvas.width = img.naturalWidth || img.width;
+                    cleanCanvas.height = img.naturalHeight || img.height;
                     cleanCtx.clearRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+                    cleanCtx.fillStyle = '#ffffff';
+                    cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
                     cleanCtx.drawImage(img, 0, 0);
+                    initCleanSourceCanvas();
+                    resetStraightenSliderUI();
+                    applyCleanCanvasDimensions();
+                    if (isGridActive) drawCleanGrid();
                     triggerCleanAutoSave();
+                    renderCleanThumbnails();
                 };
                 img.src = previousState;
             }
@@ -5610,7 +6171,7 @@
 
             const confirmed = await showConfirmDialog({
                 title: 'Revert Drawing',
-                message: 'Revert to the original unedited drawing? Any erasing done on this drawing will be discarded.',
+                message: 'Revert to the original unedited drawing? Any erasing and straightening done on this drawing will be discarded.',
                 confirmText: 'Revert Drawing',
                 cancelText: 'Keep Editing',
                 type: 'danger',
@@ -5619,6 +6180,8 @@
 
             if (confirmed) {
                 undoStack.push(cleanCanvas.toDataURL());
+                cleanCanvas.width = item.drawing.w;
+                cleanCanvas.height = item.drawing.h;
                 cleanCtx.fillStyle = '#ffffff';
                 cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
                 cleanCtx.drawImage(
@@ -5626,6 +6189,10 @@
                     item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h,
                     0, 0, item.drawing.w, item.drawing.h
                 );
+                initCleanSourceCanvas();
+                resetStraightenSliderUI();
+                applyCleanCanvasDimensions();
+                if (isGridActive) drawCleanGrid();
                 if (state.cleanedDrawings[item.key]) {
                     state.cleanedDrawings[item.key].cleaned = false;
                     delete state.cleanedDrawings[item.key].imageData;
@@ -5649,6 +6216,19 @@
                 e.preventDefault();
                 eraserMode = !eraserMode;
                 updateCleanUI();
+            }
+
+            // G key - Toggle alignment grid guide
+            if (e.key === 'g' || e.key === 'G') {
+                e.preventDefault();
+                toggleCleanGrid();
+            }
+
+            // R key - Reset straighten rotation to 0°
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                const resetBtn = document.getElementById('straightenResetBtn');
+                if (resetBtn) resetBtn.click();
             }
 
             // M key - Mark as clean
@@ -5702,12 +6282,66 @@
             updateEraserSize(parseInt(e.target.value));
         });
 
+        // Straighten slider and button listeners
+        const straightenSliderEl = document.getElementById('straightenSlider');
+        if (straightenSliderEl) {
+            straightenSliderEl.addEventListener('input', (e) => {
+                const angle = parseFloat(e.target.value);
+                applyStraightenAngle(angle);
+            });
+
+            straightenSliderEl.addEventListener('change', () => {
+                undoStack.push(cleanCanvas.toDataURL());
+                if (undoStack.length > 30) undoStack.shift();
+                triggerCleanAutoSave();
+                renderCleanThumbnails();
+            });
+        }
+
+        const stepMinusBtn = document.getElementById('straightenStepMinusBtn');
+        if (stepMinusBtn) stepMinusBtn.addEventListener('click', () => stepStraightenAngle(-0.1));
+
+        const stepPlusBtn = document.getElementById('straightenStepPlusBtn');
+        if (stepPlusBtn) stepPlusBtn.addEventListener('click', () => stepStraightenAngle(0.1));
+
+        const fineMinusBtn = document.getElementById('straightenFineMinusBtn');
+        if (fineMinusBtn) fineMinusBtn.addEventListener('click', () => stepStraightenAngle(-0.5));
+
+        const finePlusBtn = document.getElementById('straightenFinePlusBtn');
+        if (finePlusBtn) finePlusBtn.addEventListener('click', () => stepStraightenAngle(0.5));
+
+        const straightenResetBtn = document.getElementById('straightenResetBtn');
+        if (straightenResetBtn) {
+            straightenResetBtn.addEventListener('click', () => {
+                if (Math.abs(currentStraightenAngle) > 0.001) {
+                    applyStraightenAngle(0);
+                    undoStack.push(cleanCanvas.toDataURL());
+                    if (undoStack.length > 30) undoStack.shift();
+                    triggerCleanAutoSave();
+                    renderCleanThumbnails();
+                }
+            });
+        }
+
+        const rotateCcw90Btn = document.getElementById('rotateCcw90Btn');
+        if (rotateCcw90Btn) rotateCcw90Btn.addEventListener('click', () => rotateCleanCanvas90(-1));
+
+        const rotateCw90Btn = document.getElementById('rotateCw90Btn');
+        if (rotateCw90Btn) rotateCw90Btn.addEventListener('click', () => rotateCleanCanvas90(1));
+
+        const toggleGridBtn = document.getElementById('toggleGridBtn');
+        if (toggleGridBtn) toggleGridBtn.addEventListener('click', () => toggleCleanGrid());
+
+        const trimBordersBtn = document.getElementById('trimBordersBtn');
+        if (trimBordersBtn) trimBordersBtn.addEventListener('click', () => trimCanvasWhitespace(24));
+
         document.getElementById('undoEraseBtn').addEventListener('click', () => {
             undoClean();
         });
 
         document.getElementById('prevCleanBtn').addEventListener('click', async () => {
             if (cleanIndex > 0) {
+                commitCleanRotation();
                 await saveCurrentCleanDrawing();
                 eraserMode = false;
                 loadClean(cleanIndex - 1);
@@ -5716,6 +6350,7 @@
 
         document.getElementById('nextCleanBtn').addEventListener('click', async () => {
             if (cleanIndex < cleanItems.length - 1) {
+                commitCleanRotation();
                 await saveCurrentCleanDrawing();
                 eraserMode = false;
                 loadClean(cleanIndex + 1);
@@ -5726,6 +6361,7 @@
             const item = cleanItems[cleanIndex];
             if (!item) return;
 
+            commitCleanRotation();
             // Explicitly mark as cleaned (only the user action sets this)
             if (!state.cleanedDrawings[item.key]) state.cleanedDrawings[item.key] = {};
             state.cleanedDrawings[item.key].cleaned = true;
@@ -5743,7 +6379,9 @@
         });
 
 
-        document.getElementById('proceedReviewBtn').addEventListener('click', () => {
+        document.getElementById('proceedReviewBtn').addEventListener('click', async () => {
+            commitCleanRotation();
+            await saveCurrentCleanDrawing();
             enableTab('review');
             switchTab('review');
             loadReviewTexts();
@@ -5988,14 +6626,16 @@
                         // Render drawing profile (cleaned canvas if available, or full-res crop)
                         const tempCanvas = document.createElement('canvas');
                         const tempCtx = tempCanvas.getContext('2d');
-                        tempCanvas.width = drawing.w;
-                        tempCanvas.height = drawing.h;
 
                         const cleanedData = state.cleanedDrawings[key];
                         if (cleanedData && cleanedData.imageData) {
                             const cleanImg = new Image();
                             await new Promise((resolve) => {
                                 cleanImg.onload = () => {
+                                    tempCanvas.width = cleanImg.naturalWidth || cleanImg.width;
+                                    tempCanvas.height = cleanImg.naturalHeight || cleanImg.height;
+                                    tempCtx.fillStyle = '#ffffff';
+                                    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
                                     tempCtx.drawImage(cleanImg, 0, 0);
                                     resolve();
                                 };
@@ -6003,6 +6643,10 @@
                                 cleanImg.src = cleanedData.imageData;
                             });
                         } else {
+                            tempCanvas.width = drawing.w;
+                            tempCanvas.height = drawing.h;
+                            tempCtx.fillStyle = '#ffffff';
+                            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
                             tempCtx.drawImage(imgElement, drawing.x, drawing.y, drawing.w, drawing.h, 0, 0, drawing.w, drawing.h);
                         }
 
@@ -6378,7 +7022,7 @@
                         <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${dotColor};"></span>
                         <span class="font-semibold text-xs text-stone-800">${escapeHtml(field.name)}</span>
                     </span>
-                    ${!field.fixed ? `<button class="delete-tag-btn text-stone-400 hover:text-red-600 text-xs p-1 transition" data-key="${escapeHtml(field.key)}" title="Delete field"><i class="bi bi-trash3 pointer-events-none"></i></button>` : ''}
+                    ${!field.fixed ? `<button class="delete-tag-btn" data-key="${escapeHtml(field.key)}" title="Delete field"><i class="bi bi-trash3 pointer-events-none"></i></button>` : ''}
                 `;
                 tagsList.appendChild(tagDiv);
             });
@@ -6566,34 +7210,59 @@
             const selection = window.getSelection();
             const selectionPopup = document.getElementById('selection-popup');
 
-            if (selection.rangeCount > 0 && selection.toString().trim()) {
+            const selectedText = selection.toString().trim();
+            if (selection.rangeCount > 0 && selectedText) {
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
 
-                // Position popup above selection (Leaflet style)
-                const popupWidth = 200;
-                const popupHeight = 250; // Stima altezza massima
+                // Reveal popup so offsetWidth/offsetHeight can be accurately measured
+                selectionPopup.classList.remove('hidden');
+                selectionPopup.style.visibility = 'hidden';
 
-                // Calculate left position (centered on selection)
-                let left = rect.left + (rect.width / 2) - (popupWidth / 2);
+                const popupWidth = selectionPopup.offsetWidth || 200;
+                const popupHeight = selectionPopup.offsetHeight || 220;
 
-                // Keep popup within viewport
+                const selCenterX = rect.left + (rect.width / 2);
+                let left = Math.round(selCenterX - (popupWidth / 2));
+
                 const viewportWidth = window.innerWidth;
-                if (left < 10) left = 10;
-                if (left + popupWidth > viewportWidth - 10) left = viewportWidth - popupWidth - 10;
+                const viewportHeight = window.innerHeight;
 
-                // Position above selection
-                let top = rect.top - popupHeight - 15; // 15px gap
+                // Keep popup within viewport horizontally
+                left = Math.max(10, Math.min(viewportWidth - popupWidth - 10, left));
+
+                // Position arrow tip relative to popup
+                const arrowLeft = Math.max(16, Math.min(popupWidth - 16, Math.round(selCenterX - left)));
+                selectionPopup.style.setProperty('--arrow-left', `${arrowLeft}px`);
+
+                // 9px arrow height + 2px gap = 11px
+                const arrowGap = 11;
+
+                // Prefer positioning above selection
+                let top = Math.round(rect.top - popupHeight - arrowGap);
+                let placeAbove = true;
 
                 // If not enough space above, position below
                 if (top < 10) {
-                    top = rect.bottom + 15;
+                    top = Math.round(rect.bottom + arrowGap);
+                    placeAbove = false;
+                    if (top + popupHeight > viewportHeight - 10) {
+                        top = viewportHeight - popupHeight - 10;
+                    }
+                }
+
+                if (placeAbove) {
+                    selectionPopup.classList.add('arrow-bottom');
+                    selectionPopup.classList.remove('arrow-top');
+                } else {
+                    selectionPopup.classList.add('arrow-top');
+                    selectionPopup.classList.remove('arrow-bottom');
                 }
 
                 selectionPopup.style.left = `${left}px`;
                 selectionPopup.style.top = `${top}px`;
                 selectionPopup.style.width = `${popupWidth}px`;
-                selectionPopup.classList.remove('hidden');
+                selectionPopup.style.visibility = 'visible';
 
             } else {
                 selectionPopup.classList.add('hidden');
@@ -6810,21 +7479,24 @@
                 const safeUserContent = escapeHtml(userMsg.content);
 
                 exampleDiv.innerHTML = `
-                    <button class="delete-example-btn absolute top-3 right-3 text-stone-400 hover:text-red-600 text-xs p-1.5 transition rounded" data-index="${exampleIndex}" title="Delete this example">
-                        <i class="bi bi-trash3 pointer-events-none"></i>
-                    </button>
-                    <div class="pr-8">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="font-bold text-xs text-stone-900 uppercase tracking-wide">Example ${exampleIndex + 1}</span>
-                        </div>
-                        <div class="mb-2">
-                            <span class="text-xs font-semibold text-stone-600 flex items-center gap-1.5 mb-1">
+                    <div class="parser-example-header">
+                        <span class="parser-example-title">
+                            <i class="bi bi-bookmark-check-fill" style="color: var(--primary);"></i>
+                            Example ${exampleIndex + 1}
+                        </span>
+                        <button class="delete-example-btn" data-index="${exampleIndex}" title="Delete this example" type="button">
+                            <i class="bi bi-trash3 pointer-events-none"></i>
+                        </button>
+                    </div>
+                    <div class="parser-example-body">
+                        <div class="parser-example-field-group">
+                            <span class="parser-example-label">
                                 <i class="bi bi-file-earmark-text" style="color: var(--primary);"></i> OCR Text:
                             </span>
-                            <div class="text-xs text-stone-800 bg-stone-50 border border-stone-200 p-2.5 rounded font-mono whitespace-pre-wrap">${safeUserContent}</div>
+                            <div class="parser-example-ocr-text">${safeUserContent}</div>
                         </div>
-                        <div>
-                            <span class="text-xs font-semibold text-stone-600 flex items-center gap-1.5 mb-1">
+                        <div class="parser-example-field-group">
+                            <span class="parser-example-label">
                                 <i class="bi bi-table" style="color: var(--teal);"></i> Parsed Data:
                             </span>
                             ${tableHtml}
@@ -6941,7 +7613,7 @@
                 alert(`Error during parsing: ${error.message}\n\nMake sure the OCR server is running.`);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '<i class="bi bi-play-circle mr-1"></i> Run Parsing';
+                btn.innerHTML = '<i class="bi bi-play-circle-fill mr-1"></i> Run Parsing';
             }
         });
 

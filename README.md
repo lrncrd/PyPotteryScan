@@ -296,7 +296,7 @@ Extract individual pottery drawings based on your annotations.
 
 ### 6. 🎨 Clean Drawings
 
-Remove text annotations from pottery drawings using an interactive eraser.
+Remove text annotations from pottery drawings using an interactive eraser, and straighten tilted drawings with an interactive precision slider.
 
 **Interface Features**:
 
@@ -305,23 +305,38 @@ Remove text annotations from pottery drawings using an interactive eraser.
 - Visual indicators (blue border = active, green border = completed)
 - Progress counter showing cleaned/total
 
+**Straighten Tool (Raddrizza Disegno)**:
+
+- Precision angle slider (-45.0° to +45.0°, 0.1° step) with live angle readout
+- Micro-adjustment buttons (`-0.5°`, `-0.1°`, `+0.1°`, `+0.5°`) and `0° Reset`
+- Orthogonal rotation buttons (`-90°` CCW and `+90°` CW)
+- **Alignment Grid Guide**: Semi-transparent horizontal & vertical overlay grid with central reference crosshair to perfectly level the vessel's rim/base
+- **Fixed Dimensions Guardrail**: Keeps canvas dimensions stable during slider rotation so the vessel never shrinks or expands out of control
+- **Auto-Fit**: One-click intelligent border crop to trim away any excess blank white margins around the vessel drawing
+
 **Eraser Tool**:
 
-- Adjustable brush size (5-100px)
+- Adjustable brush size (4-120px) with proportional swatch lens
 - Click and drag to erase areas
-- Undo function (up to 20 steps)
+- Undo function (up to 30 steps)
 - Mark as Clean button (M) to mark completion
 
 **Keyboard Shortcuts**:
 
 - `E` - Toggle eraser mode
+- `G` - Toggle alignment grid guide
+- `R` - Reset straighten rotation to 0.0°
+- `[` / `]` - Adjust eraser brush size
+- `+` / `-` - Zoom in / out
 - `M` - Mark current drawing as clean
+- `Ctrl+Z` - Undo last stroke or rotation
 - `←/→` - Navigate between drawings
 
 **Workflow**:
 
 1. Drawing loads automatically (original or previously cleaned version)
-2. Activate Eraser tool (E key)
+2. Use **Straighten** slider or buttons to correct any tilt, aligning the rim to the **Grid Guide** (G key)
+3. Activate Eraser tool (E key)
 3. Paint over text to remove it
 4. Use Undo if needed
 5. Mark as Clean (M key) when satisfied
