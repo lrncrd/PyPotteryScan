@@ -40,11 +40,19 @@ def load_models_async(app):
 
 if __name__ == '__main__':
     try:
+        import argparse
+        parser = argparse.ArgumentParser(description="PyPotteryScan")
+        parser.add_argument("--port", type=int, default=None, help="Port to listen on")
+        parser.add_argument("--host", type=str, default=None, help="Host to bind to")
+        cli_args, _ = parser.parse_known_args()
+
         # Create Flask app
         app = create_app()
         
-        port = app.config.get('PORT', 5002)
-        host = app.config.get('HOST', '0.0.0.0')
+        env_port = os.environ.get('PORT') or os.environ.get('PYPOTTERY_PORT')
+        fallback_port = int(env_port) if env_port else app.config.get('PORT', 5002)
+        port = cli_args.port or fallback_port
+        host = cli_args.host or os.environ.get('HOST', app.config.get('HOST', '0.0.0.0'))
         
         logger.info("=" * 60)
         logger.info("🏺 PyPotteryScan - Archaeological Drawing Processor")

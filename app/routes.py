@@ -9,6 +9,7 @@ import time
 import shutil
 from datetime import datetime
 from pathlib import Path
+import mimetypes
 from flask import Blueprint, render_template, request, jsonify, send_file, current_app
 from PIL import Image
 import torch
@@ -638,38 +639,54 @@ def get_project_image(project_id, image_name):
         if not image_path.exists():
             return jsonify({'error': 'Image not found'}), 404
         
+        # Determine actual file mimetype
+        content_type, _ = mimetypes.guess_type(str(image_path))
+        if not content_type:
+            content_type = 'image/png' if image_path.suffix.lower() == '.png' else 'image/jpeg'
+
         # If thumbnail requested, check cache first
         if thumbnail:
-            # Check if cached thumbnail exists
-            thumbnail_path = project_manager.get_project_path(project_id, 'thumbnails') / image_name
+            thumbnails_dir = project_manager.get_project_path(project_id, 'thumbnails')
+            thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+            # Use a clean JPG thumbnail path
+            thumbnail_path = thumbnails_dir / f"{image_path.name}.thumb.jpg"
+            legacy_thumbnail_path = thumbnails_dir / image_name
             
             if thumbnail_path.exists():
-                # Return cached thumbnail
                 return send_file(str(thumbnail_path), mimetype='image/jpeg')
+            elif legacy_thumbnail_path.exists():
+                return send_file(str(legacy_thumbnail_path), mimetype='image/jpeg')
             else:
-                # Generate and cache thumbnail
-                img = Image.open(str(image_path))
-                
-                # Create thumbnail (max 200px on longest side)
-                max_size = 200
-                img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-                
-                # Ensure thumbnails folder exists
-                thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                # Save thumbnail to cache
-                img.save(str(thumbnail_path), 'JPEG', quality=85, optimize=True)
+                # Generate and cache thumbnail with proper transparency handling
+                with Image.open(str(image_path)) as img:
+                    img_copy = img.copy()
+                    max_size = 300
+                    img_copy.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                    
+                    # Convert to RGB with white background if image has alpha channel
+                    if img_copy.mode in ('RGBA', 'LA') or (img_copy.mode == 'P' and 'transparency' in img_copy.info):
+                        rgba_img = img_copy.convert('RGBA')
+                        background = Image.new('RGB', rgba_img.size, (255, 255, 255))
+                        background.paste(rgba_img, mask=rgba_img.split()[3])
+                        thumb_img = background
+                    elif img_copy.mode != 'RGB':
+                        thumb_img = img_copy.convert('RGB')
+                    else:
+                        thumb_img = img_copy
+                    
+                    thumb_img.save(str(thumbnail_path), 'JPEG', quality=88, optimize=True)
                 
                 return send_file(str(thumbnail_path), mimetype='image/jpeg')
         else:
-            return send_file(str(image_path), mimetype='image/jpeg')
+            return send_file(str(image_path), mimetype=content_type)
         
     except Exception as e:
         logger.error(f"❌ Error getting image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/annotations/<image_name>', methods=['GET'])
+@project_bp.route('/<project_id>/annotations/<path:image_name>', methods=['GET'])
 def get_annotations(project_id, image_name):
     """Get annotations for an image"""
     try:
@@ -691,7 +708,7 @@ def get_annotations(project_id, image_name):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/annotations/<image_name>', methods=['POST'])
+@project_bp.route('/<project_id>/annotations/<path:image_name>', methods=['POST'])
 def save_annotations(project_id, image_name):
     """Save annotations for an image"""
     try:
@@ -861,6 +878,257 @@ def get_ocr_corrections(project_id):
         
     except Exception as e:
         logger.error(f"❌ Error getting OCR corrections: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/export_zip', methods=['POST'])
+def export_project_zip(project_id):
+    """
+    Generate and stream a complete ZIP archive for project export:
+    - images/: all exported drawing crops (cleaned or uncleaned)
+    - {prefix}_metadata_{date}.xlsx / .csv
+    - {prefix}_ml_training_{date}.xlsx / .csv
+    - README_export.txt
+    """
+    import zipfile
+    import csv
+
+    try:
+        data = request.get_json() or {}
+        prefix = data.get('prefix', 'ceramic').strip() or 'ceramic'
+        timestamp = datetime.now().strftime('%Y-%m-%d')
+
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # 1. Add images from client payload or disk
+            images_list = data.get('images', [])
+            saved_images_count = 0
+
+            for img_item in images_list:
+                fname = img_item.get('filename')
+                img_b64 = img_item.get('data')
+                if fname and img_b64:
+                    if img_b64.startswith('data:image'):
+                        img_b64 = img_b64.split(',')[1]
+                    try:
+                        raw_bytes = base64.b64decode(img_b64)
+                        zip_file.writestr(f"images/{fname}", raw_bytes)
+                        saved_images_count += 1
+                    except Exception as img_err:
+                        logger.warning(f"Could not decode image {fname}: {img_err}")
+
+            if saved_images_count == 0:
+                try:
+                    cleaned_dir = project_manager.get_project_path(project_id, 'cleaned_drawings')
+                    cropped_dir = project_manager.get_project_path(project_id, 'cropped_drawings')
+                    source_dir = None
+                    if cleaned_dir and cleaned_dir.exists() and any(cleaned_dir.iterdir()):
+                        source_dir = cleaned_dir
+                    elif cropped_dir and cropped_dir.exists():
+                        source_dir = cropped_dir
+                    
+                    if source_dir and source_dir.exists():
+                        for f in sorted(source_dir.glob('*.*')):
+                            if f.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp']:
+                                zip_file.write(f, arcname=f"images/{f.name}")
+                                saved_images_count += 1
+                except Exception as disk_err:
+                    logger.warning(f"Could not load drawings from disk: {disk_err}")
+
+            # 2. Add Excel catalog if client generated it, or generate with pandas
+            catalog_rows = data.get('catalog_rows', [])
+            catalog_xlsx_b64 = data.get('catalog_xlsx_b64')
+            if catalog_xlsx_b64:
+                if catalog_xlsx_b64.startswith('data:'):
+                    catalog_xlsx_b64 = catalog_xlsx_b64.split(',')[1]
+                try:
+                    xlsx_bytes = base64.b64decode(catalog_xlsx_b64)
+                    zip_file.writestr(f"{prefix}_metadata_{timestamp}.xlsx", xlsx_bytes)
+                except Exception as xerr:
+                    logger.warning(f"Could not save client catalog XLSX: {xerr}")
+            elif catalog_rows:
+                try:
+                    import pandas as pd
+                    df = pd.DataFrame(catalog_rows)
+                    buf = io.BytesIO()
+                    with pd.ExcelWriter(buf, engine='openpyxl') as xwriter:
+                        df.to_excel(xwriter, index=False, sheet_name='Catalogue & OCR')
+                    zip_file.writestr(f"{prefix}_metadata_{timestamp}.xlsx", buf.getvalue())
+                except Exception as pderr:
+                    logger.warning(f"Could not generate catalog XLSX with pandas: {pderr}")
+
+            # 3. Add ML Training Excel if client generated it, or generate with pandas
+            ml_rows = data.get('ml_rows', [])
+            ml_xlsx_b64 = data.get('ml_xlsx_b64')
+            if ml_xlsx_b64:
+                if ml_xlsx_b64.startswith('data:'):
+                    ml_xlsx_b64 = ml_xlsx_b64.split(',')[1]
+                try:
+                    ml_xlsx_bytes = base64.b64decode(ml_xlsx_b64)
+                    zip_file.writestr(f"{prefix}_ml_training_{timestamp}.xlsx", ml_xlsx_bytes)
+                except Exception as mlxerr:
+                    logger.warning(f"Could not save client ML XLSX: {mlxerr}")
+            elif ml_rows:
+                try:
+                    import pandas as pd
+                    df_ml = pd.DataFrame(ml_rows)
+                    buf_ml = io.BytesIO()
+                    with pd.ExcelWriter(buf_ml, engine='openpyxl') as xwriter:
+                        df_ml.to_excel(xwriter, index=False, sheet_name='Bounding Boxes')
+                    zip_file.writestr(f"{prefix}_ml_training_{timestamp}.xlsx", buf_ml.getvalue())
+                except Exception as pderr:
+                    logger.warning(f"Could not generate ML XLSX with pandas: {pderr}")
+
+            # 4. Add Universal CSV with UTF-8 BOM (Standard RFC-4180 comma-delimited, clean 1-line-per-record)
+            if catalog_rows:
+                csv_buffer = io.StringIO()
+                csv_buffer.write('\ufeff')
+                catalog_fieldnames = []
+                for row in catalog_rows:
+                    for k in row.keys():
+                        if k not in catalog_fieldnames:
+                            catalog_fieldnames.append(k)
+                writer = csv.DictWriter(
+                    csv_buffer,
+                    fieldnames=catalog_fieldnames,
+                    delimiter=',',
+                    quoting=csv.QUOTE_MINIMAL,
+                    extrasaction='ignore',
+                    lineterminator='\r\n'
+                )
+                writer.writeheader()
+                for row in catalog_rows:
+                    clean_row = {}
+                    for k, v in row.items():
+                        if isinstance(v, str):
+                            # Normalize internal newlines to spaces so CSV records never break across multiple physical lines
+                            clean_row[k] = v.replace('\r\n', ' ').replace('\n', ' ').strip()
+                        else:
+                            clean_row[k] = v
+                    writer.writerow(clean_row)
+                zip_file.writestr(f"{prefix}_metadata_{timestamp}.csv", csv_buffer.getvalue().encode('utf-8-sig'))
+
+            if ml_rows:
+                ml_csv_buffer = io.StringIO()
+                ml_csv_buffer.write('\ufeff')
+                ml_fieldnames = []
+                for row in ml_rows:
+                    for k in row.keys():
+                        if k not in ml_fieldnames:
+                            ml_fieldnames.append(k)
+                writer = csv.DictWriter(
+                    ml_csv_buffer,
+                    fieldnames=ml_fieldnames,
+                    delimiter=',',
+                    quoting=csv.QUOTE_MINIMAL,
+                    extrasaction='ignore',
+                    lineterminator='\r\n'
+                )
+                writer.writeheader()
+                for row in ml_rows:
+                    clean_row = {}
+                    for k, v in row.items():
+                        if isinstance(v, str):
+                            clean_row[k] = v.replace('\r\n', ' ').replace('\n', ' ').strip()
+                        else:
+                            clean_row[k] = v
+                    writer.writerow(clean_row)
+                zip_file.writestr(f"{prefix}_ml_training_{timestamp}.csv", ml_csv_buffer.getvalue().encode('utf-8-sig'))
+
+            # 5. Add README_export.txt
+            readme_text = f"""PyPotteryScan — Archaeological Export Archive
+=====================================================
+Project ID: {project_id}
+Export Prefix: {prefix}
+Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Total Drawings: {saved_images_count}
+
+Package Contents:
+  /images/             - High-resolution extracted and cleaned drawing profiles
+  *.xlsx / *.csv       - Catalogue metadata, contexts, and verified OCR text
+  *ml_training*        - Bounding box annotations for computer vision training
+
+Generated by PyPotteryScan
+"""
+            zip_file.writestr("README_export.txt", readme_text)
+
+        zip_buffer.seek(0)
+        filename = f"{prefix}_export_{timestamp}.zip"
+        try:
+            return send_file(
+                zip_buffer,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=filename
+            )
+        except TypeError:
+            return send_file(
+                zip_buffer,
+                mimetype='application/zip',
+                as_attachment=True,
+                attachment_filename=filename
+            )
+
+    except Exception as e:
+        logger.error(f"❌ Error generating export zip: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@project_bp.route('/<project_id>/export_excel', methods=['POST'])
+def export_project_excel(project_id):
+    """
+    Generate and stream a cleanly formatted multi-sheet Excel workbook:
+    - Sheet 1: Catalogue & OCR (metadata, contexts, verified text)
+    - Sheet 2: ML Bounding Boxes (ground truth boxes)
+    """
+    import io
+    try:
+        import pandas as pd
+        data = request.get_json() or {}
+        prefix = data.get('prefix', 'ceramic').strip() or 'ceramic'
+        timestamp = datetime.now().strftime('%Y-%m-%d')
+        catalog_rows = data.get('catalog_rows', [])
+        ml_rows = data.get('ml_rows', [])
+
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            if catalog_rows:
+                df_cat = pd.DataFrame(catalog_rows)
+                df_cat.to_excel(writer, index=False, sheet_name='Catalogue & OCR')
+            else:
+                pd.DataFrame([{'info': 'No drawings catalogued'}]).to_excel(writer, index=False, sheet_name='Catalogue & OCR')
+
+            if ml_rows:
+                df_ml = pd.DataFrame(ml_rows)
+                df_ml.to_excel(writer, index=False, sheet_name='ML Bounding Boxes')
+
+            # Auto-fit column widths in openpyxl sheets
+            for sheetname in writer.sheets:
+                ws = writer.sheets[sheetname]
+                for col in ws.columns:
+                    max_len = max(len(str(cell.value or '')) for cell in col)
+                    col_letter = col[0].column_letter
+                    ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 60)
+
+        excel_buffer.seek(0)
+        filename = f"{prefix}_metadata_{timestamp}.xlsx"
+        try:
+            return send_file(
+                excel_buffer,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=filename
+            )
+        except TypeError:
+            return send_file(
+                excel_buffer,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                attachment_filename=filename
+            )
+    except Exception as e:
+        logger.error(f"❌ Error generating standalone Excel: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

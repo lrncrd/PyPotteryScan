@@ -412,7 +412,7 @@ Generate final CSV export with all metadata and OCR text.
 **Frontend**:
 
 - **HTML5 Canvas**: Interactive drawing and annotation
-- **Tailwind CSS**: Modern responsive UI
+- **Pure CSS3 Design System**: Native archaeological design system & Carta Millimetrata (Zero CDN dependency)
 - **JavaScript (ES6+)**: Dynamic interface and state management
 - **FileReader API**: Client-side image handling
 

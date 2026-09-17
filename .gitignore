@@ -223,6 +223,8 @@ models/
 
 app/static/vendor
 
+static/
+
 PRODUCT.md
 GLM_OCR_STATUS.md
 .impeccable

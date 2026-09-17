@@ -57,8 +57,8 @@ class Config:
     QWEN_MODEL_ID = "Qwen/Qwen3.5-2B"
     
     # Server settings
-    HOST = '0.0.0.0'
-    PORT = 5002
+    HOST = os.environ.get('HOST', '0.0.0.0')
+    PORT = int(os.environ.get('PORT', os.environ.get('PYPOTTERY_PORT', 5002)))
     
     # File upload settings
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size

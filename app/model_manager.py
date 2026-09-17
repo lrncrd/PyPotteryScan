@@ -1,4 +1,4 @@
-﻿"""
+"""
 Model loading and management for PyPotteryScan
 """
 import os
@@ -442,7 +442,7 @@ class ModelManager:
                     self.loading_status = {
                         'stage': 'model_selection',
                         'message': 'Please select an OCR model to download',
-                        'progress': 5
+                        'progress': 0
                     }
                     logger.info("⏸️  Waiting for model selection...")
                     return 'needs_selection'
@@ -457,10 +457,10 @@ class ModelManager:
                 olmocr_exists = os.path.exists(olmocr_config['model_dir']) and os.path.exists(
                     os.path.join(olmocr_config['model_dir'], "config.json")
                 )
-                ocr_entry = self._make_download_entry('ocr', olmocr_config['name'])
 
                 if not olmocr_exists:
                     logger.info(f"📥 {olmocr_config['name']} not found, downloading...")
+                    ocr_entry = self._make_download_entry('ocr', olmocr_config['name'])
                     if not self.download_model_with_progress(
                         olmocr_config['model_id'],
                         olmocr_config['model_dir'],
@@ -469,15 +469,13 @@ class ModelManager:
                         return False
                 else:
                     logger.info(f"✅ {olmocr_config['name']} found locally")
-                    ocr_entry['status'] = 'done'
-                    ocr_entry['progress'] = 100
 
             # Download Qwen model if missing. Not required: it only powers the optional
             # few-shot parsing tab, so a failed download degrades that one feature
             # instead of blocking the whole app on the splash screen.
-            qwen_entry = self._make_download_entry('qwen', 'Qwen3.5-2B')
             if not qwen_exists:
                 logger.info("📥 Qwen model not found, downloading...")
+                qwen_entry = self._make_download_entry('qwen', 'Qwen3.5-2B')
                 self.qwen_available = self.download_model_with_progress(
                     self.config['QWEN_MODEL_ID'],
                     self.config['QWEN_MODEL_DIR'],
@@ -488,9 +486,9 @@ class ModelManager:
             else:
                 logger.info("✅ Qwen model found locally")
                 self.qwen_available = True
-                qwen_entry['status'] = 'done'
-                qwen_entry['progress'] = 100
 
+            # Once download phase completes (or if models already exist), clear download entries
+            self.download_entries = []
             self.loading_status = {
                 'stage': 'ready_to_load',
                 'message': 'Models ready, loading...',
