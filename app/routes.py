@@ -25,11 +25,8 @@ from app.config import Config
 
 logger = logging.getLogger(__name__)
 
-# Create blueprints
-main_bp = Blueprint('main', __name__)
-ocr_bp = Blueprint('ocr', __name__, url_prefix='/api')
-parser_bp = Blueprint('parser', __name__, url_prefix='/api')
-project_bp = Blueprint('project', __name__, url_prefix='/api/project')
+# Single blueprint (all routes carry their full path)
+bp = Blueprint('main', __name__)
 
 # Initialize project manager with absolute path
 project_manager = ProjectManager(projects_root=Config.PROJECTS_DIR)
@@ -39,13 +36,13 @@ project_manager = ProjectManager(projects_root=Config.PROJECTS_DIR)
 # MAIN ROUTES
 # ==================
 
-@main_bp.route('/')
+@bp.route('/')
 def index():
     """Render main interface"""
     return render_template('index.html', version=Config.VERSION)
 
 
-@main_bp.route('/health', methods=['GET'])
+@bp.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     # Check if model is loaded WITHOUT forcing it to load
@@ -168,7 +165,7 @@ def start_auto_shutdown_watchdog():
     threading.Thread(target=_watchdog_loop, daemon=True, name="AutoShutdownWatchdog").start()
 
 
-@main_bp.route('/api/heartbeat', methods=['POST'])
+@bp.route('/api/heartbeat', methods=['POST'])
 def handle_heartbeat():
     """Ping periodico dalla scheda attiva del browser."""
     global _initial_heartbeat_received
@@ -184,7 +181,7 @@ def handle_heartbeat():
     return jsonify({'status': 'ok', 'active_tabs': len(_active_tabs)})
 
 
-@main_bp.route('/api/beacon_shutdown', methods=['POST'])
+@bp.route('/api/beacon_shutdown', methods=['POST'])
 def handle_beacon_shutdown():
     """Inviato via navigator.sendBeacon su pagehide alla chiusura definitiva."""
     try:
@@ -208,7 +205,7 @@ def handle_beacon_shutdown():
     return Response(status=204)
 
 
-@main_bp.route('/api/system-info', methods=['GET'])
+@bp.route('/api/system-info', methods=['GET'])
 def get_system_info():
     """Get system hardware information (CPU cores, platform, GPU, MPS)"""
     import platform
@@ -239,13 +236,13 @@ def get_system_info():
     return jsonify(info)
 
 
-@main_bp.route('/loading_status', methods=['GET'])
+@bp.route('/loading_status', methods=['GET'])
 def get_loading_status():
     """Get current loading status for splash screen"""
     return jsonify(model_manager.get_loading_status())
 
 
-@main_bp.route('/parsing_status', methods=['GET'])
+@bp.route('/parsing_status', methods=['GET'])
 def get_parsing_status():
     """Get current parsing progress"""
     return jsonify(model_manager.get_parsing_status())
@@ -255,7 +252,7 @@ def get_parsing_status():
 # MODEL SELECTION ROUTES
 # ==================
 
-@main_bp.route('/available_models', methods=['GET'])
+@bp.route('/available_models', methods=['GET'])
 def get_available_models():
     """Get list of available OCR models for this hardware"""
     return jsonify({
@@ -267,7 +264,7 @@ def get_available_models():
     })
 
 
-@main_bp.route('/select_model', methods=['POST'])
+@bp.route('/select_model', methods=['POST'])
 def select_model():
     """Select and download an OCR model"""
     try:
@@ -405,7 +402,7 @@ def process_image_ocr(image_data):
         return f"Error: {str(e)}"
 
 
-@ocr_bp.route('/ocr', methods=['POST'])
+@bp.route('/api/ocr', methods=['POST'])
 def ocr_endpoint():
     """OCR endpoint to process image data"""
     try:
@@ -441,7 +438,7 @@ def ocr_endpoint():
         }), 500
 
 
-@ocr_bp.route('/batch_ocr', methods=['POST'])
+@bp.route('/api/batch_ocr', methods=['POST'])
 def batch_ocr_endpoint():
     """Batch OCR endpoint to process multiple images"""
     try:
@@ -494,7 +491,7 @@ def batch_ocr_endpoint():
 # PARSER ROUTES
 # ==================
 
-@parser_bp.route('/parse_structured', methods=['POST'])
+@bp.route('/api/parse_structured', methods=['POST'])
 def parse_structured_endpoint():
     """Parse OCR data using Qwen3 model with few-shot examples"""
     try:
@@ -648,7 +645,7 @@ def parse_structured_endpoint():
 # PROJECT ROUTES
 # ==================
 
-@project_bp.route('/create', methods=['POST'])
+@bp.route('/api/project/create', methods=['POST'])
 def create_project():
     """Create a new project"""
     try:
@@ -676,7 +673,7 @@ def create_project():
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/list', methods=['GET'])
+@bp.route('/api/project/list', methods=['GET'])
 def list_projects():
     """List all projects"""
     try:
@@ -692,7 +689,7 @@ def list_projects():
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>', methods=['GET'])
+@bp.route('/api/project/<project_id>', methods=['GET'])
 def get_project(project_id):
     """Get project details"""
     try:
@@ -711,7 +708,7 @@ def get_project(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>', methods=['DELETE'])
+@bp.route('/api/project/<project_id>', methods=['DELETE'])
 def delete_project(project_id):
     """Delete a project"""
     try:
@@ -732,7 +729,7 @@ def delete_project(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/upload_images', methods=['POST'])
+@bp.route('/api/project/<project_id>/upload_images', methods=['POST'])
 def upload_images(project_id):
     """Upload images to project"""
     try:
@@ -779,7 +776,7 @@ def upload_images(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/images', methods=['GET'])
+@bp.route('/api/project/<project_id>/images', methods=['GET'])
 def get_project_images(project_id):
     """Get list of images in project"""
     try:
@@ -797,7 +794,7 @@ def get_project_images(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/image/<path:image_name>', methods=['GET'])
+@bp.route('/api/project/<project_id>/image/<path:image_name>', methods=['GET'])
 def get_project_image(project_id, image_name):
     """Get a specific image from project (with persistent thumbnail caching)"""
     try:
@@ -856,7 +853,7 @@ def get_project_image(project_id, image_name):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/annotations/<path:image_name>', methods=['GET'])
+@bp.route('/api/project/<project_id>/annotations/<path:image_name>', methods=['GET'])
 def get_annotations(project_id, image_name):
     """Get annotations for an image"""
     try:
@@ -878,7 +875,7 @@ def get_annotations(project_id, image_name):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/annotations/<path:image_name>', methods=['POST'])
+@bp.route('/api/project/<project_id>/annotations/<path:image_name>', methods=['POST'])
 def save_annotations(project_id, image_name):
     """Save annotations for an image"""
     try:
@@ -908,7 +905,7 @@ def save_annotations(project_id, image_name):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/save_cropped', methods=['POST'])
+@bp.route('/api/project/<project_id>/save_cropped', methods=['POST'])
 def save_cropped_drawing(project_id):
     """Save a cropped drawing image"""
     try:
@@ -950,7 +947,7 @@ def save_cropped_drawing(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/save_ocr_results', methods=['POST'])
+@bp.route('/api/project/<project_id>/save_ocr_results', methods=['POST'])
 def save_ocr_results(project_id):
     """Save OCR results to project"""
     try:
@@ -981,7 +978,7 @@ def save_ocr_results(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/ocr_results', methods=['GET'])
+@bp.route('/api/project/<project_id>/ocr_results', methods=['GET'])
 def get_ocr_results(project_id):
     """Get latest OCR results from project"""
     try:
@@ -1003,7 +1000,7 @@ def get_ocr_results(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/save_ocr_corrections', methods=['POST'])
+@bp.route('/api/project/<project_id>/save_ocr_corrections', methods=['POST'])
 def save_ocr_corrections(project_id):
     """Save OCR corrections to project"""
     try:
@@ -1029,7 +1026,7 @@ def save_ocr_corrections(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/ocr_corrections', methods=['GET'])
+@bp.route('/api/project/<project_id>/ocr_corrections', methods=['GET'])
 def get_ocr_corrections(project_id):
     """Get OCR corrections from project"""
     try:
@@ -1051,7 +1048,7 @@ def get_ocr_corrections(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/export_zip', methods=['POST'])
+@bp.route('/api/project/<project_id>/export_zip', methods=['POST'])
 def export_project_zip(project_id):
     """
     Generate and stream a complete ZIP archive for project export:
@@ -1245,7 +1242,7 @@ Generated by PyPotteryScan
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/export_excel', methods=['POST'])
+@bp.route('/api/project/<project_id>/export_excel', methods=['POST'])
 def export_project_excel(project_id):
     """
     Generate and stream a cleanly formatted multi-sheet Excel workbook:
@@ -1302,7 +1299,7 @@ def export_project_excel(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/workflow_status', methods=['POST'])
+@bp.route('/api/project/<project_id>/workflow_status', methods=['POST'])
 def update_workflow_status(project_id):
     """Update workflow status"""
     try:
@@ -1326,7 +1323,7 @@ def update_workflow_status(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/file/<path:filename>', methods=['GET'])
+@bp.route('/api/project/<project_id>/file/<path:filename>', methods=['GET'])
 def get_project_file(project_id, filename):
     """Get a file from project (JSON, text, etc.)"""
     try:
@@ -1356,7 +1353,7 @@ def get_project_file(project_id, filename):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/save_fewshot_examples', methods=['POST'])
+@bp.route('/api/project/<project_id>/save_fewshot_examples', methods=['POST'])
 def save_fewshot_examples(project_id):
     """Save few-shot examples to project"""
     try:
@@ -1385,7 +1382,7 @@ def save_fewshot_examples(project_id):
         return jsonify({'error': str(e)}), 500
 
 
-@project_bp.route('/<project_id>/fewshot_examples', methods=['GET'])
+@bp.route('/api/project/<project_id>/fewshot_examples', methods=['GET'])
 def get_fewshot_examples(project_id):
     """Get few-shot examples from project"""
     try:
