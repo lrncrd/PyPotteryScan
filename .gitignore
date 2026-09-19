@@ -223,7 +223,7 @@ models/
 
 app/static/vendor
 
-static/
+/static/
 
 PRODUCT.md
 GLM_OCR_STATUS.md

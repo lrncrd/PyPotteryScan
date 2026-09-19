@@ -659,25 +659,22 @@
     <div class="min-h-screen p-6">
         <div class="max-w-7xl mx-auto">
             <!-- Header -->
-            <div class="app-header p-6 mb-6">
+            <header class="app-header p-6 mb-6">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-4">
                         <img src="{{ url_for('static', filename='imgs/LogoScan.png') }}" alt="PyPotteryScan Logo"
-                            style="max-width: 60px; max-height: 60px; height: auto; width: auto; border-radius: var(--radius-md);">
-                        <div>
-                            <h1 class="text-2xl md:text-3xl font-bold text-stone-800 flex items-center gap-3">
-                                PyPotteryScan
-                                <span class="version-badge">v{{ version }}</span>
-                            </h1>
-                            <p class="text-stone-600 text-sm">AI-powered archaeological drawing extraction and OCR annotation tool</p>
-                        </div>
+                            style="width: 56px; height: 56px; object-fit: contain; border-radius: var(--radius-md);">
+                        <h1 class="header-brand-title">
+                            PyPottery<span class="brand-accent">Scan</span>
+                            <span class="version-badge">v{{ version }}</span>
+                        </h1>
                     </div>
                     <div class="flex items-center gap-4">
                         <a href="https://lrncrd.github.io/PyPottery/pypotteryscan/usage.html" target="_blank"
                             class="pixel-assistant-container" title="Need help? Read documentation">
-                            <div class="pixel-speech-bubble">Need help? <i class="bi bi-arrow-right-short"></i></div>
+                            <div class="pixel-speech-bubble">Need help?</div>
                             <!-- SVG Icon -->
-                            <svg width="60" height="60" viewBox="30 45 180 140">
+                            <svg width="45" height="45" viewBox="30 45 180 140">
                                 <g id="pixel-monitor">
                                     <!-- Monitor Body -->
                                     <rect x="40" y="50" width="160" height="130" rx="15" ry="15" fill="#d0d0d0"
@@ -707,62 +704,74 @@
                                 </g>
                             </svg>
                         </a>
-                        <button id="infoBtn"
-                            class="btn btn-secondary px-4 py-2 text-sm">
-                            <i class="bi bi-info-circle"></i> Info
+                        <button id="infoBtn" class="header-info-btn">
+                            <i class="bi bi-info-circle me-1"></i> Info
                         </button>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            <!-- Info Modal -->
-            <div id="infoModal" class="modal-overlay hidden">
-                <div class="modal-content bg-white shadow-2xl max-w-md w-full mx-4 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
-                    <!-- Header with Close Button -->
-                    <div class="flex justify-end p-4 pb-0">
-                        <button id="closeInfoBtn" class="modal-close-btn" aria-label="Close dialog">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
+            <!-- Info Modal (macOS Minimal Centered Sheet) -->
+            <div id="infoModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+                <div class="modal-content mac-window" style="max-width: 500px;">
+                    <!-- Titlebar without traffic lights, minimal close on top-right -->
+                    <div class="mac-titlebar">
+                        <span class="mac-window-title" id="infoModalTitle">About PyPotteryScan</span>
+                        <button id="closeInfoBtn" class="btn-close modal-close-btn" aria-label="Close modal"></button>
                     </div>
 
-                    <!-- Logo and Title -->
-                    <div class="text-center px-6 pb-6">
-                        <img src="{{ url_for('static', filename='imgs/LogoScan.png') }}" alt="PyPotteryScan Logo"
-                            class="mx-auto mb-4" style="width: 100px; height: 100px; object-fit: contain;">
-                        <h2 class="text-2xl font-bold text-stone-800 mb-1" id="infoModalTitle">PyPotteryScan</h2>
-                        <p class="text-xs text-stone-500 mb-4">AI-powered archaeological drawing extraction and OCR annotation tool</p>
-                    </div>
+                    <div class="mac-v-body">
+                        <!-- Logo (free-standing, 125px) -->
+                        <img src="{{ url_for('static', filename='imgs/LogoScan.png') }}" alt="PyPotteryScan Logo" class="modal-logo-free">
 
-                    <!-- Version and Author -->
-                    <div class="px-6 pb-4 space-y-2">
-                        <div class="flex items-center justify-between py-2 border-b border-stone-200">
-                            <span class="text-sm font-semibold text-stone-700">Version:</span>
-                            <span class="version-badge">v{{ version }}</span>
+                        <!-- Title -->
+                        <h2 class="mac-v-title">
+                            PyPottery<span class="brand-accent">Scan</span>
+                        </h2>
+
+                        <!-- Clean Meta Line -->
+                        <div class="mac-v-meta">
+                            Version {{ version }} • By <strong class="text-dark">Lorenzo Cardarelli</strong>
                         </div>
-                        <div class="flex items-center justify-between py-2 border-b border-stone-200">
-                            <span class="text-sm font-semibold text-stone-700">Author:</span>
-                            <span class="text-sm text-stone-600">Lorenzo Cardarelli</span>
-                        </div>
-                    </div>
 
-                    <!-- System Information -->
-                    <div class="bg-stone-50 px-6 py-4 rounded-b-lg border-t border-stone-200">
-                        <h3 class="text-sm font-bold text-stone-700 mb-3 flex items-center gap-2">
-                            <i class="bi bi-cpu text-stone-600"></i> System Information
-                        </h3>
-                        <div class="space-y-2 text-xs">
-                            <div class="flex items-start">
-                                <span class="font-semibold text-stone-700 min-w-[140px]"><i class="bi bi-cpu mr-1.5"></i>CPU:</span>
-                                <span class="text-stone-600 font-mono" id="systemCPU">Loading...</span>
+                        <!-- Description -->
+                        <p class="mac-v-desc">
+                            AI-powered archaeological drawing extraction and OCR card annotation tool.
+                        </p>
+
+                        <!-- Hardware Chip Pill -->
+                        <div>
+                            <div class="mac-v-chip" id="modalHardwareChip">
+                                <span id="systemCPU"><i class="bi bi-cpu me-1"></i> Detecting...</span>
+                                <span class="chip-sep">•</span>
+                                <span id="systemGPU" class="chip-active"><i class="bi bi-gpu-card me-1"></i> Detecting...</span>
                             </div>
-                            <div class="flex items-start">
-                                <span class="font-semibold text-stone-700 min-w-[140px]"><i class="bi bi-gpu-card mr-1.5"></i>GPU (CUDA):</span>
-                                <span class="text-stone-600 font-mono" id="systemGPU">Loading...</span>
+                        </div>
+
+                        <!-- Minimal Citation Callout -->
+                        <div class="mac-citation-strip mb-3">
+                            <div class="mac-citation-header">
+                                <span class="mac-citation-tag"><i class="bi bi-quote"></i> Citation</span>
+                                <button type="button" class="mac-copy-link" onclick="copyCitation('citation-text', this)">
+                                    <i class="bi bi-clipboard"></i> Copy
+                                </button>
                             </div>
-                            <div class="flex items-start">
-                                <span class="font-semibold text-stone-700 min-w-[140px]"><i class="bi bi-apple mr-1.5"></i>MPS (Apple Silicon):</span>
-                                <span class="text-stone-600 font-mono" id="systemMPS">Not Available</span>
-                            </div>
+                            <p class="mac-citation-quote" id="citation-text">
+                                "This research utilized PyPotteryScan (version {{ version }}) for AI-assisted archaeological drawing extraction and OCR card processing. Developed by Lorenzo Cardarelli (https://github.com/lrncrd/PyPotteryScan)."
+                            </p>
+                        </div>
+
+                        <!-- Apple-style Pill Action Buttons -->
+                        <div class="mac-v-actions">
+                            <a href="https://lrncrd.github.io/PyPottery/pypotteryscan/usage.html" target="_blank" class="mac-pill">
+                                <i class="bi bi-book"></i> Documentation
+                            </a>
+                            <a href="https://github.com/lrncrd/PyPotteryScan" target="_blank" class="mac-pill">
+                                <i class="bi bi-github"></i> GitHub
+                            </a>
+                            <a href="https://ko-fi.com/lrncrd" target="_blank" class="mac-pill">
+                                <i class="bi bi-cup-hot"></i> Support
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -2941,6 +2950,27 @@
         // Load projects on startup
         loadProjects();
 
+        // Copy Citation Helper Function
+        window.copyCitation = function (elementId = 'citation-text', btnElement) {
+            const textEl = document.getElementById(elementId);
+            if (!textEl) return;
+            const text = (textEl.innerText || textEl.textContent).replace(/^"|"$/g, '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = btnElement || (window.event && window.event.target ? window.event.target.closest('.mac-copy-link') : null) || document.querySelector('.mac-copy-link');
+                if (btn) {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.innerHTML = orig;
+                        btn.classList.remove('copied');
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('Failed to copy citation:', err);
+            });
+        };
+
         // ==========================================
         // INFO MODAL
         // ==========================================
@@ -2955,28 +2985,43 @@
 
             // Fetch system info
             try {
-                const response = await fetch('/health');
+                const response = await fetch('/api/system-info');
                 const data = await response.json();
+                const cpuEl = document.getElementById('systemCPU');
+                const gpuEl = document.getElementById('systemGPU');
 
-                // Update CPU info
-                document.getElementById('systemCPU').textContent = navigator.hardwareConcurrency ?
-                    `${navigator.hardwareConcurrency} cores (Available)` : 'Unknown';
-
-                // Update GPU info
-                if (data.cuda_available) {
-                    const gpuInfo = data.device || 'CUDA Available';
-                    document.getElementById('systemGPU').textContent = `Available (${gpuInfo})`;
-                } else {
-                    document.getElementById('systemGPU').textContent = 'Not Available';
+                if (cpuEl) {
+                    const cores = data.cpu?.cores || navigator.hardwareConcurrency || 1;
+                    const platform = data.cpu?.platform || '';
+                    cpuEl.innerHTML = `<i class="bi bi-cpu me-1"></i> ${cores} Cores${platform ? ` (${platform})` : ''}`;
                 }
 
-                // MPS is for Apple Silicon - always Not Available on Windows
-                document.getElementById('systemMPS').textContent = 'Not Available';
+                if (gpuEl) {
+                    const cuda = (data.gpu && data.gpu.cuda_available) || data.cuda_available;
+                    const gpuNames = (data.gpu && data.gpu.gpu_names) || (data.cuda_device_name ? [data.cuda_device_name] : []);
+                    const mps = (data.mps && data.mps.mps_available) || data.mps_available;
 
+                    if (cuda) {
+                        const name = gpuNames.length > 0 ? gpuNames[0] : 'NVIDIA CUDA';
+                        gpuEl.innerHTML = `<i class="bi bi-gpu-card me-1"></i> ${name} (CUDA)`;
+                        gpuEl.className = 'chip-active';
+                    } else if (mps) {
+                        gpuEl.innerHTML = `<i class="bi bi-gpu-card me-1"></i> Apple Silicon (MPS)`;
+                        gpuEl.className = 'chip-active';
+                    } else {
+                        gpuEl.innerHTML = `<i class="bi bi-gpu-card me-1"></i> CPU Only`;
+                        gpuEl.className = 'chip-cpu-only';
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching system info:', err);
-                document.getElementById('systemCPU').textContent = 'Error loading';
-                document.getElementById('systemGPU').textContent = 'Error loading';
+                const cpuEl = document.getElementById('systemCPU');
+                const gpuEl = document.getElementById('systemGPU');
+                if (cpuEl) cpuEl.innerHTML = '<i class="bi bi-cpu me-1"></i> Available';
+                if (gpuEl) {
+                    gpuEl.innerHTML = '<i class="bi bi-gpu-card me-1"></i> CPU Only';
+                    gpuEl.className = 'chip-cpu-only';
+                }
             }
         });
 
@@ -7631,6 +7676,7 @@
         `;
         document.head.appendChild(style);
     </script>
+    <script src="{{ url_for('static', filename='js/beacon.js') }}"></script>
 </body>
 
 </html>

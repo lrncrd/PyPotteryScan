@@ -26,12 +26,15 @@ def create_app(config=None):
     CORS(app)
     
     # Register blueprints
-    from app.routes import main_bp, ocr_bp, parser_bp, project_bp
+    from app.routes import main_bp, ocr_bp, parser_bp, project_bp, start_auto_shutdown_watchdog
     app.register_blueprint(main_bp)
     app.register_blueprint(ocr_bp)
     app.register_blueprint(parser_bp)
     app.register_blueprint(project_bp)
-    
+
+    # Auto-shutdown: browser tab <-> this process heartbeat/beacon (see AUTO_SHUTDOWN_MODULES_GUIDE.md)
+    start_auto_shutdown_watchdog()
+
     logger.info("Flask app created successfully")
     
     return app
