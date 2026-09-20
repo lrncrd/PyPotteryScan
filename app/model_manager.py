@@ -216,6 +216,19 @@ class ModelManager:
         return total
 
     @staticmethod
+    def _download_path(path):
+        r"""Path to hand to snapshot_download(). On Windows the extended-length prefix (backslash backslash
+        question-mark backslash) lifts the 260-character limit. huggingface_hub adds it by itself only when
+        the destination folder is longer than 255 characters, but it also writes
+        `<dir>\.cache\huggingface\download\<file>.<hash>.incomplete` inside it (up to ~130 more), so a
+        folder of ~130-255 characters - e.g. a launcher extracted in a deep folder - failed with
+        "[Errno 2] No such file or directory: '...incomplete'"."""
+        path = str(path)
+        if os.name != 'nt' or path.startswith('\\\\?\\'):
+            return path
+        return '\\\\?\\' + os.path.abspath(path)
+
+    @staticmethod
     def _get_repo_total_size(model_id):
         """Best-effort total download size in bytes for a HuggingFace repo, from its file
         listing. Returns None if it can't be determined (e.g. offline) — callers fall back
@@ -282,11 +295,17 @@ class ModelManager:
         original_cls = hf_tqdm_module.tqdm
 
         lock = threading.Lock()
-        state = {'completed_bytes': 0, 'active': {}}
+        # 'active'/'completed_bytes': one bar per file (older huggingface_hub). 'agg': the two
+        # aggregate byte bars that huggingface_hub >= 1.x creates itself in snapshot_download() with
+        # the tqdm_class it is given ("Downloading bytes" = network, "Reconstructing" = written to
+        # disk): they already sum every file, so the largest one is used - never added to the others.
+        state = {'completed_bytes': 0, 'active': {}, 'agg': {}}
 
         def recompute():
             with lock:
                 total_done = state['completed_bytes'] + sum(state['active'].values())
+                if state['agg']:
+                    total_done = max(total_done, max(state['agg'].values()))
             entry['bytes_done'] = max(entry['bytes_done'], total_done)
             if entry.get('bytes_total'):
                 entry['progress'] = max(entry['progress'], min(99, int(entry['bytes_done'] / entry['bytes_total'] * 100)))
@@ -295,18 +314,26 @@ class ModelManager:
             # tqdm's __init__ short-circuits before setting most attributes (including
             # `unit`) when disable=True, which huggingface_hub does pass depending on log
             # level — so `unit` has to be read defensively, not assumed present.
+            @staticmethod
+            def _is_aggregate(bar):
+                return str(getattr(bar, 'desc', '') or '').startswith(('Downloading bytes', 'Reconstructing'))
+
             def update(self, n=1):
                 result = super().update(n)
                 if getattr(self, 'unit', None) == 'B':
                     with lock:
-                        state['active'][id(self)] = getattr(self, 'n', 0)
+                        bucket = state['agg'] if self._is_aggregate(self) else state['active']
+                        bucket[id(self)] = getattr(self, 'n', 0)
                     recompute()
                 return result
 
             def close(self):
                 if getattr(self, 'unit', None) == 'B':
                     with lock:
-                        state['completed_bytes'] += state['active'].pop(id(self), 0)
+                        if self._is_aggregate(self):
+                            state['agg'].pop(id(self), None)  # the entry keeps the max already reported
+                        else:
+                            state['completed_bytes'] += state['active'].pop(id(self), 0)
                     recompute()
                 return super().close()
 
@@ -315,7 +342,11 @@ class ModelManager:
         def restore():
             hf_tqdm_module.tqdm = original_cls
 
-        return restore
+        # The class is also returned: huggingface_hub >= 1.x binds `tqdm` by name in the modules that
+        # create the byte bars (utils/_xet_progress_reporting.py, _snapshot_download.py), so patching
+        # the attribute above no longer reaches them. Passing it as snapshot_download(tqdm_class=...)
+        # is the supported way in (that release showed "0 MB / 2.47 GB" for the whole download).
+        return restore, _TrackingTqdm
 
     def download_model_with_progress(self, model_id, local_dir, model_name, entry, required=True):
         """Download model from HuggingFace, reporting live byte-level progress into `entry`
@@ -339,12 +370,14 @@ class ModelManager:
 
         entry['bytes_total'] = self._get_repo_total_size(model_id)
 
-        restore_tqdm = self._install_tqdm_progress_hook(entry)
+        restore_tqdm, tracking_tqdm = self._install_tqdm_progress_hook(entry)
+
+        download_dir = self._download_path(local_dir)
 
         stop_event = threading.Event()
         poller = threading.Thread(
             target=self._poll_download_progress,
-            args=(local_dir, entry['bytes_total'], entry, stop_event),
+            args=(download_dir, entry['bytes_total'], entry, stop_event),
             daemon=True
         )
         poller.start()
@@ -352,11 +385,12 @@ class ModelManager:
         try:
             snapshot_download(
                 repo_id=model_id,
-                local_dir=local_dir,
+                local_dir=download_dir,
                 local_dir_use_symlinks=False,
                 resume_download=True,
                 force_download=False,
-                token=None
+                token=None,
+                tqdm_class=tracking_tqdm
             )
 
             entry['status'] = 'done'
