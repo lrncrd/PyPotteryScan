@@ -1612,6 +1612,7 @@
                                                     <tr>
                                                         <th style="width: 35%;">Field</th>
                                                         <th>Value</th>
+                                                        <th style="width: 44px;"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="json-preview-table">
@@ -1633,15 +1634,16 @@
                                     <!-- Examples Container -->
                                     <div id="examples" class="parser-examples-box">
                                         <div class="parser-examples-header">
-                                            <div class="parser-examples-title">
+                                            <button id="toggleExamplesBtn" class="parser-examples-title parser-examples-toggle" type="button" aria-expanded="false" aria-controls="examples-container">
+                                                <i class="bi bi-chevron-right"></i>
                                                 <span>Added Examples</span>
                                                 <span id="examplesCountBadge" class="parser-count-pill">0</span>
-                                            </div>
+                                            </button>
                                             <button id="clear-examples-btn" class="btn-clear-examples" type="button">
                                                 <i class="bi bi-trash3"></i> Clear All Examples
                                             </button>
                                         </div>
-                                        <div id="examples-container">
+                                        <div id="examples-container" class="hidden">
                                             <div class="parser-empty-state">No few-shot examples added yet.</div>
                                         </div>
                                     </div>

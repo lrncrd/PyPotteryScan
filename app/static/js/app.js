@@ -5345,6 +5345,7 @@
             currentIndex: 0,
             currentJson: {},
             originalText: '',
+            dirty: false,  // fields assigned on the current line that were not added as an example yet
             allFields: [
                 { name: 'Inventory', key: 'inventario', fixed: true },
                 { name: 'Site', key: 'sito', fixed: true },
@@ -5432,9 +5433,48 @@
                     valueCell.innerHTML = '<span class="text-gray-400 italic">not assigned</span>';
                 }
 
+                const actionCell = document.createElement('td');
+                actionCell.className = 'px-2 py-3 text-right';
+                if (hasValue) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'delete-example-btn remove-field-btn';
+                    removeBtn.dataset.field = field;
+                    removeBtn.title = 'Remove this assignment';
+                    removeBtn.setAttribute('aria-label', `Remove ${field}`);
+                    removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                    actionCell.appendChild(removeBtn);
+                }
+
                 row.appendChild(fieldCell);
                 row.appendChild(valueCell);
+                row.appendChild(actionCell);
                 tableBody.appendChild(row);
+            });
+        }
+
+        // Remove the highlight of a field from the OCR text (keeps the text itself)
+        function unwrapFieldHighlight(fieldKey, keepSpan = null) {
+            const container = document.getElementById('ocr-text');
+            container.querySelectorAll('span.' + CSS.escape(fieldKey)).forEach(span => {
+                if (span !== keepSpan) span.replaceWith(...span.childNodes);
+            });
+            container.normalize();
+        }
+
+        function refreshDirty() {
+            parserState.dirty = Object.values(parserState.currentJson).some(v => v !== null && v !== '');
+        }
+
+        // Ask before leaving a line whose assigned fields were not added as an example
+        async function confirmLeaveUnsaved(message) {
+            if (!parserState.dirty) return true;
+            return await showConfirmDialog({
+                title: 'Unsaved parsing',
+                message,
+                confirmText: 'Continue without saving',
+                cancelText: 'Stay',
+                type: 'warning'
             });
         }
 
@@ -5445,6 +5485,7 @@
             parserState.allFields.forEach(field => {
                 parserState.currentJson[capitalize(field.name)] = null;
             });
+            parserState.dirty = false;
             updateJsonPreview();
             document.getElementById('current-index').textContent = `${parserState.currentIndex + 1} / ${parserState.ocrLines.length}`;
         }
@@ -5660,6 +5701,10 @@
                             range.insertNode(span);
                         }
 
+                        // Assigning a field again replaces the previous one: drop its old highlight
+                        unwrapFieldHighlight(fieldKey, span);
+
+                        refreshDirty();
                         updateJsonPreview();
                         selection.removeAllRanges();
                         selectionPopup.classList.add('hidden');
@@ -5678,23 +5723,40 @@
         });
 
         // Navigation buttons
-        document.getElementById('prev-btn').addEventListener('click', () => {
+        const UNSAVED_LINE_MESSAGE = 'You assigned fields on this line but have not added it as a few-shot example. Click "Add Few-Shot Example" to keep it. Continue without saving?';
+
+        document.getElementById('prev-btn').addEventListener('click', async () => {
             if (parserState.currentIndex > 0) {
+                if (!await confirmLeaveUnsaved(UNSAVED_LINE_MESSAGE)) return;
                 parserState.currentIndex--;
                 loadCurrentLine();
                 updateJsonPreview();  // Update table when navigating
             }
         });
 
-        document.getElementById('next-btn').addEventListener('click', () => {
+        document.getElementById('next-btn').addEventListener('click', async () => {
             if (parserState.currentIndex < parserState.ocrLines.length - 1) {
+                if (!await confirmLeaveUnsaved(UNSAVED_LINE_MESSAGE)) return;
                 parserState.currentIndex++;
                 loadCurrentLine();
                 updateJsonPreview();  // Update table when navigating
             }
         });
 
-        document.getElementById('reset-btn').addEventListener('click', () => {
+        // Remove a single assigned field from the current line
+        document.getElementById('json-preview-table').addEventListener('click', (e) => {
+            const btn = e.target.closest('.remove-field-btn');
+            if (!btn) return;
+            const fieldName = btn.dataset.field;
+            const field = parserState.allFields.find(f => capitalize(f.name) === fieldName);
+            parserState.currentJson[fieldName] = null;
+            if (field) unwrapFieldHighlight(field.key);
+            refreshDirty();
+            updateJsonPreview();
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', async () => {
+            if (!await confirmLeaveUnsaved('Reset this line? The fields you assigned and did not add as a few-shot example will be cleared.')) return;
             loadCurrentLine();
             updateJsonPreview();  // Update table when resetting
         });
@@ -5705,6 +5767,7 @@
                 parserState.fewshot.push({ role: "user", content: parserState.originalText });
                 parserState.fewshot.push({ role: "assistant", content: JSON.stringify(parserState.currentJson) });
 
+                parserState.dirty = false;
                 renderExamples();
 
                 // Auto-save to project if a project is open
@@ -5717,6 +5780,14 @@
                     loadCurrentLine();
                 }
             }
+        });
+
+        // The examples list is collapsed by default; the header toggles it (the count stays visible)
+        document.getElementById('toggleExamplesBtn').addEventListener('click', () => {
+            const list = document.getElementById('examples-container');
+            const btn = document.getElementById('toggleExamplesBtn');
+            const isOpen = list.classList.toggle('hidden') === false;
+            btn.setAttribute('aria-expanded', String(isOpen));
         });
 
         // Clear all examples

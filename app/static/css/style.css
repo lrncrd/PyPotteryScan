@@ -2719,6 +2719,9 @@ input[type="range"].eraser-range::-moz-range-thumb {
 .my-0 { margin-top: 0; margin-bottom: 0; }
 .my-1 { margin-top: 0.25rem; margin-bottom: 0.25rem; }
 .my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.my-3 { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+.my-4 { margin-top: 1rem; margin-bottom: 1rem; }
+.my-6 { margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
 /* --------------------------------------------------------------------------
    Display helpers
@@ -3619,6 +3622,30 @@ input[type="range"].eraser-range::-moz-range-thumb {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* The title of the examples box is the toggle that opens/closes the list */
+.parser-examples-toggle {
+    background: transparent;
+    border: none;
+    padding: 4px 6px 4px 0;
+    margin: -4px 0;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.parser-examples-toggle:hover {
+    color: var(--primary);
+}
+
+.parser-examples-toggle .bi-chevron-right {
+    font-size: 0.8rem;
+    transition: transform 0.2s ease;
+}
+
+.parser-examples-toggle[aria-expanded="true"] .bi-chevron-right {
+    transform: rotate(90deg);
 }
 
 .parser-count-pill {
