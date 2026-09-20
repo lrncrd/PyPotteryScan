@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/lrncrd/PyPotteryScan)
-[![GPU Support](https://img.shields.io/badge/GPU-CUDA%20%7C%20MPS-green.svg)](https://github.com/lrncrd/PyPotteryScan)
+[![GPU Support](https://img.shields.io/badge/GPU-CUDA-green.svg)](https://github.com/lrncrd/PyPotteryScan)
 [![Status](https://img.shields.io/badge/Status-Development-orange)](https://github.com/lrncrd/PyPotteryScan)
 
 Digitize scanned pottery plates: extract drawings, read the text with OCR, export clean data
@@ -31,7 +31,7 @@ As part of the [**PyPottery**](https://github.com/lrncrd/PyPottery) toolkit, **P
 - **Text Review**: review and correct OCR results with zoom
 - **Few-Shot Parsing**: structured parsing of recognized text into fields, using a small local language model
 - **Full Persistence**: annotations, crops, cleaned drawings and OCR results are saved automatically
-- **Export**: standardized folder of renamed drawings plus a CSV with all metadata and OCR text
+- **Export**: one ZIP with renamed drawings, an Excel/CSV catalogue with all metadata and OCR text, and the box coordinates for machine learning
 
 ## 🚀 Quick Start
 
@@ -66,24 +66,24 @@ python app.py
 # Then open http://127.0.0.1:5002 in your browser
 ```
 
-On first launch you choose which OCR model to download from HuggingFace (**GLM-OCR**, **OlmOCR-7B-FP4** ~4.5GB for NVIDIA GPUs, or none). A small text model (**Qwen3.5-2B**) is always downloaded for few-shot parsing; if that download fails the app still starts, with only structured parsing disabled. Models are cached in `models/`. For CUDA-specific PyTorch builds and platform notes, see the [Installation guide](https://lrncrd.github.io/PyPottery/pypotteryscan/installation.html). Installer scripts are also provided: `PyPotteryScan_WIN.bat` and `PyPotteryScan_UNIX.sh`.
+On first launch you choose which OCR model to download from HuggingFace (**GLM-OCR**, **OlmOCR-7B-FP4** ~5GB for NVIDIA GPUs, or none). A small text model (**Qwen3.5-2B**) is always downloaded for few-shot parsing; if that download fails the app still starts, with only structured parsing disabled. Models are cached in `models/`. For CUDA-specific PyTorch builds and platform notes, see the [Getting Started guide](https://lrncrd.github.io/PyPottery/pypotteryscan/index.html). Installer scripts are also provided: `PyPotteryScan_WIN.bat` and `PyPotteryScan_UNIX.sh`.
 
 ## 📋 System Requirements
 
 - **Python**: 3.12 (tested)
 - **Operating System**: Windows/macOS/Linux
 - **Memory**: 16GB RAM minimum (32GB recommended for OCR)
-- **GPU** (optional): NVIDIA with CUDA or Apple Silicon (MPS) for faster OCR; OlmOCR-FP4 requires an NVIDIA GPU
+- **GPU** (optional): NVIDIA with CUDA for faster OCR; OlmOCR-FP4 requires an NVIDIA GPU
 
 ## 🎯 Usage
 
-1. **Create a project** and select the folder with your scanned plates (JPG, PNG, BMP, TIFF)
+1. **Create a project** and select the folder with your scanned plates (JPEG, PNG, WebP, TIFF, BMP)
 2. **Annotate**: draw rectangles around pottery profiles and around text boxes
 3. **Process OCR** on all text boxes (or skip and type the text later)
 4. **Generate crops** of the individual drawings
 5. **Clean** the drawings: erase text, straighten tilted profiles
 6. **Review** and correct the recognized texts
-7. **Export** a folder with renamed drawings and a CSV of all metadata
+7. **Export** a ZIP with renamed drawings, an Excel/CSV catalogue and the box coordinates
 
 For the full walkthrough, project folder structure and keyboard shortcuts, see the **[Usage Guide](https://lrncrd.github.io/PyPottery/pypotteryscan/usage.html)**.
 
