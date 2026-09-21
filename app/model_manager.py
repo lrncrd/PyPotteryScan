@@ -626,12 +626,26 @@ class ModelManager:
         self.loading_status = {'stage': 'loading', 'message': 'Loading model to device...', 'progress': 95}
         logger.info("Loading model...")
 
-        dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-        if torch.cuda.is_available():
+        # CUDA if present, else CPU; MPS only on request (PYPOTTERY_DEVICE=mps). device_map="auto"
+        # used to pick MPS by itself, and transformers' threaded weight loading then segfaulted in
+        # torch's Metal kernels (Apple Silicon, torch 2.14) - so MPS weights load on CPU, then move.
+        device = os.environ.get('PYPOTTERY_DEVICE', '').strip().lower()
+        if device not in ('cpu', 'mps', 'cuda'):
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if device == 'cuda' and not torch.cuda.is_available():
+            device = 'cpu'
+        if device == 'mps' and not torch.backends.mps.is_available():
+            device = 'cpu'
+
+        dtype = torch.bfloat16 if device == 'cuda' else torch.float32
+        if device == 'cuda':
             logger.info(f"🎮 CUDA available! GPU: {torch.cuda.get_device_name(0)}")
             self.loading_status = {'stage': 'loading', 'message': f'Loading model on GPU: {torch.cuda.get_device_name(0)}', 'progress': 96}
+        elif device == 'mps':
+            logger.info("🍎 Using Apple MPS (PYPOTTERY_DEVICE=mps)")
+            self.loading_status = {'stage': 'loading', 'message': 'Loading model on Apple GPU (MPS)...', 'progress': 96}
         else:
-            logger.info("💻 CUDA not available - using CPU")
+            logger.info("💻 Using CPU")
             self.loading_status = {'stage': 'loading', 'message': 'Loading model on CPU...', 'progress': 96}
 
         try:
@@ -645,11 +659,13 @@ class ModelManager:
         self.model = model_cls.from_pretrained(
             model_dir,
             trust_remote_code=True,
-            device_map="auto",
+            device_map="auto" if device == 'cuda' else "cpu",
             torch_dtype=dtype,
             low_cpu_mem_usage=True
         )
-    
+        if device == 'mps':
+            self.model.to('mps')
+
     def load_qwen_model(self):
         """DEPRECATED: Use ensure_qwen_loaded() instead. Load Qwen model for parsing (cached globally)"""
         logger.warning("⚠️ load_qwen_model() is deprecated, use ensure_qwen_loaded() instead")
