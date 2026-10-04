@@ -19,7 +19,7 @@
             document.head.appendChild(script);
         }
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}.13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}.15">
     <style>
         /* Embedded Slicing Bar & Brush Preview Styles */
         #cleanBrushPreview {
@@ -907,6 +907,17 @@
                             <button id="newProjectBtn" class="btn btn-primary px-4 py-2 text-sm"><i class="bi bi-plus-lg mr-1"></i> New Project</button>
                         </div>
 
+                        <!-- OCR model switcher -->
+                        <div class="flex items-center gap-3 mb-4 text-sm text-stone-600">
+                            <label for="ocrModelSelect" class="font-semibold"><i class="bi bi-cpu mr-1" style="color: var(--primary);"></i> OCR model</label>
+                            <select id="ocrModelSelect" class="border border-stone-300 rounded px-2 py-1 bg-white text-stone-800">
+                                <option value="GLM">GLM-OCR (fast, CPU/GPU)</option>
+                                <option value="FP4">OlmOCR 4-bit (NVIDIA GPU)</option>
+                                <option value="NONE">No OCR</option>
+                            </select>
+                            <span id="ocrModelStatus" class="text-xs"></span>
+                        </div>
+
                         <!-- Projects Grid -->
                         <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <!-- Projects will be loaded here -->
@@ -1041,8 +1052,9 @@
                                 </div>
                                 <div class="flex gap-2 items-center">
                                     <span id="modeBadge" class="hidden text-xs font-medium px-2.5 py-1 rounded-full items-center gap-1.5 transition"></span>
+                                    <button id="autoDetectBtn" class="btn btn-secondary px-3 py-1.5 text-xs font-semibold" title="Detect drawings and text boxes automatically"><i class="bi bi-magic mr-1 text-orange-600"></i> Auto-detect</button>
                                     <button id="newDrawingBtn" class="btn btn-secondary px-3 py-1.5 text-xs font-semibold"><i class="bi bi-plus-square mr-1 text-orange-600"></i> Drawing <span class="text-xs opacity-75 font-mono">(D)</span></button>
-                                    <button id="deleteSelectedBtn" class="btn btn-secondary text-amber-700 px-3 py-1.5 text-xs hidden" title="Delete selected box"><i class="bi bi-trash3 mr-1"></i> Delete Box <span class="text-xs opacity-75">(Del)</span></button>
+                                    <button id="deleteSelectedBtn" class="btn btn-secondary text-amber-700 px-2.5 py-1.5 text-xs invisible" title="Delete selected box (Del)" aria-label="Delete selected box"><i class="bi bi-trash3"></i></button>
                                     <button id="clearCurrentBtn" class="btn btn-secondary text-red-600 px-3 py-1.5 text-xs"><i class="bi bi-x-circle mr-1"></i> Clear</button>
                                 </div>
                             </div>
@@ -1678,7 +1690,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ version }}.4"></script>
     <script src="{{ url_for('static', filename='js/beacon.js') }}"></script>
 </body>
 

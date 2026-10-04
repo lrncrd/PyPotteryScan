@@ -4062,3 +4062,75 @@ input[type="range"].eraser-range::-moz-range-thumb {
 }
 
 
+
+/* Right-click menu on a text box (assign to another drawing / delete) */
+.canvas-context-menu {
+    position: fixed;
+    z-index: 10000;
+    min-width: 190px;
+    padding: 4px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(28, 25, 23, 0.16);
+    font-size: 12px;
+}
+.canvas-context-menu-header {
+    padding: 5px 10px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #a8a29e;
+}
+.canvas-context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: #44403c;
+    text-align: left;
+    cursor: pointer;
+}
+.canvas-context-menu-item:hover {
+    background: #f0fdfa;
+    color: var(--teal);
+}
+.canvas-context-menu-item.danger:hover {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+.canvas-context-menu-item .shortcut-hint {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #a8a29e;
+}
+.canvas-context-menu-note {
+    padding: 6px 10px;
+    color: #a8a29e;
+    font-style: italic;
+}
+.canvas-context-menu-sep {
+    height: 1px;
+    margin: 4px 2px;
+    background: #e7e5e4;
+}
+
+/* Keeps its space in the layout (used by the toolbar delete button) */
+.invisible { visibility: hidden; }
+#deleteSelectedBtn { padding-left: 0.6rem; padding-right: 0.6rem; }
+
+/* Clean tab: the thumbnail grid scrolls inside its own window instead of growing the page.
+   (max-h-64 never existed in this hand-written utility set.) */
+#cleanThumbnailsGrid {
+    max-height: 21rem;            /* ~2.5 rows: the cut-off row shows that there is more */
+    overflow-y: auto;
+    overscroll-behavior: contain; /* wheel scrolling at the end does not move the page */
+    scrollbar-width: thin;
+    padding: 4px 6px 4px 4px;
+}

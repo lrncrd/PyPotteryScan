@@ -582,6 +582,91 @@
         checkServer();
 
         // ==========================================
+        // OCR MODEL SWITCHER (Project Management tab)
+        // ==========================================
+
+        async function initOcrModelSwitcher() {
+            const select = document.getElementById('ocrModelSelect');
+            const statusEl = document.getElementById('ocrModelStatus');
+            if (!select) return;
+
+            let currentModel = null;
+            const setStatus = (text, color) => {
+                statusEl.textContent = text;
+                statusEl.style.color = color || '';
+            };
+
+            // The server may still be on the first-run splash (no model picked yet), so a
+            // failure here just leaves the default option shown.
+            try {
+                const resp = await fetch('/available_models');
+                const data = await resp.json();
+                if (!data.cuda_available) {
+                    select.querySelector('option[value="FP4"]').disabled = true;
+                }
+                if (data.selected) {
+                    currentModel = data.selected;
+                    select.value = data.selected;
+                }
+            } catch (e) {
+                console.error('Error loading OCR model list:', e);
+            }
+
+            select.onchange = async () => {
+                const previous = currentModel;
+                select.disabled = true;
+                setStatus('Switching...');
+                try {
+                    const resp = await fetch('/api/ocr_model', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model_id: select.value })
+                    });
+                    const data = await resp.json();
+                    if (!data.success) throw new Error(data.error || 'Unknown error');
+
+                    if (data.needs_download) {
+                        // Poll the same loading_status the splash screen uses
+                        await new Promise((resolve, reject) => {
+                            const poll = setInterval(async () => {
+                                try {
+                                    const st = await (await fetch('/loading_status')).json();
+                                    if (st.stage === 'ready') {
+                                        clearInterval(poll);
+                                        resolve();
+                                    } else if (st.stage === 'error') {
+                                        clearInterval(poll);
+                                        reject(new Error(st.message));
+                                    } else {
+                                        setStatus(`Downloading... ${Math.round(st.progress || 0)}%`);
+                                    }
+                                } catch (e) { /* server busy, keep polling */ }
+                            }, 1000);
+                        });
+                    }
+
+                    currentModel = select.value;
+                    window.ocrAvailable = currentModel !== 'NONE';
+                    setStatus('Active (loads on first use)', 'var(--teal)');
+                } catch (err) {
+                    select.value = previous || select.value;
+                    setStatus('Error: ' + err.message, 'var(--danger-color)');
+                    // Server-side selection already changed; resync it back on failure
+                    if (previous) {
+                        fetch('/api/ocr_model', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ model_id: previous })
+                        }).catch(() => {});
+                    }
+                } finally {
+                    select.disabled = false;
+                }
+            };
+        }
+        initOcrModelSwitcher();
+
+        // ==========================================
         // PROJECT MANAGEMENT
         // ==========================================
 
@@ -1531,26 +1616,51 @@
             loadingText.textContent = `Uploading ${files.length} image(s)...`;
 
             try {
-                // Upload files to project
-                const formData = new FormData();
+                // Upload in batches: the server caps each request (MAX_CONTENT_LENGTH, 100MB),
+                // and a folder of full-resolution scans easily exceeds that in one go.
+                const MAX_BATCH_BYTES = 60 * 1024 * 1024;
+                const batches = [];
+                let batch = [], batchBytes = 0;
                 files.forEach(file => {
-                    formData.append('files', file);
+                    if (batch.length > 0 && batchBytes + file.size > MAX_BATCH_BYTES) {
+                        batches.push(batch);
+                        batch = [];
+                        batchBytes = 0;
+                    }
+                    batch.push(file);
+                    batchBytes += file.size;
                 });
+                if (batch.length > 0) batches.push(batch);
 
-                const uploadResponse = await fetch(`/api/project/${currentProject.project_id}/upload_images`, {
-                    method: 'POST',
-                    body: formData
-                });
+                let uploadedCount = 0;
+                for (let i = 0; i < batches.length; i++) {
+                    const formData = new FormData();
+                    batches[i].forEach(file => formData.append('files', file));
 
-                const uploadData = await uploadResponse.json();
+                    const uploadResponse = await fetch(`/api/project/${currentProject.project_id}/upload_images`, {
+                        method: 'POST',
+                        body: formData
+                    });
 
-                if (!uploadData.success) {
-                    overlay.classList.add('hidden');
-                    alert('Failed to upload images: ' + (uploadData.error || 'Unknown error'));
-                    return;
+                    let uploadData;
+                    try {
+                        uploadData = await uploadResponse.json();
+                    } catch (e) {
+                        uploadData = { error: `HTTP ${uploadResponse.status} ${uploadResponse.statusText}` };
+                    }
+
+                    if (!uploadData.success) {
+                        overlay.classList.add('hidden');
+                        alert(`Failed to upload images (batch ${i + 1}/${batches.length}, ${uploadedCount} already uploaded): ` +
+                              (uploadData.error || 'Unknown error'));
+                        return;
+                    }
+
+                    uploadedCount += uploadData.uploaded;
+                    loadingText.textContent = `Uploading images... ${uploadedCount}/${files.length}`;
                 }
 
-                console.log(`Uploaded ${uploadData.uploaded} images to project`);
+                console.log(`Uploaded ${uploadedCount} images to project`);
                 loadingText.textContent = 'Loading images and generating thumbnails...';
 
                 // Load images from project
@@ -1831,6 +1941,16 @@
                 canvas.addEventListener('mousedown', handleMouseDown);
                 canvas.addEventListener('mousemove', handleMouseMove);
                 canvas.addEventListener('mouseup', handleMouseUp);
+                canvas.addEventListener('contextmenu', handleCanvasContextMenu);
+
+                // While drawing / moving / resizing, keep following the mouse outside the canvas:
+                // coordinates are clamped to the image edge, and a release anywhere ends the gesture.
+                window.addEventListener('mousemove', (e) => {
+                    if (e.target !== canvas && (state.isDrawing || state.dragAction)) handleMouseMove(e);
+                });
+                window.addEventListener('mouseup', (e) => {
+                    if (e.target !== canvas && (state.isDrawing || state.dragAction)) handleMouseUp();
+                });
             }
 
             // Calculate canvas scale for downsampling (max 1600px width)
@@ -2031,9 +2151,10 @@
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
+            // Clamped to the image: a cursor outside the canvas counts as being on its edge
             return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
+                x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX)),
+                y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY))
             };
         }
 
@@ -2058,6 +2179,7 @@
         }
 
         function handleMouseDown(e) {
+            if (e.button !== 0) return;  // right click is handled by the context menu
             const coords = getCanvasCoords(e);
 
             if (state.mode === 'drawing' || state.mode === 'text') {
@@ -2248,6 +2370,13 @@
             };
 
             const fullResBox = canvasToFullRes(canvasBox);
+            // Rounding at the edges must not push the box past the image
+            if (currentImage) {
+                fullResBox.x = Math.max(0, Math.min(currentImage.width - 1, fullResBox.x));
+                fullResBox.y = Math.max(0, Math.min(currentImage.height - 1, fullResBox.y));
+                fullResBox.w = Math.min(fullResBox.w, currentImage.width - fullResBox.x);
+                fullResBox.h = Math.min(fullResBox.h, currentImage.height - fullResBox.y);
+            }
 
             if (state.mode === 'drawing') {
                 const newIdx = state.drawings.length;
@@ -2391,17 +2520,19 @@
 
             }
 
+            // Icon-only and always in the layout (invisible, not hidden): a button that appears
+            // and widens the toolbar would wrap it onto a second line and push the canvas down.
             const delBtn = document.getElementById('deleteSelectedBtn');
             if (delBtn) {
                 if (state.selectedDrawing !== null) {
-                    delBtn.classList.remove('hidden');
-                    if (state.selectedTextBox !== null) {
-                        delBtn.innerHTML = '<i class="bi bi-trash3 mr-1"></i> Delete Text <span class="text-xs opacity-75">(Del)</span>';
-                    } else {
-                        delBtn.innerHTML = `<i class="bi bi-trash3 mr-1"></i> Delete D${state.selectedDrawing + 1} <span class="text-xs opacity-75">(Del)</span>`;
-                    }
+                    delBtn.classList.remove('invisible');
+                    const label = state.selectedTextBox !== null
+                        ? 'Delete text (Del)'
+                        : `Delete D${state.selectedDrawing + 1} (Del)`;
+                    delBtn.title = label;
+                    delBtn.setAttribute('aria-label', label);
                 } else {
-                    delBtn.classList.add('hidden');
+                    delBtn.classList.add('invisible');
                 }
             }
 
@@ -2435,6 +2566,159 @@
                 }
             }
         }
+
+        // Right-click on the canvas: a text box can be reassigned to another drawing or deleted;
+        // a drawing can get a new text box or be deleted.
+        function handleCanvasContextMenu(e) {
+            if (state.mode === 'drawing' || state.mode === 'text') return;
+            const coords = getCanvasCoords(e);
+
+            // Text boxes first (they sit on top of their drawing), then drawings
+            for (let dIdx = 0; dIdx < state.drawings.length; dIdx++) {
+                const boxes = state.drawings[dIdx].textBoxes || [];
+                for (let tIdx = 0; tIdx < boxes.length; tIdx++) {
+                    if (isPointInsideBox(fullResToCanvas(boxes[tIdx]), coords)) {
+                        e.preventDefault();
+                        state.selectedDrawing = dIdx;
+                        state.selectedTextBox = tIdx;
+                        drawCanvas();
+                        updateAnnotationUI();
+                        showTextContextMenu(e.clientX, e.clientY, dIdx);
+                        return;
+                    }
+                }
+            }
+            for (let dIdx = 0; dIdx < state.drawings.length; dIdx++) {
+                if (isPointInsideBox(fullResToCanvas(state.drawings[dIdx]), coords)) {
+                    e.preventDefault();
+                    state.selectedDrawing = dIdx;
+                    state.selectedTextBox = null;
+                    drawCanvas();
+                    updateAnnotationUI();
+                    showDrawingContextMenu(e.clientX, e.clientY, dIdx);
+                    return;
+                }
+            }
+        }
+
+        function closeCanvasContextMenu() {
+            document.getElementById('canvasContextMenu')?.remove();
+        }
+
+        // items: [{ html, onClick, danger? } | { separator: true } | { note }]
+        function showCanvasContextMenu(clientX, clientY, title, items) {
+            closeCanvasContextMenu();
+            const menu = document.createElement('div');
+            menu.id = 'canvasContextMenu';
+            menu.className = 'canvas-context-menu';
+
+            const header = document.createElement('div');
+            header.className = 'canvas-context-menu-header';
+            header.textContent = title;
+            menu.appendChild(header);
+
+            items.forEach(it => {
+                if (it.separator) {
+                    const sep = document.createElement('div');
+                    sep.className = 'canvas-context-menu-sep';
+                    menu.appendChild(sep);
+                } else if (it.note) {
+                    const note = document.createElement('div');
+                    note.className = 'canvas-context-menu-note';
+                    note.textContent = it.note;
+                    menu.appendChild(note);
+                } else {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'canvas-context-menu-item' + (it.danger ? ' danger' : '');
+                    item.innerHTML = it.html;
+                    item.addEventListener('click', () => { closeCanvasContextMenu(); it.onClick(); });
+                    menu.appendChild(item);
+                }
+            });
+
+            document.body.appendChild(menu);
+            // Keep the menu inside the viewport
+            const r = menu.getBoundingClientRect();
+            menu.style.left = Math.max(4, Math.min(clientX, window.innerWidth - r.width - 4)) + 'px';
+            menu.style.top = Math.max(4, Math.min(clientY, window.innerHeight - r.height - 4)) + 'px';
+
+            const dismiss = (ev) => {
+                if (ev.type === 'keydown' && ev.key !== 'Escape') return;
+                if (ev.type === 'mousedown' && menu.contains(ev.target)) return;
+                closeCanvasContextMenu();
+                document.removeEventListener('mousedown', dismiss, true);
+                document.removeEventListener('keydown', dismiss, true);
+                window.removeEventListener('scroll', dismiss, true);
+                window.removeEventListener('blur', dismiss);
+            };
+            document.addEventListener('mousedown', dismiss, true);
+            document.addEventListener('keydown', dismiss, true);
+            window.addEventListener('scroll', dismiss, true);
+            window.addEventListener('blur', dismiss);
+        }
+
+        function showTextContextMenu(clientX, clientY, fromIdx) {
+            const items = [];
+            state.drawings.forEach((_, idx) => {
+                if (idx === fromIdx) return;
+                const hint = idx < 9 ? `<span class="shortcut-hint">${idx + 1}</span>` : '';
+                items.push({
+                    html: `<i class="bi bi-box-arrow-in-right"></i> Assign to D${idx + 1} ${hint}`,
+                    onClick: () => moveSelectedTextBox(idx)
+                });
+            });
+            if (items.length === 0) items.push({ note: 'No other drawing to assign it to' });
+            items.push({ separator: true });
+            items.push({
+                html: '<i class="bi bi-trash3"></i> Delete text',
+                danger: true,
+                onClick: () => {
+                    state.drawings[state.selectedDrawing].textBoxes.splice(state.selectedTextBox, 1);
+                    state.selectedTextBox = null;
+                    saveCurrentAnnotations();
+                    showAutosaveBadge();
+                    drawCanvas();
+                    updateAnnotationUI();
+                    updateProgress();
+                }
+            });
+            showCanvasContextMenu(clientX, clientY, `Text of D${fromIdx + 1}`, items);
+        }
+
+        function showDrawingContextMenu(clientX, clientY, idx) {
+            showCanvasContextMenu(clientX, clientY, `Drawing D${idx + 1}`, [
+                {
+                    html: '<i class="bi bi-fonts"></i> Add text <span class="shortcut-hint">T</span>',
+                    onClick: () => addTextArea(idx)
+                },
+                { separator: true },
+                {
+                    html: `<i class="bi bi-trash3"></i> Delete D${idx + 1}`,
+                    danger: true,
+                    onClick: () => deleteDrawing(idx)
+                }
+            ]);
+        }
+
+        // Move the selected text box to another drawing (fixes a wrong text -> drawing association)
+        window.moveSelectedTextBox = function(targetIdx) {
+            const from = state.selectedDrawing;
+            const t = state.selectedTextBox;
+            if (from === null || t === null || targetIdx === from || !state.drawings[targetIdx]) return;
+
+            const [box] = state.drawings[from].textBoxes.splice(t, 1);
+            const target = state.drawings[targetIdx];
+            target.textBoxes = target.textBoxes || [];
+            target.textBoxes.push(box);
+
+            state.selectedDrawing = targetIdx;
+            state.selectedTextBox = target.textBoxes.length - 1;
+            saveCurrentAnnotations();
+            showAutosaveBadge();
+            drawCanvas();
+            updateAnnotationUI();
+        };
 
         window.selectDrawingFromList = function(idx) {
             state.selectedDrawing = idx;
@@ -2565,6 +2849,56 @@
             updateProgress();
         });
 
+        // Auto-detect: ask the server's YOLO detector for drawings + text boxes on the current
+        // image and load them as ordinary (editable) annotations.
+        document.getElementById('autoDetectBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('autoDetectBtn');
+            const img = state.images[state.currentImageIndex];
+            if (!currentProject || !img) return;
+
+            if (state.drawings.length > 0) {
+                const confirmed = await showConfirmDialog({
+                    title: 'Replace Annotations',
+                    message: 'This image already has annotations. Auto-detect will replace them with the detected regions.',
+                    confirmText: 'Replace',
+                    cancelText: 'Cancel',
+                    type: 'danger',
+                    icon: 'bi-magic'
+                });
+                if (!confirmed) return;
+            }
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat spin mr-1"></i> Detecting...';
+            try {
+                const response = await fetch(
+                    `/api/project/${currentProject.project_id}/detect/${encodeURIComponent(img.name)}`,
+                    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+                );
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Detection failed');
+
+                // The user may have moved to another image while the detector was running
+                if (state.images[state.currentImageIndex]?.name !== img.name) return;
+
+                state.drawings = data.drawings;
+                state.mode = 'idle';
+                state.selectedDrawing = null;
+                state.selectedTextBox = null;
+                saveCurrentAnnotations();
+                showAutosaveBadge();
+                drawCanvas();
+                updateAnnotationUI();
+                updateProgress();
+            } catch (err) {
+                alert('Auto-detect failed: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        });
+
         document.getElementById('clearCurrentBtn').addEventListener('click', async () => {
             const confirmed = await showConfirmDialog({
                 title: 'Clear All Drawings',
@@ -2632,6 +2966,17 @@
                     saveCurrentAnnotations();
                     showAutosaveBadge();
                     drawCanvas();
+                    return;
+                }
+            }
+
+            // 1-9 - Move the selected text box to drawing D1-D9
+            if (/^[1-9]$/.test(e.key) && state.selectedDrawing !== null && state.selectedTextBox !== null
+                && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const target = parseInt(e.key, 10) - 1;
+                if (state.drawings[target] && target !== state.selectedDrawing) {
+                    e.preventDefault();
+                    moveSelectedTextBox(target);
                     return;
                 }
             }
@@ -3575,6 +3920,26 @@
         let cleanZoom = 1.0; // Current zoom level (0.5 to 3.0)
         let lastCleanCoords = null;
         let cleanAutoSaveTimer = null;
+        let cleanDirty = false;  // unsaved edits on the current drawing
+
+        // Undo history keeps canvas copies (a drawImage is ~1ms; encoding a PNG per stroke is
+        // 100-300ms on a large crop). Total size is capped so big crops can't eat the memory.
+        function snapshotCleanCanvas() {
+            const snap = document.createElement('canvas');
+            snap.width = cleanCanvas.width;
+            snap.height = cleanCanvas.height;
+            snap.getContext('2d').drawImage(cleanCanvas, 0, 0);
+            return snap;
+        }
+
+        function pushCleanUndo() {
+            undoStack.push(snapshotCleanCanvas());
+            const MAX_STEPS = 30, MAX_PIXELS = 60e6;
+            const pixels = () => undoStack.reduce((sum, c) => sum + c.width * c.height, 0);
+            while (undoStack.length > 2 && (undoStack.length > MAX_STEPS || pixels() > MAX_PIXELS)) {
+                undoStack.shift();
+            }
+        }
 
         function loadClean(idx) {
             cleanItems = [];
@@ -3599,6 +3964,7 @@
             }
 
             cleanIndex = idx;
+            cleanDirty = false;
             const item = cleanItems[cleanIndex];
             const imgElement = state.fullResImages[item.imgName];
 
@@ -3665,7 +4031,7 @@
                     applyCleanCanvasDimensions();
                     if (isGridActive) drawCleanGrid();
                     // Save to undo stack
-                    undoStack = [cleanCanvas.toDataURL()];
+                    undoStack = [snapshotCleanCanvas()];
 
                     // AUTO-RECOVERY GUARDRAIL:
                     // If canvas was previously blown up into an enormous whitespace rectangle
@@ -3691,7 +4057,7 @@
                 applyCleanCanvasDimensions();
                 if (isGridActive) drawCleanGrid();
                 // Save initial state for undo
-                undoStack = [cleanCanvas.toDataURL()];
+                undoStack = [snapshotCleanCanvas()];
                 console.log('Loading original version for:', item.key);
             }
 
@@ -3857,8 +4223,7 @@
                 if (!trimmed) {
                     initCleanSourceCanvas();
                     resetStraightenSliderUI();
-                    undoStack.push(cleanCanvas.toDataURL());
-                    if (undoStack.length > 30) undoStack.shift();
+                    pushCleanUndo();
                     triggerCleanAutoSave();
                     renderCleanThumbnails();
                 }
@@ -3968,8 +4333,7 @@
             applyCleanCanvasDimensions();
             if (isGridActive) drawCleanGrid();
 
-            undoStack.push(cleanCanvas.toDataURL());
-            if (undoStack.length > 30) undoStack.shift();
+            pushCleanUndo();
             triggerCleanAutoSave();
             renderCleanThumbnails();
             showCleanAutosaveBadge('Auto-fitted');
@@ -3980,8 +4344,7 @@
             let newAngle = Math.round((currentStraightenAngle + delta) * 10) / 10;
             newAngle = Math.max(-45, Math.min(45, newAngle));
             applyStraightenAngle(newAngle);
-            undoStack.push(cleanCanvas.toDataURL());
-            if (undoStack.length > 30) undoStack.shift();
+            pushCleanUndo();
             triggerCleanAutoSave();
             renderCleanThumbnails();
         }
@@ -4020,8 +4383,7 @@
             applyCleanCanvasDimensions();
             if (isGridActive) drawCleanGrid();
 
-            undoStack.push(cleanCanvas.toDataURL());
-            if (undoStack.length > 30) undoStack.shift();
+            pushCleanUndo();
             triggerCleanAutoSave();
             renderCleanThumbnails();
         }
@@ -4234,99 +4596,159 @@
             }
         }
 
-        // Render thumbnails grid for clean tab
+        // Thumbnails grid for the clean tab. The grid is built once per set of drawings; each
+        // image is drawn lazily when it scrolls into view and cached. Edits only toggle classes
+        // and (debounced) refresh the active thumbnail, instead of redrawing every drawing.
+        const cleanThumbCache = {};  // key -> JPEG data URL
+        let cleanThumbSignature = '';
+        let cleanThumbObserver = null;
+        let cleanThumbRefreshTimer = null;
+
+        // Keyed by geometry too: moving or resizing a drawing in the annotation tab must not
+        // leave a stale thumbnail behind.
+        function thumbCacheKey(item) {
+            const d = item.drawing;
+            return `${item.key}|${d.x},${d.y},${d.w},${d.h}`;
+        }
+
+        function drawCleanThumb(item, cleanedSource) {
+            const d = item.drawing;
+            let srcW = d.w, srcH = d.h;
+            if (cleanedSource) {
+                srcW = cleanedSource.naturalWidth || cleanedSource.width || d.w;
+                srcH = cleanedSource.naturalHeight || cleanedSource.height || d.h;
+            }
+            const w = Math.max(1, Math.min(150, srcW));
+            const h = Math.max(1, Math.round(w * srcH / srcW));
+            const c = document.createElement('canvas');
+            c.width = w;
+            c.height = h;
+            const x = c.getContext('2d');
+            x.fillStyle = 'white';
+            x.fillRect(0, 0, w, h);
+            if (cleanedSource) {
+                x.drawImage(cleanedSource, 0, 0, w, h);
+            } else {
+                const img = state.fullResImages[item.imgName];
+                if (!img || !img.complete) return '';
+                x.drawImage(img, d.x, d.y, d.w, d.h, 0, 0, w, h);
+            }
+            return c.toDataURL('image/jpeg', 0.7);
+        }
+
+        function fillCleanThumb(thumbEl) {
+            const item = cleanItems[parseInt(thumbEl.dataset.index, 10)];
+            const holder = thumbEl.querySelector('.clean-thumb-image');
+            if (!item || !holder) return;
+            const show = (url) => {
+                if (!url) return;
+                cleanThumbCache[thumbCacheKey(item)] = url;
+                holder.innerHTML = `<img src="${url}" alt="D${item.drawingIdx + 1}">`;
+            };
+            if (cleanThumbCache[thumbCacheKey(item)]) return show(cleanThumbCache[thumbCacheKey(item)]);
+            const cleaned = state.cleanedDrawings[item.key]?.imageData;
+            if (cleaned) {
+                const img = new Image();
+                img.onload = () => show(drawCleanThumb(item, img));
+                img.src = cleaned;
+            } else {
+                show(drawCleanThumb(item, null));
+            }
+        }
+
+        // Redraw the active drawing's thumbnail from the canvas, a moment after the last edit
+        function scheduleActiveThumbRefresh() {
+            clearTimeout(cleanThumbRefreshTimer);
+            cleanThumbRefreshTimer = setTimeout(() => {
+                const item = cleanItems[cleanIndex];
+                if (!item || !cleanCanvas) return;
+                const url = drawCleanThumb(item, cleanCanvas);
+                if (!url) return;
+                cleanThumbCache[thumbCacheKey(item)] = url;
+                const holder = document.querySelector(
+                    `#cleanThumbnailsGrid .clean-thumbnail[data-index="${cleanIndex}"] .clean-thumb-image`);
+                if (holder) holder.innerHTML = `<img src="${url}" alt="D${item.drawingIdx + 1}">`;
+            }, 500);
+        }
+
         function renderCleanThumbnails() {
             const grid = document.getElementById('cleanThumbnailsGrid');
             if (!grid) return;
 
-            // Count cleaned drawings
-            const cleanedCount = cleanItems.filter(item => state.cleanedDrawings[item.key]?.cleaned).length;
+            const signature = cleanItems.map(i => i.key).join('|');
+            if (signature !== cleanThumbSignature) {
+                cleanThumbSignature = signature;
+                if (cleanThumbObserver) cleanThumbObserver.disconnect();
+                cleanThumbObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            cleanThumbObserver.unobserve(entry.target);
+                            fillCleanThumb(entry.target);
+                        }
+                    });
+                }, { root: grid, rootMargin: '200px' });  // the grid is the scrolling window
+
+                grid.innerHTML = cleanItems.map((item, idx) => `
+                    <div class="clean-thumbnail" data-index="${idx}">
+                        <div class="clean-thumb-image"><div class="clean-thumb-placeholder"></div></div>
+                        <span class="clean-thumb-badge">D${item.drawingIdx + 1}</span>
+                        <span class="clean-thumb-check hidden"><i class="bi bi-check-lg"></i></span>
+                        <p class="clean-thumb-label" title="${escapeHtml(item.imgName)}">${escapeHtml(item.imgName.length > 12 ? item.imgName.substring(0, 12) + '…' : item.imgName)}</p>
+                    </div>
+                `).join('');
+                Array.from(grid.children).forEach(el => cleanThumbObserver.observe(el));
+            }
+
+            // Cheap per-call update: active / cleaned state only
+            let cleanedCount = 0;
+            Array.from(grid.children).forEach((el, idx) => {
+                const item = cleanItems[idx];
+                if (!item) return;
+                const isCleaned = state.cleanedDrawings[item.key]?.cleaned || false;
+                if (isCleaned) cleanedCount++;
+                el.classList.toggle('is-active', idx === cleanIndex);
+                el.classList.toggle('is-cleaned', isCleaned);
+                el.querySelector('.clean-thumb-check')?.classList.toggle('hidden', !isCleaned);
+                el.querySelector('.clean-thumb-label')?.classList.toggle('cleaned', isCleaned);
+            });
             const counterEl = document.getElementById('cleanedCounter');
             if (counterEl) {
                 counterEl.textContent = `${cleanedCount} / ${cleanItems.length} cleaned`;
             }
 
-            grid.innerHTML = cleanItems.map((item, idx) => {
-                const isCleaned = state.cleanedDrawings[item.key]?.cleaned || false;
-                const isActive = idx === cleanIndex;
-
-                // Generate thumbnail for this specific drawing crop
-                let thumbDataUrl = '';
-                const imgElement = state.fullResImages[item.imgName];
-                if (imgElement && imgElement.complete) {
-                    // Create temporary canvas for thumbnail
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d');
-
-                    // Calculate thumbnail dimensions (max 150px width, maintain aspect ratio)
-                    const maxThumbWidth = 150;
-                    const aspectRatio = item.drawing.h / item.drawing.w;
-                    const thumbWidth = Math.min(maxThumbWidth, item.drawing.w);
-                    const thumbHeight = thumbWidth * aspectRatio;
-
-                    tempCanvas.width = thumbWidth;
-                    tempCanvas.height = thumbHeight;
-
-                    // Fill white background
-                    tempCtx.fillStyle = 'white';
-                    tempCtx.fillRect(0, 0, thumbWidth, thumbHeight);
-
-                    // Draw cropped region (or cleaned version if available)
-                    if (state.cleanedDrawings[item.key]?.imageData) {
-                        const cached = new Image();
-                        cached.src = state.cleanedDrawings[item.key].imageData;
-                        if (cached.complete) {
-                            tempCtx.drawImage(cached, 0, 0, thumbWidth, thumbHeight);
-                        } else {
-                            tempCtx.drawImage(
-                                imgElement,
-                                item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h,
-                                0, 0, thumbWidth, thumbHeight
-                            );
-                        }
-                    } else {
-                        tempCtx.drawImage(
-                            imgElement,
-                            item.drawing.x, item.drawing.y, item.drawing.w, item.drawing.h,
-                            0, 0, thumbWidth, thumbHeight
-                        );
-                    }
-
-                    thumbDataUrl = tempCanvas.toDataURL('image/jpeg', 0.7);
+            // Prev / Next / Mark Clean can land on a thumbnail outside the scrolled window
+            const activeEl = grid.children[cleanIndex];
+            if (activeEl) {
+                const top = activeEl.offsetTop - grid.offsetTop;
+                if (top < grid.scrollTop || top + activeEl.offsetHeight > grid.scrollTop + grid.clientHeight) {
+                    grid.scrollTop = Math.max(0, top - 4);
                 }
+            }
 
-                return `
-                    <div class="clean-thumbnail ${isActive ? 'is-active' : ''} ${isCleaned ? 'is-cleaned' : ''}" data-index="${idx}">
-                        ${thumbDataUrl
-                            ? `<div class="clean-thumb-image"><img src="${thumbDataUrl}" alt="D${item.drawingIdx + 1}"></div>`
-                            : `<div class="clean-thumb-placeholder">Caricamento...</div>`
-                        }
-                        <span class="clean-thumb-badge">D${item.drawingIdx + 1}</span>
-                        ${isCleaned ? `<span class="clean-thumb-check"><i class="bi bi-check-lg"></i></span>` : ''}
-                        <p class="clean-thumb-label ${isCleaned ? 'cleaned' : ''}" title="${item.imgName}">${item.imgName.length > 12 ? item.imgName.substring(0, 12) + '…' : item.imgName}</p>
-                    </div>
-                `;
-            }).join('');
-
-
-            // Add click handlers
-            grid.querySelectorAll('.clean-thumbnail').forEach(thumb => {
-                thumb.addEventListener('click', async () => {
-                    const targetIdx = parseInt(thumb.dataset.index);
+            // One delegated click handler for the whole grid (bound once)
+            if (!grid.dataset.bound) {
+                grid.dataset.bound = '1';
+                grid.addEventListener('click', (e) => {
+                    const thumb = e.target.closest('.clean-thumbnail');
+                    if (!thumb) return;
+                    const targetIdx = parseInt(thumb.dataset.index, 10);
                     if (targetIdx !== cleanIndex) {
                         commitCleanRotation();
-                        // Auto-save current before switching
-                        await saveCurrentCleanDrawing();
+                        saveCurrentCleanDrawing();  // not awaited: the upload must not block the switch
                         eraserMode = false;
                         loadClean(targetIdx);
                     }
                 });
-            });
+            }
         }
 
         // Auto-save current clean drawing
-        async function saveCurrentCleanDrawing() {
+        async function saveCurrentCleanDrawing(force = false) {
             if (!cleanItems[cleanIndex] || !cleanCanvas) return;
+            // Untouched drawings are not re-encoded and re-uploaded on every switch
+            if (!force && !cleanDirty) return;
+            clearTimeout(cleanAutoSaveTimer);
+            cleanDirty = false;
             const item = cleanItems[cleanIndex];
 
             // Save the cleaned drawing back to state
@@ -4370,6 +4792,8 @@
         }
 
         function triggerCleanAutoSave() {
+            cleanDirty = true;
+            scheduleActiveThumbRefresh();
             if (cleanAutoSaveTimer) clearTimeout(cleanAutoSaveTimer);
             cleanAutoSaveTimer = setTimeout(async () => {
                 await saveCurrentCleanDrawing();
@@ -4445,8 +4869,7 @@
                 isErasing = false;
                 lastCleanCoords = null;
                 initCleanSourceCanvas();
-                undoStack.push(cleanCanvas.toDataURL());
-                if (undoStack.length > 30) undoStack.shift();
+                pushCleanUndo();
                 triggerCleanAutoSave();
                 renderCleanThumbnails();
             }
@@ -4478,23 +4901,18 @@
         function undoClean() {
             if (undoStack.length > 1) {
                 undoStack.pop(); // Remove current state
-                const previousState = undoStack[undoStack.length - 1];
-                const img = new Image();
-                img.onload = () => {
-                    cleanCanvas.width = img.naturalWidth || img.width;
-                    cleanCanvas.height = img.naturalHeight || img.height;
-                    cleanCtx.clearRect(0, 0, cleanCanvas.width, cleanCanvas.height);
-                    cleanCtx.fillStyle = '#ffffff';
-                    cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
-                    cleanCtx.drawImage(img, 0, 0);
-                    initCleanSourceCanvas();
-                    resetStraightenSliderUI();
-                    applyCleanCanvasDimensions();
-                    if (isGridActive) drawCleanGrid();
-                    triggerCleanAutoSave();
-                    renderCleanThumbnails();
-                };
-                img.src = previousState;
+                const previous = undoStack[undoStack.length - 1];
+                cleanCanvas.width = previous.width;
+                cleanCanvas.height = previous.height;
+                cleanCtx.fillStyle = '#ffffff';
+                cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+                cleanCtx.drawImage(previous, 0, 0);
+                initCleanSourceCanvas();
+                resetStraightenSliderUI();
+                applyCleanCanvasDimensions();
+                if (isGridActive) drawCleanGrid();
+                triggerCleanAutoSave();
+                renderCleanThumbnails();
             }
         }
 
@@ -4543,7 +4961,7 @@
             });
 
             if (confirmed) {
-                undoStack.push(cleanCanvas.toDataURL());
+                pushCleanUndo();
                 cleanCanvas.width = item.drawing.w;
                 cleanCanvas.height = item.drawing.h;
                 cleanCtx.fillStyle = '#ffffff';
@@ -4562,6 +4980,7 @@
                     delete state.cleanedDrawings[item.key].imageData;
                 }
                 renderCleanThumbnails();
+                scheduleActiveThumbRefresh();
                 showCleanAutosaveBadge('Reverted');
             }
         });
@@ -4655,8 +5074,7 @@
             });
 
             straightenSliderEl.addEventListener('change', () => {
-                undoStack.push(cleanCanvas.toDataURL());
-                if (undoStack.length > 30) undoStack.shift();
+                pushCleanUndo();
                 triggerCleanAutoSave();
                 renderCleanThumbnails();
             });
@@ -4679,8 +5097,7 @@
             straightenResetBtn.addEventListener('click', () => {
                 if (Math.abs(currentStraightenAngle) > 0.001) {
                     applyStraightenAngle(0);
-                    undoStack.push(cleanCanvas.toDataURL());
-                    if (undoStack.length > 30) undoStack.shift();
+                    pushCleanUndo();
                     triggerCleanAutoSave();
                     renderCleanThumbnails();
                 }
@@ -4706,7 +5123,7 @@
         document.getElementById('prevCleanBtn').addEventListener('click', async () => {
             if (cleanIndex > 0) {
                 commitCleanRotation();
-                await saveCurrentCleanDrawing();
+                saveCurrentCleanDrawing();  // not awaited: the upload must not block the switch
                 eraserMode = false;
                 loadClean(cleanIndex - 1);
             }
@@ -4715,7 +5132,7 @@
         document.getElementById('nextCleanBtn').addEventListener('click', async () => {
             if (cleanIndex < cleanItems.length - 1) {
                 commitCleanRotation();
-                await saveCurrentCleanDrawing();
+                saveCurrentCleanDrawing();  // not awaited: the upload must not block the switch
                 eraserMode = false;
                 loadClean(cleanIndex + 1);
             }
@@ -4730,7 +5147,7 @@
             if (!state.cleanedDrawings[item.key]) state.cleanedDrawings[item.key] = {};
             state.cleanedDrawings[item.key].cleaned = true;
 
-            await saveCurrentCleanDrawing();
+            await saveCurrentCleanDrawing(true);
 
             // Update thumbnails to show it's cleaned
             renderCleanThumbnails();
@@ -4752,110 +5169,140 @@
         });
 
         // TAB 5: Review Texts (2-COLUMN LAYOUT)
+        let reviewObserver = null;
+        let reviewBound = false;
+        let reviewSaveTimeout = null;
+
+        // Crop of a text box from the full-res scan; `maxSide` caps the output size
+        function cropTextBox(canvas, maxSide) {
+            const tb = state.annotations[canvas.dataset.img]?.drawings[+canvas.dataset.d]?.textBoxes[+canvas.dataset.t];
+            const src = state.fullResImages[canvas.dataset.img];
+            if (!tb || !src) return null;
+            const scale = maxSide ? Math.min(1, maxSide / Math.max(tb.w, tb.h)) : 1;
+            const out = document.createElement('canvas');
+            out.width = Math.max(1, Math.round(tb.w * scale));
+            out.height = Math.max(1, Math.round(tb.h * scale));
+            out.getContext('2d').drawImage(src, tb.x, tb.y, tb.w, tb.h, 0, 0, out.width, out.height);
+            return out;
+        }
+
+        function drawReviewPreview(canvas) {
+            // 640px is plenty for the 3.2x hover zoom of the 200px preview
+            const crop = cropTextBox(canvas, 640);
+            if (!crop) return;
+            canvas.width = crop.width;
+            canvas.height = crop.height;
+            canvas.getContext('2d').drawImage(crop, 0, 0);
+        }
+
         function loadReviewTexts() {
             const container = document.getElementById('reviewContainer');
             container.innerHTML = '';
 
-            console.log('[Review] Loading Review Texts...');
-            console.log('   OCR Results:', Object.keys(state.ocrResults).length, 'keys');
-            console.log('   Corrections:', Object.keys(state.corrections).length, 'keys');
+            // Previews are drawn only when they scroll into view: cropping and encoding every
+            // text box up front froze the page when a project had hundreds of them.
+            if (reviewObserver) reviewObserver.disconnect();
+            reviewObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        reviewObserver.unobserve(entry.target);
+                        drawReviewPreview(entry.target);
+                    }
+                });
+            }, { rootMargin: '400px' });
 
+            const fragment = document.createDocumentFragment();
             for (const imgName in state.annotations) {
                 const ann = state.annotations[imgName];
-                const imgElement = state.fullResImages[imgName];
 
                 ann.drawings.forEach((drawing, dIdx) => {
                     const key = `${imgName}_d${dIdx + 1}`;
                     const ocrTexts = state.ocrResults[key] || [];
 
-                        console.log(`   Drawing ${key}:`, ocrTexts.length, 'OCR texts');
+                    drawing.textBoxes.forEach((textBox, tIdx) => {
+                        const textKey = `${key}_t${tIdx + 1}`;
+                        const ocrText = ocrTexts[tIdx] || '';
+                        const hasSavedCorrection = (state.corrections && (textKey in state.corrections) && state.corrections[textKey] !== ocrText);
+                        const correctedText = hasSavedCorrection ? state.corrections[textKey] : ocrText;
 
-                        drawing.textBoxes.forEach((textBox, tIdx) => {
-                            const textKey = `${key}_t${tIdx + 1}`;
-
-                            // Extract text box preview
-                            const tempCanvas = document.createElement('canvas');
-                            const tempCtx = tempCanvas.getContext('2d');
-                            tempCanvas.width = textBox.w;
-                            tempCanvas.height = textBox.h;
-                            tempCtx.drawImage(imgElement, textBox.x, textBox.y, textBox.w, textBox.h, 0, 0, textBox.w, textBox.h);
-
-                            const preview = tempCanvas.toDataURL();
-                            const ocrText = ocrTexts[tIdx] || '';
-                            const hasSavedCorrection = (state.corrections && (textKey in state.corrections) && state.corrections[textKey] !== ocrText);
-                            const correctedText = hasSavedCorrection ? state.corrections[textKey] : ocrText;
-
-                            console.log(`      Text ${textKey}: OCR="${ocrText}" | Corrected="${correctedText}"`);
-
-                            const div = document.createElement('div');
-                            div.className = 'text-box-review';
-                            div.innerHTML = `
-                                <div>
-                                    <img src="${preview}" class="text-box-preview cursor-zoom-in" alt="Text ${tIdx + 1}" data-zoom-src="${preview}">
-                                    <p class="text-xs text-gray-600 mt-2">
-                                        <strong>${ann.metadata.tableName || imgName}</strong><br>
-                                        D${dIdx + 1} - T${tIdx + 1}
-                                    </p>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold mb-2">OCR Result (Editable):</label>
-                                    <textarea class="ocr-correction-textarea w-full px-3 py-2 border-2 border-stone-300 rounded focus:border-[var(--primary)] font-mono text-sm" rows="4" data-key="${textKey}" data-original="${encodeURIComponent(ocrText)}">${correctedText}</textarea>
-                                    <p class="mt-2 text-xs text-stone-500 italic"><i class="bi bi-pencil mr-1"></i> Changes are auto-saved</p>
-                                </div>
-                            `;
-                            container.appendChild(div);
-                        });
-                    });
-                }
-
-                if (container.children.length === 0) {
-                    container.innerHTML = '<p class="text-gray-500 text-center">No text boxes to review</p>';
-                }
-
-                // Add zoom functionality to all preview images
-                document.querySelectorAll('.text-box-preview').forEach(img => {
-                    img.addEventListener('click', () => {
-                        const zoomModal = document.getElementById('imageZoomModal');
-                        const zoomedImage = document.getElementById('zoomedImage');
-                        zoomedImage.src = img.dataset.zoomSrc;
-                        zoomModal.classList.remove('hidden');
-                        document.body.classList.add('modal-open');
-                    });
-                });
-
-                // Add auto-save functionality to all textareas (only counts genuine character edits)
-                let saveTimeout = null;
-                document.querySelectorAll('.ocr-correction-textarea').forEach(textarea => {
-                    textarea.addEventListener('input', () => {
-                        const textKey = textarea.dataset.key;
-                        const originalValue = decodeURIComponent(textarea.dataset.original || '');
-                        const newValue = textarea.value;
-
-                        // Only record as a manual correction if user actually changed characters!
-                        if (newValue !== originalValue) {
-                            state.corrections[textKey] = newValue;
-                        } else {
-                            delete state.corrections[textKey];
-                        }
-
-                        clearTimeout(saveTimeout);
-                        saveTimeout = setTimeout(async () => {
-                            if (currentProject) {
-                                console.log(`[AutoSave] Saving corrections... (${Object.keys(state.corrections).length} modified)`);
-                                try {
-                                    await fetch(`/api/project/${currentProject.project_id}/save_ocr_corrections`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ corrections: state.corrections })
-                                    });
-                                } catch (error) {
-                                    console.error('[AutoSave] Save error:', error);
-                                }
-                            }
-                        }, 800);
+                        const div = document.createElement('div');
+                        div.className = 'text-box-review';
+                        div.innerHTML = `
+                            <div>
+                                <canvas class="text-box-preview cursor-zoom-in" width="200" height="100"></canvas>
+                                <p class="text-xs text-gray-600 mt-2">
+                                    <strong>${escapeHtml(ann.metadata.tableName || imgName)}</strong><br>
+                                    D${dIdx + 1} - T${tIdx + 1}
+                                </p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">OCR Result (Editable):</label>
+                                <textarea class="ocr-correction-textarea w-full px-3 py-2 border-2 border-stone-300 rounded focus:border-[var(--primary)] font-mono text-sm" rows="4" data-key="${textKey}" data-original="${encodeURIComponent(ocrText)}">${escapeHtml(correctedText)}</textarea>
+                                <p class="mt-2 text-xs text-stone-500 italic"><i class="bi bi-pencil mr-1"></i> Changes are auto-saved</p>
+                            </div>
+                        `;
+                        const preview = div.querySelector('canvas');
+                        preview.dataset.img = imgName;
+                        preview.dataset.d = dIdx;
+                        preview.dataset.t = tIdx;
+                        preview.title = 'Click to zoom';
+                        fragment.appendChild(div);
+                        reviewObserver.observe(preview);
                     });
                 });
             }
+            container.appendChild(fragment);
+
+            if (container.children.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center">No text boxes to review</p>';
+            }
+
+            // One delegated listener per kind of event (bound once) instead of one per element
+            if (!reviewBound) {
+                reviewBound = true;
+
+                container.addEventListener('click', (e) => {
+                    const canvas = e.target.closest('.text-box-preview');
+                    if (!canvas) return;
+                    const full = cropTextBox(canvas, 0);  // full-resolution crop, made only on click
+                    if (!full) return;
+                    document.getElementById('zoomedImage').src = full.toDataURL();
+                    document.getElementById('imageZoomModal').classList.remove('hidden');
+                    document.body.classList.add('modal-open');
+                });
+
+                // Auto-save (only counts genuine character edits)
+                container.addEventListener('input', (e) => {
+                    const textarea = e.target.closest('.ocr-correction-textarea');
+                    if (!textarea) return;
+                    const textKey = textarea.dataset.key;
+                    const originalValue = decodeURIComponent(textarea.dataset.original || '');
+                    const newValue = textarea.value;
+
+                    // Only record as a manual correction if user actually changed characters!
+                    if (newValue !== originalValue) {
+                        state.corrections[textKey] = newValue;
+                    } else {
+                        delete state.corrections[textKey];
+                    }
+
+                    clearTimeout(reviewSaveTimeout);
+                    reviewSaveTimeout = setTimeout(async () => {
+                        if (currentProject) {
+                            try {
+                                await fetch(`/api/project/${currentProject.project_id}/save_ocr_corrections`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ corrections: state.corrections })
+                                });
+                            } catch (error) {
+                                console.error('[AutoSave] Save error:', error);
+                            }
+                        }
+                    }, 800);
+                });
+            }
+        }
 
             // Close zoom modal handlers
             document.getElementById('closeZoomBtn').addEventListener('click', () => {
