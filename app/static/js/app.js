@@ -790,6 +790,95 @@
             });
         }
 
+        // Forget everything that belongs to the previously opened project. Without this, opening
+        // another project kept the old annotations, OCR results, full-res images (keyed by file
+        // name, so a "1.jpg" in both projects silently resolved to the wrong one) and thumbnails.
+        function resetProjectState() {
+            // Core data
+            state.images = [];
+            state.currentImageIndex = 0;
+            state.annotations = {};
+            state.ocrResults = {};
+            state.corrections = {};
+            state.cleanedDrawings = {};
+            state.fullResImages = {};
+            state.drawings = [];
+            state.selectedDrawing = null;
+            state.selectedTextBox = null;
+            state.isDrawing = false;
+            state.mode = 'idle';
+            state.currentBox = null;
+            state.dragAction = null;
+            state.dragHandle = null;
+            state.dragStartCoords = null;
+            state.originalBoxCoords = null;
+            currentImage = null;
+            clearTimeout(metadataDebounceTimer);
+
+            // Annotate canvas and sidebar
+            if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const drawingsList = document.getElementById('drawingsList');
+            if (drawingsList) drawingsList.innerHTML = '';
+            const drawingsBadge = document.getElementById('drawingsCountBadge');
+            if (drawingsBadge) drawingsBadge.textContent = '0';
+            ['tableName', 'contextInfo', 'notesInfo'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            // Clean tab
+            clearTimeout(cleanAutoSaveTimer);
+            clearTimeout(cleanThumbRefreshTimer);
+            cleanItems = [];
+            cleanIndex = 0;
+            undoStack = [];
+            cleanDirty = false;
+            eraserMode = false;
+            isErasing = false;
+            currentStraightenAngle = 0;
+            Object.keys(cleanThumbCache).forEach(k => delete cleanThumbCache[k]);
+            cleanThumbSignature = '';
+            if (cleanThumbObserver) cleanThumbObserver.disconnect();
+            const cleanGrid = document.getElementById('cleanThumbnailsGrid');
+            if (cleanGrid) cleanGrid.innerHTML = '';
+            const cleanedCounter = document.getElementById('cleanedCounter');
+            if (cleanedCounter) cleanedCounter.textContent = '0 cleaned';
+            if (cleanCanvas && cleanCtx) cleanCtx.clearRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+
+            // Review and OCR panels
+            if (reviewObserver) reviewObserver.disconnect();
+            clearTimeout(reviewSaveTimeout);
+            const reviewContainer = document.getElementById('reviewContainer');
+            if (reviewContainer) reviewContainer.innerHTML = '';
+            const ocrList = document.getElementById('ocrTranscribedList');
+            if (ocrList) ocrList.innerHTML = '';
+            const ocrLog = document.getElementById('ocrLog');
+            if (ocrLog) ocrLog.innerHTML = '';
+
+            // Parser (few-shot) tab
+            parserState.fewshot = [];
+            parserState.ocrLines = [];
+            parserState.filenames = [];
+            parserState.currentIndex = 0;
+            parserState.currentJson = {};
+            parserState.originalText = '';
+            parserState.dirty = false;
+
+            // Load tab
+            const imagesList = document.getElementById('imagesList');
+            if (imagesList) imagesList.innerHTML = '';
+            const imageProgress = document.getElementById('imageIndicator');
+            if (imageProgress) imageProgress.textContent = '0 / 0';
+
+            // Later stages come back only if the new project actually has them
+            ['annotate', 'process', 'clean', 'review', 'export'].forEach(tab => {
+                const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+                if (btn) btn.disabled = true;
+            });
+            const proceedBtn = document.getElementById('proceedCleanBtn');
+            if (proceedBtn) proceedBtn.classList.add('hidden');
+        }
+
         // Open project
         async function openProject(projectId) {
             try {
@@ -803,7 +892,15 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    const switchingProject = !currentProject || currentProject.project_id !== data.project.project_id;
+                    if (switchingProject) {
+                        // Flush an unsaved clean edit into the project it belongs to, then wipe it all
+                        if (typeof saveCurrentCleanDrawing === 'function') await saveCurrentCleanDrawing();
+                    }
                     currentProject = data.project;
+                    // Reload from disk every time (also for the same project: what was on screen may
+                    // be stale), so nothing from a previous session can survive.
+                    resetProjectState();
                     console.log('Opened project:', currentProject);
 
                     // Enable Load tab
@@ -1270,6 +1367,10 @@
 
                 if (data.success) {
                     console.log('Project deleted:', projectId);
+                    if (currentProject && currentProject.project_id === projectId) {
+                        currentProject = null;
+                        resetProjectState();
+                    }
                     await loadProjects();
                 } else {
                     alert('Failed to delete project: ' + data.error);
