@@ -6,6 +6,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Open Source](https://img.shields.io/badge/Open%20Source-community--driven-green.svg)](https://lrncrd.github.io/PyPottery/community.html)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/lrncrd/PyPotteryScan)
 [![GPU Support](https://img.shields.io/badge/GPU-CUDA-green.svg)](https://github.com/lrncrd/PyPotteryScan)
 [![Status](https://img.shields.io/badge/Status-Development-orange)](https://github.com/lrncrd/PyPotteryScan)
@@ -98,6 +99,10 @@ Contributions are welcome: report bugs with reproduction steps, suggest features
 ## 🙏 Acknowledgments
 
 **OlmOCR** (Allen AI), **GLM-OCR** (Z.ai), **Qwen** (Alibaba Cloud), **HuggingFace** for model hosting and `transformers`, and the Flask community.
+
+## 📄 License
+
+PyPotteryScan is released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0), the license of Ultralytics YOLO, which its drawing and text detector is built with. Any trained detection weights published with it follow the same terms. Running the tool on your own computer is unrestricted; if you modify it and let others use it over a network, you must offer them your source code. See [`THIRD_PARTY_NOTICES.md`](https://github.com/lrncrd/PyPottery/blob/main/THIRD_PARTY_NOTICES.md) for the third-party models and libraries.
 
 ## 👥 Contributors
 
