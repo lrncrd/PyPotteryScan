@@ -19,7 +19,7 @@
             document.head.appendChild(script);
         }
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}.15">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}.16">
     <style>
         /* Embedded Slicing Bar & Brush Preview Styles */
         #cleanBrushPreview {
@@ -1239,6 +1239,9 @@
                                 <span id="cleanIndicator" class="px-3 py-1 bg-stone-50 border border-stone-200 text-stone-700 rounded text-xs font-semibold shadow-inner">1 / 1</span>
                                 <button id="nextCleanBtn" class="btn btn-secondary px-3 py-1 text-xs" title="Next drawing (Right Arrow)">Next <i class="bi bi-chevron-right ml-1"></i></button>
                                 <span id="cleanAutosaveBadge" class="autosave-badge"><i class="bi bi-check2-circle mr-1"></i> Saved</span>
+                                <button id="markCleanBtn" class="btn btn-teal px-3 py-1 text-xs font-semibold ml-2" title="Mark as cleaned and go to next (M)">
+                                    <i class="bi bi-check-lg mr-1"></i> Mark Clean
+                                </button>
                             </div>
 
                             <!-- Drawing / Metadata Info -->
@@ -1288,19 +1291,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Right: Zoom Controls & Mark Clean -->
-                                <div class="flex items-center gap-2">
-                                    <div class="flex items-center gap-1">
-                                        <button id="cleanZoomOutBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom Out (-)"><i class="bi bi-dash"></i></button>
-                                        <span id="cleanZoomDisplay" class="px-2.5 py-1.5 text-xs font-mono font-semibold text-stone-700 bg-stone-50 border border-stone-200 rounded">100%</span>
-                                        <button id="cleanZoomInBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom In (+)"><i class="bi bi-plus"></i></button>
-                                        <button id="cleanZoomResetBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Reset Zoom (100%)"><i class="bi bi-aspect-ratio"></i></button>
-                                    </div>
-                                    <button id="markCleanBtn" class="btn btn-teal px-3 py-1.5 text-xs font-semibold" title="Mark as cleaned and go to next (M)">
-                                        <i class="bi bi-check-lg mr-1"></i> Mark Clean
-                                    </button>
-                                </div>
-
                             </div>
 
                             <!-- Straighten & Orientation Bar (Straighten tilted drawings with slider & alignment grid) -->
@@ -1344,14 +1334,24 @@
                                         <i class="bi bi-crop mr-1"></i> Auto-Fit
                                     </button>
                                 </div>
+                            </div>
 
-                                <!-- Right: Alignment Grid Guide Toggle -->
+                            <!-- View row: zoom and alignment grid (display only, never changes the drawing) -->
+                            <div class="flex items-center justify-between flex-wrap gap-2 mb-2 px-1">
                                 <div class="flex items-center gap-2">
-                                    <button id="toggleGridBtn" type="button" class="btn btn-secondary px-2.5 py-1 text-xs" title="Toggle horizontal & vertical alignment grid guide (G)">
+                                    <span class="text-xs font-bold text-stone-700 flex items-center gap-1.5"><i class="bi bi-zoom-in" style="color: var(--primary);"></i> View:</span>
+                                    <div class="flex items-center gap-1">
+                                        <button id="cleanZoomOutBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom Out (-)"><i class="bi bi-dash"></i></button>
+                                        <span id="cleanZoomDisplay" class="px-2.5 py-1.5 text-xs font-mono font-semibold text-stone-700 bg-stone-50 border border-stone-200 rounded">100%</span>
+                                        <button id="cleanZoomInBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom In (+)"><i class="bi bi-plus"></i></button>
+                                        <button id="cleanZoomResetBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Reset Zoom (100%)"><i class="bi bi-aspect-ratio"></i></button>
+                                    </div>
+                                    <button id="toggleGridBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Toggle horizontal & vertical alignment grid guide (G)">
                                         <i class="bi bi-grid-3x3 mr-1"></i> <span id="gridBtnText">Grid Guide</span>
                                     </button>
                                 </div>
                             </div>
+
 
 
                             <!-- Drafting Canvas Viewport -->
@@ -1690,7 +1690,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ version }}.5"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ version }}.6"></script>
     <script src="{{ url_for('static', filename='js/beacon.js') }}"></script>
 </body>
 

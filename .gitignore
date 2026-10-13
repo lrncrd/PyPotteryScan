@@ -231,6 +231,7 @@ GLM_OCR_STATUS.md
 # Auto-detect training artifacts (dataset = resized copies of the scans; weights are published on Hugging Face)
 detector/dataset/
 detector/runs/
+detector/cv/
 detector/*.log
 yolo11*.pt
 yolo26*.pt

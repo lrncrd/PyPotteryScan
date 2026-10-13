@@ -73,6 +73,9 @@ def load_models_async(app):
             model_manager.initialize_models()
     except Exception as e:
         logger.error(f"❌ Error loading models: {str(e)}")
+    # Small (~19MB) and independent of the OCR model choice, so it runs even if that step failed
+    from app.detector import detector
+    detector.prefetch()
 
 
 if __name__ == '__main__':

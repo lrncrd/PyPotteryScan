@@ -2604,6 +2604,7 @@ input[type="range"].eraser-range::-moz-range-thumb {
 .cursor-pointer { cursor: pointer; }
 .cursor-not-allowed { cursor: not-allowed; }
 .animate-spin { animation: spin 1s linear infinite; }
+.border-4 { border-width: 4px; border-style: solid; }
 
 /* Overflow */
 .overflow-hidden { overflow: hidden; }

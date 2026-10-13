@@ -1260,28 +1260,9 @@
                 if (data.success && data.images && data.images.length > 0) {
                     console.log(`[State] Found ${data.images.length} existing cropped drawings`);
 
-                    // Pre-load full resolution images for Clean tab if not already loaded
-                    for (const imgName in state.annotations) {
-                        if (!state.fullResImages[imgName]) {
-                            const imgElement = new Image();
-                            imgElement.crossOrigin = 'anonymous';
-
-                            await new Promise((resolve, reject) => {
-                                imgElement.onload = () => {
-                                    state.fullResImages[imgName] = imgElement;
-                                    console.log(`Loaded full-res image for Clean tab: ${imgName}`);
-                                    resolve();
-                                };
-                                imgElement.onerror = () => {
-                                    console.error(`Failed to load image: ${imgName}`);
-                                    reject();
-                                };
-                                imgElement.src = `/api/project/${projectId}/image/${encodeURIComponent(imgName)}`;
-                            });
-                        }
-                    }
-
-                    console.log('[State] Full-resolution images ready for Clean tab');
+                    // Full-resolution scans are NOT preloaded here: opening a project would block on
+                    // downloading every page with no progress. The Clean tab loads them on demand
+                    // (loadCleanTabData) and shows its own progress.
                 }
             } catch (error) {
                 console.error('Error loading existing crops:', error);

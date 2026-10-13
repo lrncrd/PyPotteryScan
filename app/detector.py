@@ -55,6 +55,16 @@ class Detector:
                 f"{Config.DETECTOR_MODEL_ID} failed: {e}"
             )
 
+    def prefetch(self):
+        """Download the weights now (app startup) instead of at the first "Auto-detect".
+
+        Never raises: if it fails (offline, repo not reachable) the next detect() retries."""
+        try:
+            with self._lock:
+                self._ensure_weights()
+        except DetectorUnavailable as e:
+            logger.warning(f"⚠️ Detector prefetch skipped: {e}")
+
     def _load(self):
         if self._model is None:
             self._ensure_weights()
