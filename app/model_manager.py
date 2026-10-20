@@ -5,6 +5,7 @@ import os
 import time
 import logging
 import threading
+import unicodedata
 import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText, AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import snapshot_download
@@ -19,6 +20,7 @@ class ModelManager:
         self.config = config  # Store config reference
         self.processor = None
         self.model = None
+        self.glm_banned_token_ids = None  # built when GLM-OCR loads
         self.qwen_tokenizer = None
         self.qwen_model = None
         
@@ -160,6 +162,33 @@ class ModelManager:
                 logger.info(f"✅ Model selection saved: {model_id}")
 
         return True
+
+    def ocr_model_installed(self, model_id):
+        """Whether the weights for an OCR model are already on disk ('NONE' needs none)"""
+        dirs = {'GLM': 'GLM_OCR_MODEL_DIR', 'FP4': 'OLMOCR_FP4_MODEL_DIR'}
+        if model_id not in dirs:
+            return True
+        model_dir = self.config[dirs[model_id]]
+        return os.path.exists(os.path.join(model_dir, "config.json"))
+
+    def switch_ocr_model(self, model_id):
+        """Switch the active OCR engine after setup. Returns True if weights must be downloaded.
+
+        Unloads whatever is in memory first: ensure_olmocr_loaded() only checks for
+        model/processor being None, so a stale engine would otherwise keep being used.
+        """
+        self.set_selected_model(model_id)  # validates id / CUDA, persists the choice
+        self.needs_model_selection = False
+        self.unload_olmocr_model()
+
+        needs_download = not self.ocr_model_installed(model_id)
+        if not needs_download:
+            self.loading_status = {
+                'stage': 'ready',
+                'message': 'Models ready (will load on first use)',
+                'progress': 100
+            }
+        return needs_download
 
     def get_active_ocr_model_config(self):
         """Get model ID, directory and engine type for the currently selected OCR model"""
@@ -666,6 +695,25 @@ class ModelManager:
         if device == 'mps':
             self.model.to('mps')
 
+        self.glm_banned_token_ids = self._build_glm_banned_tokens()
+
+    def _build_glm_banned_tokens(self):
+        """Token ids GLM-OCR must not emit: non-Latin-script letters and LaTeX markers ($, \\).
+
+        Passed to generate(suppress_tokens=...) so the model picks the best Latin
+        reading instead of drifting into Cyrillic/CJK or wrapping text in math mode.
+        """
+        tokenizer = self.processor.tokenizer
+        banned = []
+        for tok_id in range(len(tokenizer)):
+            s = tokenizer.decode([tok_id])
+            if '$' in s or '\\' in s or any(
+                c.isalpha() and not unicodedata.name(c, '').startswith('LATIN') for c in s
+            ):
+                banned.append(tok_id)
+        logger.info(f"🚫 GLM-OCR: suppressing {len(banned)} non-Latin/LaTeX tokens")
+        return banned
+
     def load_qwen_model(self):
         """DEPRECATED: Use ensure_qwen_loaded() instead. Load Qwen model for parsing (cached globally)"""
         logger.warning("⚠️ load_qwen_model() is deprecated, use ensure_qwen_loaded() instead")
@@ -790,7 +838,8 @@ class ModelManager:
             del self.processor
             self.model = None
             self.processor = None
-            
+            self.glm_banned_token_ids = None
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 logger.info("✅ GPU memory cleared")

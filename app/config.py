@@ -47,6 +47,11 @@ class Config:
     GLM_OCR_MODEL_ID = "zai-org/GLM-OCR"
     GLM_OCR_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "glm-ocr")
 
+    # Drawing/text detector (YOLO, ~19MB): downloaded at startup (or on first "Auto-detect" if that failed)
+    DETECTOR_MODEL_ID = "lrncrd/PyPotteryScan-detector"
+    DETECTOR_MODEL_FILE = "detector_best.pt"
+    DETECTOR_MODEL_DIR = os.path.join(MODELS_BASE_DIR, "detector")
+
     # Selected model persistence file
     SELECTED_MODEL_FILE = os.path.join(MODELS_BASE_DIR, "selected_model.txt")
     

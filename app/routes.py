@@ -6,6 +6,8 @@ import io
 import os
 import sys
 import json
+import re
+import unicodedata
 import time
 import shutil
 import threading
@@ -22,6 +24,7 @@ import logging
 from app.model_manager import model_manager
 from app.project_manager import ProjectManager
 from app.config import Config
+from app.detector import detector, DetectorUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +310,36 @@ def select_model():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/api/ocr_model', methods=['POST'])
+def switch_ocr_model():
+    """Change the OCR engine after first-run setup (downloads it in the background if missing)"""
+    try:
+        data = request.get_json() or {}
+        model_id = data.get('model_id')
+        if not model_id:
+            return jsonify({'success': False, 'error': 'model_id is required'}), 400
+
+        needs_download = model_manager.switch_ocr_model(model_id)
+        if needs_download:
+            def download_async():
+                try:
+                    model_manager.initialize_models()
+                except Exception as e:
+                    logger.error(f"Error downloading model: {e}")
+            threading.Thread(target=download_async, daemon=True).start()
+
+        return jsonify({
+            'success': True,
+            'model_id': model_id,
+            'needs_download': needs_download
+        })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error switching OCR model: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ==================
 # OCR ROUTES
 # ==================
@@ -320,6 +353,36 @@ def preprocess_image(image):
     except Exception as e:
         logger.warning(f"Error in preprocessing: {str(e)}, using original image")
         return image.convert('RGB')
+
+
+def _to_plain_latin_text(text):
+    """Strip LaTeX markup and non-Latin-script characters from GLM-OCR output.
+
+    GLM-OCR often wraps text in math mode (e.g. "$\\mathrm{AB\\ 12}$"); the
+    prompt can't reliably prevent that, so clean it up after generation.
+    """
+    # \text{...}, \mathrm{...}, \textbf{...} etc. -> inner content
+    text = re.sub(r'\\(?:text|mathrm|mathbf|mathit|textbf|textit|textrm|mbox|operatorname)\s*\{([^{}]*)\}', r'\1', text)
+    # Math delimiters
+    text = re.sub(r'\\[()\[\]]', ' ', text)
+    text = text.replace('$', ' ')
+    # Escaped symbols (\_ \& \% \# \{ \}) -> the symbol itself; "\ " -> space
+    text = re.sub(r'\\([_&%#{}])', r'\1', text)
+    text = re.sub(r'\\[ ,;:!]', ' ', text)
+    # Any remaining control word (\alpha, \quad, \frac...) is dropped
+    text = re.sub(r'\\[A-Za-z]+', ' ', text)
+    # Sub/superscripts: ^{x} / _{x} -> x
+    text = re.sub(r'[\^_]\{([^{}]*)\}', r'\1', text)
+    text = text.replace('{', '').replace('}', '').replace('\\', '')
+    # Keep only Latin-script letters (incl. accents), digits, punctuation, spaces
+    kept = []
+    for ch in text:
+        if ch.isalpha():
+            if unicodedata.name(ch, '').startswith('LATIN'):
+                kept.append(ch)
+        else:
+            kept.append(ch)
+    return ''.join(kept)
 
 
 def process_image_ocr(image_data):
@@ -371,12 +434,16 @@ def process_image_ocr(image_data):
 
         # Generate text
         logger.info(f"🔍 Processing with {'GLM-OCR' if engine == 'GLM' else 'OlmOCR'}...")
+        gen_kwargs = {}
+        if engine == 'GLM' and model_manager.glm_banned_token_ids:
+            gen_kwargs['suppress_tokens'] = model_manager.glm_banned_token_ids
         with torch.no_grad():
             output_ids = model.generate(
                 **inputs,
                 max_new_tokens=256,
                 do_sample=False,
                 pad_token_id=processor.tokenizer.pad_token_id,
+                **gen_kwargs,
             )
 
         # Decode generated tokens
@@ -387,6 +454,9 @@ def process_image_ocr(image_data):
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True
         )[0]
+
+        if engine == 'GLM':
+            generated_text = _to_plain_latin_text(generated_text)
 
         # Force single line
         generated_text = generated_text.replace('\n', ' ').replace('\r', ' ')
@@ -851,6 +921,28 @@ def get_project_image(project_id, image_name):
     except Exception as e:
         logger.error(f"❌ Error getting image: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/project/<project_id>/detect/<path:image_name>', methods=['POST'])
+def detect_regions(project_id, image_name):
+    """Auto-detect drawings and text boxes on an image (does not save anything)"""
+    try:
+        images_path = project_manager.get_project_path(project_id, 'original_images')
+        if not images_path:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+        image_path = images_path / image_name
+        if not image_path.is_file():
+            return jsonify({'success': False, 'error': 'Image not found'}), 404
+
+        drawings = detector.detect(str(image_path))
+        logger.info(f"🔎 Auto-detect {image_name}: {len(drawings)} drawings, "
+                    f"{sum(len(d['textBoxes']) for d in drawings)} text boxes")
+        return jsonify({'success': True, 'drawings': drawings})
+    except DetectorUnavailable as e:
+        return jsonify({'success': False, 'error': str(e)}), 503
+    except Exception as e:
+        logger.error(f"❌ Error in auto-detect: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @bp.route('/api/project/<project_id>/annotations/<path:image_name>', methods=['GET'])

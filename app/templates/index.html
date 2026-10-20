@@ -19,7 +19,7 @@
             document.head.appendChild(script);
         }
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}.13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}.16">
     <style>
         /* Embedded Slicing Bar & Brush Preview Styles */
         #cleanBrushPreview {
@@ -907,6 +907,17 @@
                             <button id="newProjectBtn" class="btn btn-primary px-4 py-2 text-sm"><i class="bi bi-plus-lg mr-1"></i> New Project</button>
                         </div>
 
+                        <!-- OCR model switcher -->
+                        <div class="flex items-center gap-3 mb-4 text-sm text-stone-600">
+                            <label for="ocrModelSelect" class="font-semibold"><i class="bi bi-cpu mr-1" style="color: var(--primary);"></i> OCR model</label>
+                            <select id="ocrModelSelect" class="border border-stone-300 rounded px-2 py-1 bg-white text-stone-800">
+                                <option value="GLM">GLM-OCR (fast, CPU/GPU)</option>
+                                <option value="FP4">OlmOCR 4-bit (NVIDIA GPU)</option>
+                                <option value="NONE">No OCR</option>
+                            </select>
+                            <span id="ocrModelStatus" class="text-xs"></span>
+                        </div>
+
                         <!-- Projects Grid -->
                         <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <!-- Projects will be loaded here -->
@@ -1041,8 +1052,9 @@
                                 </div>
                                 <div class="flex gap-2 items-center">
                                     <span id="modeBadge" class="hidden text-xs font-medium px-2.5 py-1 rounded-full items-center gap-1.5 transition"></span>
+                                    <button id="autoDetectBtn" class="btn btn-secondary px-3 py-1.5 text-xs font-semibold" title="Detect drawings and text boxes automatically"><i class="bi bi-magic mr-1 text-orange-600"></i> Auto-detect</button>
                                     <button id="newDrawingBtn" class="btn btn-secondary px-3 py-1.5 text-xs font-semibold"><i class="bi bi-plus-square mr-1 text-orange-600"></i> Drawing <span class="text-xs opacity-75 font-mono">(D)</span></button>
-                                    <button id="deleteSelectedBtn" class="btn btn-secondary text-amber-700 px-3 py-1.5 text-xs hidden" title="Delete selected box"><i class="bi bi-trash3 mr-1"></i> Delete Box <span class="text-xs opacity-75">(Del)</span></button>
+                                    <button id="deleteSelectedBtn" class="btn btn-secondary text-amber-700 px-2.5 py-1.5 text-xs invisible" title="Delete selected box (Del)" aria-label="Delete selected box"><i class="bi bi-trash3"></i></button>
                                     <button id="clearCurrentBtn" class="btn btn-secondary text-red-600 px-3 py-1.5 text-xs"><i class="bi bi-x-circle mr-1"></i> Clear</button>
                                 </div>
                             </div>
@@ -1227,6 +1239,9 @@
                                 <span id="cleanIndicator" class="px-3 py-1 bg-stone-50 border border-stone-200 text-stone-700 rounded text-xs font-semibold shadow-inner">1 / 1</span>
                                 <button id="nextCleanBtn" class="btn btn-secondary px-3 py-1 text-xs" title="Next drawing (Right Arrow)">Next <i class="bi bi-chevron-right ml-1"></i></button>
                                 <span id="cleanAutosaveBadge" class="autosave-badge"><i class="bi bi-check2-circle mr-1"></i> Saved</span>
+                                <button id="markCleanBtn" class="btn btn-teal px-3 py-1 text-xs font-semibold ml-2" title="Mark as cleaned and go to next (M)">
+                                    <i class="bi bi-check-lg mr-1"></i> Mark Clean
+                                </button>
                             </div>
 
                             <!-- Drawing / Metadata Info -->
@@ -1276,19 +1291,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Right: Zoom Controls & Mark Clean -->
-                                <div class="flex items-center gap-2">
-                                    <div class="flex items-center gap-1">
-                                        <button id="cleanZoomOutBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom Out (-)"><i class="bi bi-dash"></i></button>
-                                        <span id="cleanZoomDisplay" class="px-2.5 py-1.5 text-xs font-mono font-semibold text-stone-700 bg-stone-50 border border-stone-200 rounded">100%</span>
-                                        <button id="cleanZoomInBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom In (+)"><i class="bi bi-plus"></i></button>
-                                        <button id="cleanZoomResetBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Reset Zoom (100%)"><i class="bi bi-aspect-ratio"></i></button>
-                                    </div>
-                                    <button id="markCleanBtn" class="btn btn-teal px-3 py-1.5 text-xs font-semibold" title="Mark as cleaned and go to next (M)">
-                                        <i class="bi bi-check-lg mr-1"></i> Mark Clean
-                                    </button>
-                                </div>
-
                             </div>
 
                             <!-- Straighten & Orientation Bar (Straighten tilted drawings with slider & alignment grid) -->
@@ -1332,14 +1334,24 @@
                                         <i class="bi bi-crop mr-1"></i> Auto-Fit
                                     </button>
                                 </div>
+                            </div>
 
-                                <!-- Right: Alignment Grid Guide Toggle -->
+                            <!-- View row: zoom and alignment grid (display only, never changes the drawing) -->
+                            <div class="flex items-center justify-between flex-wrap gap-2 mb-2 px-1">
                                 <div class="flex items-center gap-2">
-                                    <button id="toggleGridBtn" type="button" class="btn btn-secondary px-2.5 py-1 text-xs" title="Toggle horizontal & vertical alignment grid guide (G)">
+                                    <span class="text-xs font-bold text-stone-700 flex items-center gap-1.5"><i class="bi bi-zoom-in" style="color: var(--primary);"></i> View:</span>
+                                    <div class="flex items-center gap-1">
+                                        <button id="cleanZoomOutBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom Out (-)"><i class="bi bi-dash"></i></button>
+                                        <span id="cleanZoomDisplay" class="px-2.5 py-1.5 text-xs font-mono font-semibold text-stone-700 bg-stone-50 border border-stone-200 rounded">100%</span>
+                                        <button id="cleanZoomInBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Zoom In (+)"><i class="bi bi-plus"></i></button>
+                                        <button id="cleanZoomResetBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Reset Zoom (100%)"><i class="bi bi-aspect-ratio"></i></button>
+                                    </div>
+                                    <button id="toggleGridBtn" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs" title="Toggle horizontal & vertical alignment grid guide (G)">
                                         <i class="bi bi-grid-3x3 mr-1"></i> <span id="gridBtnText">Grid Guide</span>
                                     </button>
                                 </div>
                             </div>
+
 
 
                             <!-- Drafting Canvas Viewport -->
@@ -1678,7 +1690,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ version }}.6"></script>
     <script src="{{ url_for('static', filename='js/beacon.js') }}"></script>
 </body>
 
